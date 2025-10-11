@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug VIB34D Visualizer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            background: #000;
+            color: #0f0;
+            font-family: 'Courier New', monospace;
+            overflow: hidden;
+        }
+        #container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #000;
+        }
+        #debug {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.9);
+            color: #0f0;
+            padding: 20px;
+            border: 2px solid #0f0;
+            max-width: 500px;
+            max-height: 90vh;
+            overflow-y: auto;
+            font-size: 12px;
+            z-index: 1000;
+        }
+        .error {
+            color: #f00;
+        }
+        .success {
+            color: #0ff;
+        }
+        button {
+            background: #0f0;
+            color: #000;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <canvas id="mainCanvas"></canvas>
+    </div>
+
+    <div id="debug">
+        <h2>🔍 VIB34D Debug Console</h2>
+        <div id="log"></div>
+        <div style="margin-top: 20px;">
+            <button id="testParams">Test Parameters</button>
+            <button id="testRender">Force Render</button>
+        </div>
+    </div>
+
+    <script type="module">
+        import { QuantumHolographicVisualizer } from '../src/visualizers/quantum/QuantumVisualizer.js';
+
+        const logEl = document.getElementById('log');
+
+        function log(msg, type = 'default') {
+            const entry = document.createElement('div');
+            entry.className = type;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+            logEl.appendChild(entry);
+            console.log(msg);
+            logEl.scrollTop = logEl.scrollHeight;
+        }
+
+        log('🚀 Starting VIB34D Debug...', 'success');
+
+        // Test canvas setup
+        const canvas = document.getElementById('mainCanvas');
+        log(`📐 Canvas: ${canvas.width}x${canvas.height}`);
+
+        // Test WebGL context
+        const testGL = canvas.getContext('webgl2') || canvas.getContext('webgl');
+        if (testGL) {
+            log(`✅ WebGL context: ${testGL.getParameter(testGL.VERSION)}`, 'success');
+        } else {
+            log('❌ WebGL context creation FAILED', 'error');
+        }
+
+        // Try to create visualizer
+        let visualizer = null;
+        try {
+            log('Creating QuantumHolographicVisualizer...');
+            visualizer = new QuantumHolographicVisualizer('mainCanvas', 'content', 1.0, 0);
+            log('✅ Visualizer created', 'success');
+
+            // Check visualizer state
+            log(`Canvas ID: ${visualizer.canvas?.id}`);
+            log(`GL Context: ${visualizer.gl ? 'YES' : 'NO'}`);
+            log(`Program: ${visualizer.program ? 'YES' : 'NO'}`);
+            log(`Buffer: ${visualizer.buffer ? 'YES' : 'NO'}`);
+
+            // Check params
+            log(`Default params: ${JSON.stringify(visualizer.params, null, 2)}`);
+
+        } catch (err) {
+            log(`❌ Visualizer creation failed: ${err.message}`, 'error');
+            log(`Stack: ${err.stack}`, 'error');
+        }
+
+        // Setup test buttons
+        document.getElementById('testParams').onclick = () => {
+            if (!visualizer) {
+                log('❌ No visualizer to test', 'error');
+                return;
+            }
+
+            log('🎨 Testing parameter updates...');
+            visualizer.updateParameter('intensity', 1.0);
+            log(`Set intensity = 1.0, current = ${visualizer.params.intensity}`);
+
+            visualizer.updateParameter('hue', 120);
+            log(`Set hue = 120, current = ${visualizer.params.hue}`);
+
+            visualizer.updateParameter('saturation', 1.0);
+            log(`Set saturation = 1.0, current = ${visualizer.params.saturation}`);
+
+            visualizer.updateParameter('gridDensity', 30);
+            log(`Set gridDensity = 30, current = ${visualizer.params.gridDensity}`);
+        };
+
+        document.getElementById('testRender').onclick = () => {
+            if (!visualizer) {
+                log('❌ No visualizer to render', 'error');
+                return;
+            }
+
+            log('🎬 Forcing render...');
+            try {
+                // Set bright, visible parameters
+                visualizer.updateParameter('intensity', 1.0);
+                visualizer.updateParameter('hue', 180);
+                visualizer.updateParameter('saturation', 1.0);
+                visualizer.updateParameter('gridDensity', 25);
+
+                // Enable audio reactivity with strong values
+                window.audioEnabled = true;
+                window.audioReactive = {
+                    bass: 0.5,
+                    mid: 0.5,
+                    high: 0.5,
+                    energy: 0.5
+                };
+
+                visualizer.render();
+                log('✅ Render called', 'success');
+            } catch (err) {
+                log(`❌ Render failed: ${err.message}`, 'error');
+                log(`Stack: ${err.stack}`, 'error');
+            }
+        };
+
+        // Auto-start render loop
+        log('🎬 Starting render loop...');
+        let frameCount = 0;
+
+        function renderLoop() {
+            if (visualizer) {
+                try {
+                    // Set audio reactive data
+                    window.audioEnabled = true;
+                    window.audioReactive = {
+                        bass: 0.3 + Math.sin(Date.now() * 0.001) * 0.3,
+                        mid: 0.3 + Math.cos(Date.now() * 0.0015) * 0.3,
+                        high: 0.3 + Math.sin(Date.now() * 0.002) * 0.3,
+                        energy: 0.5
+                    };
+
+                    visualizer.render();
+
+                    frameCount++;
+                    if (frameCount % 60 === 0) {
+                        log(`⏱️ Frame ${frameCount} - ${(1000/60).toFixed(2)}ms`, 'success');
+                    }
+                } catch (err) {
+                    log(`❌ Render error: ${err.message}`, 'error');
+                }
+            }
+            requestAnimationFrame(renderLoop);
+        }
+
+        renderLoop();
+        log('✅ Render loop started', 'success');
+
+    </script>
+</body>
+</html>
