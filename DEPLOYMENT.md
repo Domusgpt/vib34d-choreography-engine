@@ -5,7 +5,7 @@
 **GitHub Pages URL**: https://domusgpt.github.io/vib34d-choreography-engine/
 
 The site automatically redirects to the working demo at:
-https://domusgpt.github.io/vib34d-choreography-engine/examples/basic-choreography.html
+https://domusgpt.github.io/vib34d-choreography-engine/examples/real-visualizers.html
 
 ## Repository
 

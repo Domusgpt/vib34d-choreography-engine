@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VIB34D Choreography - Real Visualizers</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #000;
+            color: #0f0;
+            font-family: 'Courier New', monospace;
+            overflow: hidden;
+        }
+
+        #container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        #controls {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 20, 0, 0.95);
+            padding: 20px;
+            border: 2px solid #0f0;
+            max-width: 350px;
+            max-height: 90vh;
+            overflow-y: auto;
+            z-index: 1000;
+        }
+
+        h1 {
+            color: #0ff;
+            font-size: 1.5em;
+            margin-bottom: 15px;
+            text-shadow: 0 0 10px #0ff;
+        }
+
+        h2 {
+            color: #0ff;
+            font-size: 1.1em;
+            margin: 15px 0 10px 0;
+        }
+
+        button {
+            background: #0f0;
+            color: #000;
+            border: none;
+            padding: 8px 15px;
+            margin: 3px;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            font-size: 0.9em;
+            transition: all 0.3s;
+        }
+
+        button:hover {
+            background: #0ff;
+            box-shadow: 0 0 15px #0ff;
+        }
+
+        button.active {
+            background: #f0f;
+            box-shadow: 0 0 15px #f0f;
+        }
+
+        .status {
+            margin: 10px 0;
+            padding: 10px;
+            background: rgba(0, 255, 0, 0.1);
+            border-left: 3px solid #0f0;
+            font-size: 0.9em;
+        }
+
+        .btn-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 5px;
+            margin: 10px 0;
+        }
+
+        .audio-section {
+            background: rgba(0, 100, 255, 0.1);
+            padding: 10px;
+            margin: 10px 0;
+            border-left: 3px solid #0ff;
+        }
+
+        #audioFile {
+            background: rgba(0, 255, 0, 0.2);
+            color: #0f0;
+            border: 1px solid #0f0;
+            padding: 5px;
+            font-family: 'Courier New', monospace;
+            width: 100%;
+            margin: 5px 0;
+        }
+
+        #log {
+            max-height: 150px;
+            overflow-y: auto;
+            font-size: 0.75em;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 8px;
+            margin-top: 10px;
+        }
+
+        .log-entry {
+            margin: 2px 0;
+            color: #0f0;
+        }
+
+        .log-entry.beat {
+            color: #ff0;
+        }
+
+        .log-entry.sequence {
+            color: #0ff;
+            font-weight: bold;
+        }
+
+        .log-entry.onset {
+            color: #f0f;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <canvas id="mainCanvas"></canvas>
+    </div>
+
+    <div id="controls">
+        <h1>🌌 VIB34D Choreography</h1>
+
+        <div class="status">
+            <strong>System:</strong> <span id="systemName">Quantum</span><br>
+            <strong>Status:</strong> <span id="status">Ready</span><br>
+            <strong>Beat:</strong> <span id="beat">0</span> |
+            <strong>BPM:</strong> <span id="bpm">128</span>
+        </div>
+
+        <div class="audio-section">
+            <h2>🎵 Audio</h2>
+            <input type="file" id="audioFile" accept="audio/*">
+            <div class="btn-group">
+                <button id="playBtn">▶️ Play</button>
+                <button id="pauseBtn">⏸️ Pause</button>
+            </div>
+        </div>
+
+        <h2>🎨 System</h2>
+        <div class="btn-group">
+            <button class="system-btn active" data-system="quantum">Quantum</button>
+            <button class="system-btn" data-system="faceted">Faceted</button>
+            <button class="system-btn" data-system="holographic">Holographic</button>
+        </div>
+
+        <h2>▶️ Choreography</h2>
+        <div class="btn-group">
+            <button id="startChoreography">Start Engine</button>
+            <button id="stopChoreography">Stop Engine</button>
+        </div>
+
+        <h2>🌀 Rotation Pattern</h2>
+        <div class="btn-group" id="rotationPatterns"></div>
+
+        <h2>💥 Trigger Sequence</h2>
+        <div class="btn-group" id="sequences"></div>
+
+        <h2>📊 Live Log</h2>
+        <div id="log"></div>
+    </div>
+
+    <script type="module">
+        import { ChoreographyEngine } from '../src/core/ChoreographyEngine.js';
+        import { RotationChoreographer } from '../src/choreographers/RotationChoreographer.js';
+        import { ShaderChoreographer } from '../src/choreographers/ShaderChoreographer.js';
+
+        // Import YOUR actual visualizers
+        import { QuantumHolographicVisualizer } from '../src/visualizers/quantum/QuantumVisualizer.js';
+        import { IntegratedHolographicVisualizer } from '../src/visualizers/faceted/FacetedVisualizer.js';
+        import { HolographicVisualizer } from '../src/visualizers/holographic/HolographicVisualizer.js';
+
+        // Audio analyzer
+        import { AudioAnalyzer } from '../src/audio/AudioAnalyzer.js';
+
+        const canvas = document.getElementById('mainCanvas');
+        let currentVisualizer = null;
+        let currentSystem = 'quantum';
+        let audioAnalyzer = null;
+        let audioContext = null;
+        let audioElement = null;
+
+        // Initialize with Quantum
+        currentVisualizer = new QuantumHolographicVisualizer('mainCanvas', 'content', 1.0, 0);
+
+        // Choreography engine
+        const engine = new ChoreographyEngine({
+            visualizers: [currentVisualizer],
+            audioAnalyzer: null,
+            bpm: 128
+        });
+
+        const rotationChoreographer = new RotationChoreographer();
+        const shaderChoreographer = new ShaderChoreographer(currentVisualizer);
+
+        // Load sequences
+        await engine.loadSequenceLibrary('../src/sequences/presets/bass-drops.json');
+
+        // UI elements
+        const statusEl = document.getElementById('status');
+        const systemNameEl = document.getElementById('systemName');
+        const beatEl = document.getElementById('beat');
+        const bpmEl = document.getElementById('bpm');
+        const logEl = document.getElementById('log');
+
+        // Log function
+        function log(message, type = 'default') {
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logEl.insertBefore(entry, logEl.firstChild);
+            while (logEl.children.length > 50) {
+                logEl.removeChild(logEl.lastChild);
+            }
+        }
+
+        // Override engine events for logging
+        const originalOnBeat = engine.onBeat.bind(engine);
+        engine.onBeat = (beatInMeasure, audioData) => {
+            originalOnBeat(beatInMeasure, audioData);
+            if (beatInMeasure === 0) {
+                log(`🥁 Measure ${engine.currentMeasure}`, 'beat');
+            }
+            beatEl.textContent = engine.currentBeat;
+        };
+
+        const originalOnOnset = engine.onOnset.bind(engine);
+        engine.onOnset = (intensity, time) => {
+            originalOnOnset(intensity, time);
+            log(`⚡ Onset (${(intensity * 100).toFixed(0)}%)`, 'onset');
+        };
+
+        const originalStartSequence = engine.startSequence.bind(engine);
+        engine.startSequence = (name, startTime) => {
+            originalStartSequence(name, startTime);
+            log(`🎬 ${name}`, 'sequence');
+        };
+
+        // System switching
+        document.querySelectorAll('.system-btn').forEach(btn => {
+            btn.onclick = () => {
+                const system = btn.dataset.system;
+
+                // Destroy current visualizer
+                if (currentVisualizer && currentVisualizer.destroy) {
+                    currentVisualizer.destroy();
+                }
+
+                // Create new visualizer
+                if (system === 'quantum') {
+                    currentVisualizer = new QuantumHolographicVisualizer('mainCanvas', 'content', 1.0, 0);
+                    systemNameEl.textContent = 'Quantum';
+                } else if (system === 'faceted') {
+                    currentVisualizer = new IntegratedHolographicVisualizer('mainCanvas', 'content', 1.0, 0);
+                    systemNameEl.textContent = 'Faceted';
+                } else if (system === 'holographic') {
+                    currentVisualizer = new HolographicVisualizer('mainCanvas', 'content', 1.0, 0);
+                    systemNameEl.textContent = 'Holographic';
+                }
+
+                // Update engine
+                engine.visualizers = [currentVisualizer];
+                currentSystem = system;
+
+                // Update UI
+                document.querySelectorAll('.system-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+
+                log(`🎨 Switched to ${system}`);
+            };
+        });
+
+        // Audio handling
+        document.getElementById('audioFile').onchange = async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const url = URL.createObjectURL(file);
+
+            if (audioElement) {
+                audioElement.pause();
+            }
+
+            audioElement = new Audio(url);
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+            const source = audioContext.createMediaElementSource(audioElement);
+            audioAnalyzer = new AudioAnalyzer(audioContext);
+            source.connect(audioAnalyzer.analyser);
+            audioAnalyzer.analyser.connect(audioContext.destination);
+
+            engine.audioAnalyzer = audioAnalyzer;
+
+            log(`🎵 Loaded: ${file.name}`);
+        };
+
+        document.getElementById('playBtn').onclick = () => {
+            if (audioElement) {
+                audioElement.play();
+                audioContext.resume();
+                log('▶️ Playing');
+            } else {
+                log('⚠️ Load audio file first');
+            }
+        };
+
+        document.getElementById('pauseBtn').onclick = () => {
+            if (audioElement) {
+                audioElement.pause();
+                log('⏸️ Paused');
+            }
+        };
+
+        // Choreography controls
+        document.getElementById('startChoreography').onclick = () => {
+            engine.start();
+            statusEl.textContent = 'Running';
+            statusEl.style.color = '#0f0';
+            log('🎬 Choreography started');
+            startRenderLoop();
+        };
+
+        document.getElementById('stopChoreography').onclick = () => {
+            engine.stop();
+            statusEl.textContent = 'Stopped';
+            statusEl.style.color = '#f00';
+            log('⏹️ Choreography stopped');
+        };
+
+        // Rotation patterns
+        const patternsContainer = document.getElementById('rotationPatterns');
+        rotationChoreographer.getPatternNames().forEach(name => {
+            const btn = document.createElement('button');
+            btn.textContent = name.replace(/_/g, ' ');
+            btn.onclick = () => {
+                rotationChoreographer.setPattern(name);
+                document.querySelectorAll('#rotationPatterns button').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                log(`🌀 Pattern: ${name}`);
+            };
+            patternsContainer.appendChild(btn);
+        });
+
+        // Sequences
+        const sequencesContainer = document.getElementById('sequences');
+        engine.sequences.forEach((seq, name) => {
+            const btn = document.createElement('button');
+            btn.textContent = name.replace(/_/g, ' ');
+            btn.onclick = () => {
+                engine.startSequence(name, Date.now());
+            };
+            sequencesContainer.appendChild(btn);
+        });
+
+        // Render loop
+        function startRenderLoop() {
+            function render() {
+                if (!engine.running) return;
+
+                // Get audio data
+                const audioData = audioAnalyzer ? audioAnalyzer.analyze() : engine.getMockAudioData();
+
+                // Update rotation choreography
+                const rotations = rotationChoreographer.update(
+                    audioData,
+                    (Date.now() - engine.startTime) / 1000,
+                    engine.currentBeat,
+                    16
+                );
+
+                // Update shader choreography
+                shaderChoreographer.update(
+                    audioData,
+                    (engine.currentBeat % engine.beatsPerMeasure) / engine.beatsPerMeasure,
+                    engine.currentBeat,
+                    engine.currentMeasure,
+                    Date.now()
+                );
+
+                // Apply choreographed rotations
+                if (currentVisualizer.updateParameter) {
+                    currentVisualizer.updateParameter('rot4dXW', rotations.rot4dXW);
+                    currentVisualizer.updateParameter('rot4dYW', rotations.rot4dYW);
+                    currentVisualizer.updateParameter('rot4dZW', rotations.rot4dZW);
+                }
+
+                // Apply shader choreography
+                const choreography = shaderChoreographer.getChoreography();
+                // Choreography is already stored in visualizer.choreography
+
+                // Render visualizer
+                if (currentVisualizer.render) {
+                    currentVisualizer.render();
+                }
+
+                requestAnimationFrame(render);
+            }
+            render();
+        }
+
+        bpmEl.textContent = engine.bpm;
+        log('🌌 VIB34D Choreography Engine initialized');
+        log('📁 Load audio file and click "Start Engine"');
+    </script>
+</body>
+</html>
