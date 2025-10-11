@@ -212,6 +212,11 @@
         // Initialize with Quantum
         currentVisualizer = new QuantumHolographicVisualizer('mainCanvas', 'content', 1.0, 0);
 
+        // Set better default parameters for visibility
+        currentVisualizer.updateParameter('intensity', 0.8);
+        currentVisualizer.updateParameter('hue', 180);
+        currentVisualizer.updateParameter('saturation', 0.9);
+
         // Choreography engine
         const engine = new ChoreographyEngine({
             visualizers: [currentVisualizer],
@@ -287,6 +292,11 @@
                     systemNameEl.textContent = 'Holographic';
                 }
 
+                // Set better default parameters for visibility
+                currentVisualizer.updateParameter('intensity', 0.8);
+                currentVisualizer.updateParameter('hue', 180);
+                currentVisualizer.updateParameter('saturation', 0.9);
+
                 // Update engine
                 engine.visualizers = [currentVisualizer];
                 currentSystem = system;
@@ -311,6 +321,7 @@
             }
 
             audioElement = new Audio(url);
+            audioElement.volume = 1.0; // Full volume
             audioContext = new (window.AudioContext || window.webkitAudioContext)();
 
             const source = audioContext.createMediaElementSource(audioElement);
@@ -321,13 +332,17 @@
             engine.audioAnalyzer = audioAnalyzer;
 
             log(`🎵 Loaded: ${file.name}`);
+            log('🔊 Click Play to hear audio');
         };
 
         document.getElementById('playBtn').onclick = () => {
             if (audioElement) {
-                audioElement.play();
-                audioContext.resume();
-                log('▶️ Playing');
+                audioElement.play().then(() => {
+                    audioContext.resume();
+                    log('▶️ Playing audio');
+                }).catch(err => {
+                    log(`❌ Audio error: ${err.message}`);
+                });
             } else {
                 log('⚠️ Load audio file first');
             }
@@ -388,6 +403,15 @@
 
                 // Get audio data
                 const audioData = audioAnalyzer ? audioAnalyzer.analyze() : engine.getMockAudioData();
+
+                // Set global audio reactive for visualizers
+                window.audioEnabled = true;
+                window.audioReactive = {
+                    bass: audioData.bands?.bass || 0.3,
+                    mid: audioData.bands?.mid || 0.3,
+                    high: audioData.bands?.high || 0.3,
+                    energy: audioData.rms || 0.3
+                };
 
                 // Update rotation choreography
                 const rotations = rotationChoreographer.update(
