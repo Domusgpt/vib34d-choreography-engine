@@ -1,0 +1,111 @@
+{
+  "name": "Bass Drop Sequences",
+  "description": "Dramatic bass drop choreography presets",
+  "sequences": [
+    {
+      "name": "bass_drop_cascade",
+      "description": "4-beat cascade with anticipation, impact, and release",
+      "trigger": "bass > 0.7 && onset > 0.5",
+      "duration": 4000,
+      "stages": [
+        {
+          "start": 0,
+          "duration": 1000,
+          "rot4dXW": { "from": 0, "to": 1.57, "easing": "easeIn" },
+          "gridDensity": { "from": "current", "to": 50, "easing": "easeIn" },
+          "hue": { "from": "current", "to": 240, "easing": "linear" }
+        },
+        {
+          "start": 1000,
+          "duration": 500,
+          "chaos": { "spike": 1.0 },
+          "intensity": { "spike": 1.5 },
+          "geometry": { "jump": 1 }
+        },
+        {
+          "start": 1500,
+          "duration": 2500,
+          "rot4dYW": { "from": 0, "to": -3.14, "easing": "easeOut" },
+          "morphFactor": { "from": "current", "to": 1.5, "easing": "easeOut" },
+          "saturation": { "from": 1.0, "to": 0.3, "easing": "easeOut" }
+        }
+      ]
+    },
+    {
+      "name": "bass_drop_explosion",
+      "description": "Explosive bass drop with chaos",
+      "trigger": "bass > 0.8 && energy > 0.7",
+      "duration": 2000,
+      "stages": [
+        {
+          "start": 0,
+          "duration": 200,
+          "chaos": { "spike": 1.0 },
+          "intensity": { "spike": 2.0 },
+          "rot4dZW": { "jump": 3.14 }
+        },
+        {
+          "start": 200,
+          "duration": 1800,
+          "gridDensity": { "spike": 3.0, "decay": 0.95 },
+          "chaos": { "from": 1.0, "to": 0.2, "easing": "easeOut" },
+          "hue": { "from": 0, "to": 360, "easing": "linear" }
+        }
+      ]
+    },
+    {
+      "name": "bass_drop_freeze",
+      "description": "Freeze then release",
+      "trigger": "bass > 0.75",
+      "duration": 3000,
+      "stages": [
+        {
+          "start": 0,
+          "duration": 1000,
+          "intensity": { "from": "current", "to": 0.2, "easing": "easeIn" },
+          "speed": { "from": "current", "to": 0.1, "easing": "easeIn" }
+        },
+        {
+          "start": 1000,
+          "duration": 2000,
+          "intensity": { "spike": 1.5 },
+          "speed": { "from": 0.1, "to": 2.0, "easing": "easeOut" },
+          "chaos": { "spike": 0.8, "decay": 0.93 },
+          "rot4dXW": { "from": 0, "to": 6.28, "easing": "easeOut" }
+        }
+      ]
+    },
+    {
+      "name": "bass_drop_spiral",
+      "description": "Spiraling descent into bass",
+      "trigger": "bass > 0.7",
+      "duration": 4000,
+      "stages": [
+        {
+          "start": 0,
+          "duration": 4000,
+          "rot4dXW": { "from": 0, "to": 6.28, "easing": "linear" },
+          "rot4dYW": { "from": 0, "to": 3.14, "easing": "linear" },
+          "rot4dZW": { "from": 0, "to": 9.42, "easing": "exponential" },
+          "gridDensity": { "from": 10, "to": 80, "easing": "exponential" },
+          "hue": { "from": 180, "to": 360, "easing": "linear" }
+        }
+      ]
+    },
+    {
+      "name": "bass_drop_pulse",
+      "description": "Rhythmic pulsing on bass",
+      "trigger": "bass > 0.65",
+      "duration": 2000,
+      "stages": [
+        {
+          "start": 0,
+          "duration": 2000,
+          "gridDensity": { "spike": 2.5, "decay": 0.9 },
+          "intensity": { "spike": 1.3, "decay": 0.95 },
+          "morphFactor": { "from": 0.5, "to": 1.5, "easing": "easeInOut" }
+        }
+      ]
+    }
+  ]
+}

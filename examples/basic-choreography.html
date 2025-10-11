@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VIB34D Choreography Engine - Basic Example</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #000;
+            color: #0f0;
+            font-family: 'Courier New', monospace;
+            overflow: hidden;
+        }
+
+        #container {
+            display: flex;
+            height: 100vh;
+        }
+
+        #canvas-container {
+            flex: 1;
+            position: relative;
+        }
+
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+        }
+
+        #controls {
+            width: 350px;
+            background: rgba(0, 20, 0, 0.9);
+            padding: 20px;
+            overflow-y: auto;
+            border-left: 2px solid #0f0;
+        }
+
+        h1, h2 {
+            color: #0ff;
+            margin-bottom: 15px;
+            text-shadow: 0 0 10px #0ff;
+        }
+
+        h2 {
+            font-size: 1.2em;
+            margin-top: 20px;
+        }
+
+        button {
+            background: #0f0;
+            color: #000;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+
+        button:hover {
+            background: #0ff;
+            box-shadow: 0 0 20px #0ff;
+        }
+
+        button.active {
+            background: #f0f;
+            box-shadow: 0 0 20px #f0f;
+        }
+
+        .status {
+            margin: 10px 0;
+            padding: 10px;
+            background: rgba(0, 255, 0, 0.1);
+            border-left: 3px solid #0f0;
+        }
+
+        .sequence-item {
+            padding: 8px;
+            margin: 5px 0;
+            background: rgba(0, 255, 255, 0.1);
+            border-left: 3px solid #0ff;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .sequence-item:hover {
+            background: rgba(0, 255, 255, 0.2);
+            transform: translateX(5px);
+        }
+
+        .sequence-item.active {
+            background: rgba(255, 0, 255, 0.2);
+            border-left-color: #f0f;
+        }
+
+        #log {
+            max-height: 200px;
+            overflow-y: auto;
+            font-size: 0.8em;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 10px;
+            margin-top: 10px;
+        }
+
+        .log-entry {
+            margin: 2px 0;
+            color: #0f0;
+        }
+
+        .log-entry.beat {
+            color: #ff0;
+        }
+
+        .log-entry.sequence {
+            color: #0ff;
+        }
+
+        .log-entry.onset {
+            color: #f0f;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <div id="canvas-container">
+            <canvas id="mainCanvas"></canvas>
+        </div>
+
+        <div id="controls">
+            <h1>🌌 VIB34D</h1>
+            <h2>Choreography Engine</h2>
+
+            <div class="status">
+                <strong>Status:</strong> <span id="status">Initializing...</span><br>
+                <strong>BPM:</strong> <span id="bpm">120</span><br>
+                <strong>Beat:</strong> <span id="beat">0</span><br>
+                <strong>Measure:</strong> <span id="measure">0</span>
+            </div>
+
+            <h2>▶️ Control</h2>
+            <button id="startBtn">Start Choreography</button>
+            <button id="stopBtn">Stop</button>
+
+            <h2>🌀 Rotation Patterns</h2>
+            <div id="rotationPatterns"></div>
+
+            <h2>🎵 Trigger Sequences</h2>
+            <div id="sequences"></div>
+
+            <h2>📊 Live Log</h2>
+            <div id="log"></div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { ChoreographyEngine } from '../src/core/ChoreographyEngine.js';
+        import { RotationChoreographer } from '../src/choreographers/RotationChoreographer.js';
+        import { ShaderChoreographer } from '../src/choreographers/ShaderChoreographer.js';
+
+        // Simple visualizer for demo
+        class DemoVisualizer {
+            constructor(canvas) {
+                this.canvas = canvas;
+                this.ctx = canvas.getContext('2d');
+                this.params = {
+                    rot4dXW: 0,
+                    rot4dYW: 0,
+                    rot4dZW: 0,
+                    gridDensity: 20,
+                    hue: 180,
+                    intensity: 0.5,
+                    chaos: 0.2,
+                    morphFactor: 1.0
+                };
+
+                this.resize();
+                window.addEventListener('resize', () => this.resize());
+            }
+
+            resize() {
+                this.canvas.width = this.canvas.clientWidth;
+                this.canvas.height = this.canvas.clientHeight;
+            }
+
+            updateParameter(name, value) {
+                this.params[name] = value;
+            }
+
+            render() {
+                const { width, height } = this.canvas;
+                this.ctx.fillStyle = '#000';
+                this.ctx.fillRect(0, 0, width, height);
+
+                // Draw 4D projection visualization
+                const centerX = width / 2;
+                const centerY = height / 2;
+                const gridSize = this.params.gridDensity;
+
+                // Rotating 4D grid
+                for (let x = -5; x <= 5; x++) {
+                    for (let y = -5; y <= 5; y++) {
+                        // 4D position
+                        const x4d = x * 30;
+                        const y4d = y * 30;
+                        const z4d = Math.sin(x * 0.5 + this.params.rot4dXW) * 50;
+                        const w4d = Math.cos(y * 0.5 + this.params.rot4dYW) * 50;
+
+                        // 4D rotation
+                        const rx = x4d * Math.cos(this.params.rot4dZW) - z4d * Math.sin(this.params.rot4dZW);
+                        const rz = x4d * Math.sin(this.params.rot4dZW) + z4d * Math.cos(this.params.rot4dZW);
+
+                        // Project to 2D
+                        const perspective = 1 / (1 + rz / 500);
+                        const px = centerX + rx * perspective;
+                        const py = centerY + y4d * perspective;
+
+                        // Size based on depth and w-axis
+                        const size = (3 + w4d / 30) * perspective * this.params.morphFactor;
+
+                        // Color based on hue and chaos
+                        const h = (this.params.hue + w4d + this.params.chaos * 100) % 360;
+                        const alpha = this.params.intensity * perspective;
+
+                        this.ctx.fillStyle = `hsla(${h}, 70%, 50%, ${alpha})`;
+                        this.ctx.beginPath();
+                        this.ctx.arc(px, py, size, 0, Math.PI * 2);
+                        this.ctx.fill();
+                    }
+                }
+
+                // Status text
+                this.ctx.fillStyle = '#0f0';
+                this.ctx.font = '12px monospace';
+                this.ctx.fillText(`rot4d: [${this.params.rot4dXW.toFixed(2)}, ${this.params.rot4dYW.toFixed(2)}, ${this.params.rot4dZW.toFixed(2)}]`, 10, 20);
+                this.ctx.fillText(`density: ${this.params.gridDensity.toFixed(1)}`, 10, 35);
+                this.ctx.fillText(`hue: ${this.params.hue.toFixed(0)}°`, 10, 50);
+            }
+        }
+
+        // Initialize
+        const canvas = document.getElementById('mainCanvas');
+        const visualizer = new DemoVisualizer(canvas);
+
+        const engine = new ChoreographyEngine({
+            visualizers: [visualizer],
+            audioAnalyzer: null, // Will use mock data
+            bpm: 128
+        });
+
+        const rotationChoreographer = new RotationChoreographer();
+
+        // Load sequences
+        await engine.loadSequenceLibrary('../src/sequences/presets/bass-drops.json');
+
+        // UI elements
+        const statusEl = document.getElementById('status');
+        const bpmEl = document.getElementById('bpm');
+        const beatEl = document.getElementById('beat');
+        const measureEl = document.getElementById('measure');
+        const logEl = document.getElementById('log');
+
+        // Log function
+        function log(message, type = 'default') {
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logEl.insertBefore(entry, logEl.firstChild);
+
+            // Keep last 50 entries
+            while (logEl.children.length > 50) {
+                logEl.removeChild(logEl.lastChild);
+            }
+        }
+
+        // Override engine methods to add logging
+        const originalOnBeat = engine.onBeat.bind(engine);
+        engine.onBeat = (beatInMeasure, audioData) => {
+            originalOnBeat(beatInMeasure, audioData);
+            log(`Beat ${engine.currentBeat} (${beatInMeasure})`, 'beat');
+            beatEl.textContent = engine.currentBeat;
+            measureEl.textContent = engine.currentMeasure;
+        };
+
+        const originalOnOnset = engine.onOnset.bind(engine);
+        engine.onOnset = (intensity, time) => {
+            originalOnOnset(intensity, time);
+            log(`⚡ Onset (${(intensity * 100).toFixed(0)}%)`, 'onset');
+        };
+
+        const originalStartSequence = engine.startSequence.bind(engine);
+        engine.startSequence = (name, startTime) => {
+            originalStartSequence(name, startTime);
+            log(`🎬 Sequence: ${name}`, 'sequence');
+        };
+
+        // Rotation patterns UI
+        const patternsContainer = document.getElementById('rotationPatterns');
+        rotationChoreographer.getPatternNames().forEach(patternName => {
+            const btn = document.createElement('button');
+            btn.textContent = patternName.replace(/_/g, ' ');
+            btn.onclick = () => {
+                rotationChoreographer.setPattern(patternName);
+                document.querySelectorAll('#rotationPatterns button').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                log(`🌀 Pattern: ${patternName}`);
+            };
+            patternsContainer.appendChild(btn);
+        });
+
+        // Sequences UI
+        const sequencesContainer = document.getElementById('sequences');
+        engine.sequences.forEach((seq, name) => {
+            const div = document.createElement('div');
+            div.className = 'sequence-item';
+            div.innerHTML = `<strong>${name}</strong><br><small>${seq.description || ''}</small>`;
+            div.onclick = () => {
+                engine.startSequence(name, Date.now());
+                log(`Manually triggered: ${name}`, 'sequence');
+            };
+            sequencesContainer.appendChild(div);
+        });
+
+        // Control buttons
+        document.getElementById('startBtn').onclick = () => {
+            engine.start();
+            statusEl.textContent = 'Running';
+            statusEl.style.color = '#0f0';
+            log('▶️ Engine started');
+
+            // Start render loop
+            function render() {
+                const audioData = engine.getMockAudioData();
+
+                // Update rotation
+                const rotations = rotationChoreographer.update(
+                    audioData,
+                    (Date.now() - engine.startTime) / 1000,
+                    engine.currentBeat,
+                    16 // deltaTime
+                );
+
+                // Apply rotations
+                visualizer.updateParameter('rot4dXW', rotations.rot4dXW);
+                visualizer.updateParameter('rot4dYW', rotations.rot4dYW);
+                visualizer.updateParameter('rot4dZW', rotations.rot4dZW);
+
+                visualizer.render();
+
+                if (engine.running) {
+                    requestAnimationFrame(render);
+                }
+            }
+            render();
+        };
+
+        document.getElementById('stopBtn').onclick = () => {
+            engine.stop();
+            statusEl.textContent = 'Stopped';
+            statusEl.style.color = '#f00';
+            log('⏹️ Engine stopped');
+        };
+
+        bpmEl.textContent = engine.bpm;
+        log('🌌 VIB34D Choreography Engine initialized');
+        log('Click "Start Choreography" to begin');
+    </script>
+</body>
+</html>
