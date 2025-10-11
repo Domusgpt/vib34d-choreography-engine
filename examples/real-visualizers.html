@@ -430,6 +430,13 @@
         bpmEl.textContent = engine.bpm;
         log('🌌 VIB34D Choreography Engine initialized');
         log('📁 Load audio file and click "Start Engine"');
+
+        // AUTO-START: Start rendering immediately so visualization is visible
+        engine.start();
+        statusEl.textContent = 'Running';
+        statusEl.style.color = '#0f0';
+        startRenderLoop();
+        log('✨ Auto-started visualization');
     </script>
 </body>
 </html>
