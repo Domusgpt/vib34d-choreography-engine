@@ -25,9 +25,10 @@
             position: absolute;
             top: 0;
             left: 0;
-            width: 100%;
-            height: 100%;
+            width: 100vw;
+            height: 100vh;
             background: #000;
+            display: block;
         }
         #debug {
             position: absolute;
@@ -91,8 +92,10 @@
 
         log('🚀 Starting VIB34D Debug...', 'success');
 
-        // Test canvas setup
+        // Test canvas setup and resize to full viewport
         const canvas = document.getElementById('mainCanvas');
+        canvas.width = window.innerWidth * (window.devicePixelRatio || 1);
+        canvas.height = window.innerHeight * (window.devicePixelRatio || 1);
         log(`📐 Canvas: ${canvas.width}x${canvas.height}`);
 
         // Test WebGL context
@@ -108,6 +111,13 @@
         try {
             log('Creating QuantumHolographicVisualizer...');
             visualizer = new QuantumHolographicVisualizer('mainCanvas', 'content', 1.0, 0);
+
+            // Set bright, visible defaults
+            visualizer.updateParameter('intensity', 1.0);
+            visualizer.updateParameter('hue', 180);
+            visualizer.updateParameter('saturation', 1.0);
+            visualizer.updateParameter('gridDensity', 25);
+
             log('✅ Visualizer created', 'success');
 
             // Check visualizer state
