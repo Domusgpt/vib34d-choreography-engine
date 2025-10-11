@@ -40,14 +40,19 @@ executeSequence("bass_drop_cascade", {
 
 ## 🚀 Quick Start
 
+**🔴 LIVE DEMO**: https://domusgpt.github.io/vib34d-choreography-engine/
+
 ```bash
-# Install dependencies
-npm install
+# Clone repository
+git clone https://github.com/Domusgpt/vib34d-choreography-engine.git
+cd vib34d-choreography-engine
 
-# Run development server
-npm run dev
+# Run local server
+npx serve
+# or
+python3 -m http.server 8080
 
-# Open http://localhost:3000
+# Open http://localhost:8080/examples/real-visualizers.html
 ```
 
 ## 📁 Project Structure
@@ -73,9 +78,22 @@ vib34d-choreography-engine/
 │   │   ├── presets/                       # Pre-built sequences
 │   │   └── SequenceLibrary.js             # Sequence registry
 │   ├── visualizers/
-│   │   ├── QuantumVisualizer.js           # Enhanced Quantum
-│   │   ├── FacetedVisualizer.js           # Enhanced Faceted
-│   │   └── HolographicVisualizer.js       # Enhanced Holographic
+│   │   ├── quantum/
+│   │   │   ├── QuantumVisualizer.js       # 970 lines, 8 geometries, 5-layer color
+│   │   │   ├── QuantumSystem.js           # System integration
+│   │   │   └── QuantumEngine.js           # Physics engine
+│   │   ├── faceted/
+│   │   │   ├── FacetedVisualizer.js       # 714 lines, faceted geometry
+│   │   │   └── FacetedSystem.js           # System integration
+│   │   ├── holographic/
+│   │   │   ├── HolographicVisualizer.js   # 964 lines, volumetric effects
+│   │   │   └── HolographicSystem.js       # System integration
+│   │   ├── polychora/
+│   │   │   ├── PolychoraVisualizer.js     # Polychora geometry
+│   │   │   └── Polychora4DPhysics.js      # 4D physics
+│   │   └── shared/
+│   │       ├── BaseVisualizer.js          # Base visualizer class
+│   │       └── SystemRegistry.js          # System registry
 │   └── utils/
 │       ├── PhysicsEngine.js               # Fluid dynamics
 │       └── EmotionDetector.js             # Semantic colors
@@ -84,9 +102,10 @@ vib34d-choreography-engine/
 │   ├── faceted-enhanced.frag              # Faceted with choreography
 │   └── holographic-enhanced.frag          # Holographic with choreography
 ├── examples/
-│   ├── basic-choreography.html            # Simple example
-│   ├── advanced-sequences.html            # Complex choreography
-│   └── cross-system-sync.html             # Multi-visualizer
+│   ├── real-visualizers.html              # 🔴 ACTUAL VIB34D visualizers
+│   ├── basic-choreography.html            # Simplified 2D demo
+│   ├── advanced-sequences.html            # Complex choreography (coming soon)
+│   └── cross-system-sync.html             # Multi-visualizer (coming soon)
 ├── docs/
 │   ├── API.md                             # API documentation
 │   ├── SEQUENCES.md                       # Sequence format
@@ -195,21 +214,28 @@ engine.addSequence(choreography);
 
 ## 📈 Roadmap
 
-### MVP (Complete)
-- [x] Shader choreography uniforms
-- [x] Cross-system synchronization
-- [x] Basic sequence system
-- [x] Beat-locked rotation
-- [x] Color progression
+### V1.0 (Current - Deployed)
+- [x] ChoreographyEngine core (timeline-based sequences)
+- [x] ShaderChoreographer implementation
+- [x] RotationChoreographer (8 patterns)
+- [x] Sequence library (5 bass drop presets)
+- [x] Beat sync engine
+- [x] ACTUAL VIB34D visualizers integrated:
+  - [x] QuantumHolographicVisualizer (970 lines)
+  - [x] IntegratedHolographicVisualizer (714 lines)
+  - [x] HolographicVisualizer (964 lines)
+- [x] AudioAnalyzer integration (7-band frequency)
+- [x] GeometryLibrary (hypercube, hypersphere, torus, Klein bottle, etc.)
+- [x] Live demo with audio file upload
+- [x] System switching (Quantum ↔ Faceted ↔ Holographic)
+- [x] Real-time beat/sequence/onset logging
 
-### V1.0 (Current)
-- [ ] ShaderChoreographer implementation
-- [ ] ChoreographyEngine core
-- [ ] Sequence library (10+ presets)
-- [ ] Rotation pattern library
-- [ ] Color journey system
-- [ ] Beat sync engine
-- [ ] Multi-parameter coordination
+### V1.1 (Next)
+- [ ] ColorChoreographer implementation
+- [ ] GeometryChoreographer (geometric metamorphosis)
+- [ ] More sequence presets (EDM, dubstep, ambient)
+- [ ] Sequence trigger refinement
+- [ ] Performance optimization
 
 ### V2.0 (Future)
 - [ ] Predictive choreography
@@ -227,12 +253,20 @@ engine.addSequence(choreography);
 
 ## 🎨 Examples
 
-See `examples/` directory for:
-- Basic choreography setup
-- Advanced multi-stage sequences
-- Cross-system synchronization
-- Custom sequence creation
-- Gesture recording
+### Live Demo: `examples/real-visualizers.html`
+**🔴 [Try it now](https://domusgpt.github.io/vib34d-choreography-engine/)**
+
+Features:
+- 🎨 **3 VIB34D Visualizers**: Quantum, Faceted, Holographic (actual WebGL systems)
+- 🎵 **Audio Upload**: Load your own music files
+- 🌀 **8 Rotation Patterns**: smooth, hyperspace_spiral, beat_locked, bass_momentum, spectral_orbit, energy_sweep, chaos_spin, onset_snap
+- 💥 **5 Bass Drop Sequences**: cascade, explosion, freeze, spiral, pulse
+- 🎬 **Live Engine Control**: Start/stop choreography, trigger sequences manually
+- 📊 **Real-time Logging**: See beat detection, sequence execution, onset detection
+- 🔄 **System Switching**: Switch between visualizers on the fly
+
+### Simplified Demo: `examples/basic-choreography.html`
+Minimal 2D demo showing choreography engine fundamentals
 
 ## 📚 Documentation
 
