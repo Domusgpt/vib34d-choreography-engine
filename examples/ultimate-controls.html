@@ -288,14 +288,23 @@
             geoBtns.appendChild(btn);
         });
 
-        // All parameter sliders
+        // Store BASE values from sliders BEFORE render loop
+        const baseParams = {
+            intensity: 1.0, gridDensity: 25, morphFactor: 1.0, chaos: 0.2, speed: 1.0,
+            hue: 180, saturation: 1.0, dimension: 3.5, rot4dXW: 0, rot4dYW: 0, rot4dZW: 0
+        };
+
+        // All parameter sliders - UPDATE BASE PARAMS
         ['intensity', 'gridDensity', 'morphFactor', 'chaos', 'speed', 'hue', 'saturation', 'dimension', 'rot4dXW', 'rot4dYW', 'rot4dZW'].forEach(param => {
             const slider = document.getElementById(param);
             const val = document.getElementById(param + 'Val');
             slider.oninput = () => {
                 const v = parseFloat(slider.value);
                 val.textContent = v.toFixed(2);
-                currentVisualizer.updateParameter(param, v);
+                baseParams[param] = v;  // UPDATE BASE
+                if (!audioAnalyzer || !audioElement || audioElement.paused) {
+                    currentVisualizer.updateParameter(param, v);  // Apply directly if no audio
+                }
             };
         });
 
@@ -396,8 +405,19 @@
 
         // Render loop
         engine.start();
+        let logCounter = 0;
         function render() {
             const audioData = audioAnalyzer ? audioAnalyzer.analyze() : engine.getMockAudioData();
+            const audioPlaying = audioAnalyzer && audioElement && !audioElement.paused;
+
+            // Log every 60 frames
+            if (audioPlaying) {
+                logCounter++;
+                if (logCounter >= 60) {
+                    console.log('🎵', {bass: audioData.bands?.bass?.toFixed(2), mid: audioData.bands?.mid?.toFixed(2), high: audioData.bands?.high?.toFixed(2)});
+                    logCounter = 0;
+                }
+            }
 
             // Update audio bars
             if (audioData.bands) {
@@ -406,22 +426,31 @@
                 document.getElementById('highBar').style.width = (audioData.bands.high * 100) + '%';
             }
 
-            // Set global audio reactive
-            window.audioEnabled = true;
+            // Set global for visualizer internal use
+            window.audioEnabled = audioPlaying;
             window.audioReactive = {
-                bass: audioData.bands?.bass || 0.3,
-                mid: audioData.bands?.mid || 0.3,
-                high: audioData.bands?.high || 0.3,
-                energy: audioData.rms || 0.3
+                bass: audioData.bands?.bass || 0,
+                mid: audioData.bands?.mid || 0,
+                high: audioData.bands?.high || 0,
+                energy: audioData.rms || 0
             };
+
+            // APPLY AUDIO REACTIVITY ON TOP OF BASE
+            if (audioPlaying) {
+                const b = audioData.bands || {};
+                currentVisualizer.updateParameter('gridDensity', Math.min(80, baseParams.gridDensity + (b.bass||0) * 40));
+                currentVisualizer.updateParameter('morphFactor', Math.min(3.0, baseParams.morphFactor + (b.mid||0) * 1.5));
+                currentVisualizer.updateParameter('hue', (baseParams.hue + (b.high||0) * 120) % 360);
+                currentVisualizer.updateParameter('saturation', Math.min(1.0, baseParams.saturation + (b.mid||0) * 0.3));
+                currentVisualizer.updateParameter('chaos', Math.min(1.0, baseParams.chaos + (audioData.rms||0) * 0.6));
+                currentVisualizer.updateParameter('speed', Math.min(3.0, baseParams.speed + ((b.bass||0) + (audioData.rms||0)) * 0.8));
+                currentVisualizer.updateParameter('rot4dXW', baseParams.rot4dXW + (b.lowMid||0) * 0.5);
+                currentVisualizer.updateParameter('rot4dYW', baseParams.rot4dYW + (b.mid||0) * 0.6);
+                currentVisualizer.updateParameter('rot4dZW', baseParams.rot4dZW + (b.high||0) * 0.8);
+            }
 
             const rotations = rotationChoreographer.update(audioData, (Date.now() - engine.startTime) / 1000, engine.currentBeat, 16);
             shaderChoreographer.update(audioData, (engine.currentBeat % engine.beatsPerMeasure) / engine.beatsPerMeasure, engine.currentBeat, engine.currentMeasure, Date.now());
-
-            // Apply rotations from pattern (don't override manual controls)
-            // currentVisualizer.updateParameter('rot4dXW', rotations.rot4dXW);
-            // currentVisualizer.updateParameter('rot4dYW', rotations.rot4dYW);
-            // currentVisualizer.updateParameter('rot4dZW', rotations.rot4dZW);
 
             currentVisualizer.render();
             requestAnimationFrame(render);
