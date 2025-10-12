@@ -461,7 +461,7 @@
             };
         });
 
-        // Audio file
+        // Audio file - BULLETPROOF VERSION
         document.getElementById('audioFile').onchange = async (e) => {
             const file = e.target.files[0];
             if (!file) return;
@@ -472,14 +472,31 @@
                 if (audioElement) {
                     audioElement.pause();
                     audioElement.src = '';
+                    if (audioElement.parentNode) {
+                        audioElement.parentNode.removeChild(audioElement);
+                    }
                 }
 
                 const url = URL.createObjectURL(file);
                 audioElement = new Audio();
                 audioElement.src = url;
                 audioElement.volume = 1.0;
+                audioElement.preload = 'auto';
+                audioElement.crossOrigin = 'anonymous';
+
+                // CRITICAL: Add to DOM for playback to work
                 audioElement.style.display = 'none';
+                audioElement.style.position = 'fixed';
+                audioElement.style.bottom = '0';
+                audioElement.style.left = '0';
                 document.body.appendChild(audioElement);
+
+                // Wait for load
+                await new Promise((resolve, reject) => {
+                    audioElement.addEventListener('loadeddata', resolve, { once: true });
+                    audioElement.addEventListener('error', reject, { once: true });
+                    setTimeout(() => resolve(), 2000); // Timeout fallback
+                });
 
                 audioContext = new (window.AudioContext || window.webkitAudioContext)();
                 audioAnalyzer = new AudioAnalyzer(audioContext);
@@ -488,8 +505,10 @@
                 source.connect(audioAnalyzer.analyser);
                 audioAnalyzer.analyser.connect(audioContext.destination);
 
-                document.getElementById('status').textContent = 'Loaded! Press PLAY';
+                document.getElementById('status').textContent = `✅ Loaded! Press PLAY`;
+                console.log('✅ Audio loaded successfully');
             } catch (err) {
+                console.error('Audio load error:', err);
                 document.getElementById('status').textContent = 'Error: ' + err.message;
             }
         };
@@ -501,13 +520,35 @@
             }
 
             try {
-                if (audioContext.state === 'suspended') {
+                console.log('🎬 Attempting playback...');
+                console.log('AudioContext state:', audioContext?.state);
+
+                // Resume context FIRST
+                if (audioContext && audioContext.state === 'suspended') {
+                    console.log('Resuming AudioContext...');
                     await audioContext.resume();
                 }
+
+                console.log('Playing audio element...');
                 await audioElement.play();
+
                 document.getElementById('status').textContent = '🔊 PLAYING';
+                console.log('✅ Playback started!');
             } catch (err) {
+                console.error('Play error:', err);
                 document.getElementById('status').textContent = 'Play error: ' + err.message;
+
+                // Retry logic
+                try {
+                    console.log('🔄 Retrying...');
+                    await audioContext.resume();
+                    await audioElement.play();
+                    document.getElementById('status').textContent = '🔊 PLAYING (retry success)';
+                    console.log('✅ Retry worked!');
+                } catch (retryErr) {
+                    console.error('Retry failed:', retryErr);
+                    alert('Playback failed. Try clicking PLAY again.');
+                }
             }
         };
 
@@ -520,6 +561,7 @@
 
         // Render loop
         let lastTime = Date.now();
+        let logCounter = 0;
 
         function render() {
             const now = Date.now();
@@ -528,8 +570,22 @@
 
             // Get audio data
             let audioData = { bands: {}, rms: 0, onset: 0 };
-            if (audioAnalyzer && audioElement && !audioElement.paused) {
+            const audioPlaying = audioAnalyzer && audioElement && !audioElement.paused;
+
+            if (audioPlaying) {
                 audioData = audioAnalyzer.analyze();
+
+                // Log every 60 frames (1 second)
+                logCounter++;
+                if (logCounter >= 60) {
+                    console.log('🎵 Audio data:', {
+                        bass: audioData.bands?.bass?.toFixed(2),
+                        mid: audioData.bands?.mid?.toFixed(2),
+                        high: audioData.bands?.high?.toFixed(2),
+                        rms: audioData.rms?.toFixed(2)
+                    });
+                    logCounter = 0;
+                }
             }
 
             // Update audio bars
