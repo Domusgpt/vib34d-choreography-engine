@@ -1,0 +1,1041 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VIB34D Advanced Reactive System</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #000;
+            color: #0f0;
+            font-family: 'Courier New', monospace;
+            overflow: hidden;
+        }
+
+        #container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            display: block;
+        }
+
+        /* Modern Control Panel */
+        #controlPanel {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 420px;
+            max-height: calc(100vh - 20px);
+            background: rgba(0, 10, 10, 0.95);
+            border: 2px solid #0ff;
+            border-radius: 10px;
+            overflow-y: auto;
+            z-index: 1000;
+            box-shadow: 0 0 30px rgba(0, 255, 255, 0.5);
+        }
+
+        #controlPanel::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        #controlPanel::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.3);
+        }
+
+        #controlPanel::-webkit-scrollbar-thumb {
+            background: #0ff;
+            border-radius: 4px;
+        }
+
+        .panel-header {
+            background: linear-gradient(135deg, #001a1a 0%, #003333 100%);
+            padding: 15px;
+            border-bottom: 2px solid #0ff;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .panel-header h1 {
+            color: #0ff;
+            font-size: 1.3em;
+            text-shadow: 0 0 10px #0ff;
+            margin-bottom: 8px;
+        }
+
+        .panel-header .status {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.85em;
+        }
+
+        .panel-header .status span {
+            color: #0f0;
+        }
+
+        .panel-section {
+            padding: 15px;
+            border-bottom: 1px solid rgba(0, 255, 255, 0.2);
+        }
+
+        .section-title {
+            color: #0ff;
+            font-size: 1.1em;
+            margin-bottom: 12px;
+            text-shadow: 0 0 5px #0ff;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .section-title::before {
+            content: '';
+            width: 4px;
+            height: 16px;
+            background: #0ff;
+            border-radius: 2px;
+        }
+
+        /* Control Groups */
+        .control-group {
+            margin: 12px 0;
+        }
+
+        .control-label {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+            font-size: 0.9em;
+        }
+
+        .control-label span:first-child {
+            color: #0f0;
+        }
+
+        .control-label span:last-child {
+            color: #0ff;
+            font-weight: bold;
+            min-width: 60px;
+            text-align: right;
+        }
+
+        /* Sliders */
+        input[type="range"] {
+            width: 100%;
+            height: 6px;
+            background: rgba(0, 255, 255, 0.2);
+            border-radius: 3px;
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            background: #0ff;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 0 10px #0ff;
+            transition: all 0.2s;
+        }
+
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+            box-shadow: 0 0 15px #0ff;
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            background: #0ff;
+            border-radius: 50%;
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 0 10px #0ff;
+        }
+
+        /* Buttons */
+        .btn-group {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+            margin: 10px 0;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #003333 0%, #005555 100%);
+            color: #0ff;
+            border: 1px solid #0ff;
+            padding: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85em;
+            font-weight: bold;
+            cursor: pointer;
+            border-radius: 5px;
+            transition: all 0.3s;
+            text-transform: uppercase;
+        }
+
+        .btn:hover {
+            background: linear-gradient(135deg, #005555 0%, #007777 100%);
+            box-shadow: 0 0 15px rgba(0, 255, 255, 0.5);
+            transform: translateY(-2px);
+        }
+
+        .btn.active {
+            background: linear-gradient(135deg, #330033 0%, #550055 100%);
+            color: #f0f;
+            border-color: #f0f;
+            box-shadow: 0 0 15px rgba(255, 0, 255, 0.5);
+        }
+
+        .btn-full {
+            grid-column: 1 / -1;
+        }
+
+        /* Audio File Input */
+        .file-input-wrapper {
+            position: relative;
+            margin: 10px 0;
+        }
+
+        .file-input-wrapper input[type="file"] {
+            display: none;
+        }
+
+        .file-input-label {
+            display: block;
+            background: linear-gradient(135deg, #003300 0%, #005500 100%);
+            color: #0f0;
+            border: 1px solid #0f0;
+            padding: 12px;
+            text-align: center;
+            cursor: pointer;
+            border-radius: 5px;
+            transition: all 0.3s;
+            font-weight: bold;
+        }
+
+        .file-input-label:hover {
+            background: linear-gradient(135deg, #005500 0%, #007700 100%);
+            box-shadow: 0 0 15px rgba(0, 255, 0, 0.5);
+        }
+
+        .file-name {
+            color: #0f0;
+            font-size: 0.85em;
+            margin-top: 8px;
+            text-align: center;
+            word-break: break-all;
+        }
+
+        /* Frequency Visualizer */
+        .freq-viz {
+            height: 80px;
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(0, 255, 255, 0.3);
+            border-radius: 5px;
+            padding: 5px;
+            margin: 10px 0;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .freq-viz canvas {
+            width: 100%;
+            height: 100%;
+            position: static;
+        }
+
+        /* Audio Bands Display */
+        .bands-display {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 4px;
+            margin: 10px 0;
+        }
+
+        .band {
+            text-align: center;
+        }
+
+        .band-label {
+            font-size: 0.7em;
+            color: #0ff;
+            margin-bottom: 4px;
+        }
+
+        .band-bar-container {
+            height: 60px;
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(0, 255, 255, 0.3);
+            border-radius: 3px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .band-bar {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(to top, #0ff, #0f0, #ff0);
+            transition: height 0.1s ease-out;
+        }
+
+        .band-value {
+            font-size: 0.7em;
+            color: #0f0;
+            margin-top: 4px;
+        }
+
+        /* Reactivity State Display */
+        .state-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+            margin: 10px 0;
+        }
+
+        .state-item {
+            background: rgba(0, 40, 40, 0.5);
+            border-left: 3px solid #0ff;
+            padding: 8px;
+            border-radius: 3px;
+        }
+
+        .state-item-label {
+            font-size: 0.75em;
+            color: #0ff;
+            margin-bottom: 4px;
+        }
+
+        .state-item-value {
+            font-size: 0.95em;
+            color: #0f0;
+            font-weight: bold;
+        }
+
+        /* Toggle Switch */
+        .toggle-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 10px 0;
+        }
+
+        .toggle-switch {
+            position: relative;
+            width: 50px;
+            height: 24px;
+        }
+
+        .toggle-switch input {
+            display: none;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(100, 100, 100, 0.3);
+            border-radius: 24px;
+            cursor: pointer;
+            transition: 0.3s;
+            border: 1px solid #0ff;
+        }
+
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 3px;
+            bottom: 3px;
+            background: #0ff;
+            border-radius: 50%;
+            transition: 0.3s;
+        }
+
+        .toggle-switch input:checked + .toggle-slider {
+            background: rgba(0, 255, 255, 0.3);
+        }
+
+        .toggle-switch input:checked + .toggle-slider:before {
+            transform: translateX(26px);
+            background: #0f0;
+        }
+
+        /* Collapse/Expand Sections */
+        .section-collapse {
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .section-collapse::after {
+            content: '▼';
+            float: right;
+            transition: transform 0.3s;
+        }
+
+        .section-collapse.collapsed::after {
+            transform: rotate(-90deg);
+        }
+
+        .section-content.collapsed {
+            display: none;
+        }
+
+        /* Presets */
+        .preset-selector {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 6px;
+            margin: 10px 0;
+        }
+
+        .preset-btn {
+            padding: 8px;
+            font-size: 0.8em;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <canvas id="mainCanvas"></canvas>
+    </div>
+
+    <div id="controlPanel">
+        <div class="panel-header">
+            <h1>🌌 VIB34D Advanced Reactive</h1>
+            <div class="status">
+                <span id="statusText">Ready</span>
+                <span id="fpsCounter">0 FPS</span>
+            </div>
+        </div>
+
+        <!-- Audio Section -->
+        <div class="panel-section">
+            <div class="section-title">🎵 Audio Input</div>
+            <div class="file-input-wrapper">
+                <input type="file" id="audioFile" accept="audio/*">
+                <label for="audioFile" class="file-input-label">
+                    📁 Load Audio File
+                </label>
+                <div class="file-name" id="fileName">No file loaded</div>
+            </div>
+            <div class="btn-group">
+                <button class="btn" id="playBtn">▶️ Play</button>
+                <button class="btn" id="pauseBtn">⏸️ Pause</button>
+            </div>
+
+            <div class="freq-viz">
+                <canvas id="freqCanvas"></canvas>
+            </div>
+
+            <div class="bands-display">
+                <div class="band">
+                    <div class="band-label">SUB</div>
+                    <div class="band-bar-container">
+                        <div class="band-bar" id="band-subBass"></div>
+                    </div>
+                    <div class="band-value" id="val-subBass">0%</div>
+                </div>
+                <div class="band">
+                    <div class="band-label">BASS</div>
+                    <div class="band-bar-container">
+                        <div class="band-bar" id="band-bass"></div>
+                    </div>
+                    <div class="band-value" id="val-bass">0%</div>
+                </div>
+                <div class="band">
+                    <div class="band-label">LOW</div>
+                    <div class="band-bar-container">
+                        <div class="band-bar" id="band-lowMid"></div>
+                    </div>
+                    <div class="band-value" id="val-lowMid">0%</div>
+                </div>
+                <div class="band">
+                    <div class="band-label">MID</div>
+                    <div class="band-bar-container">
+                        <div class="band-bar" id="band-mid"></div>
+                    </div>
+                    <div class="band-value" id="val-mid">0%</div>
+                </div>
+                <div class="band">
+                    <div class="band-label">H-MID</div>
+                    <div class="band-bar-container">
+                        <div class="band-bar" id="band-highMid"></div>
+                    </div>
+                    <div class="band-value" id="val-highMid">0%</div>
+                </div>
+                <div class="band">
+                    <div class="band-label">HIGH</div>
+                    <div class="band-bar-container">
+                        <div class="band-bar" id="band-high"></div>
+                    </div>
+                    <div class="band-value" id="val-high">0%</div>
+                </div>
+                <div class="band">
+                    <div class="band-label">ULTRA</div>
+                    <div class="band-bar-container">
+                        <div class="band-bar" id="band-ultraHigh"></div>
+                    </div>
+                    <div class="band-value" id="val-ultraHigh">0%</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Reactivity State -->
+        <div class="panel-section">
+            <div class="section-title section-collapse" data-target="reactivityState">
+                ⚡ Reactivity State
+            </div>
+            <div class="section-content" id="reactivityState">
+                <div class="state-grid">
+                    <div class="state-item">
+                        <div class="state-item-label">Geometry</div>
+                        <div class="state-item-value" id="state-geometry">0</div>
+                    </div>
+                    <div class="state-item">
+                        <div class="state-item-label">Speed</div>
+                        <div class="state-item-value" id="state-speed">1.0x</div>
+                    </div>
+                    <div class="state-item">
+                        <div class="state-item-label">Hue</div>
+                        <div class="state-item-value" id="state-hue">180°</div>
+                    </div>
+                    <div class="state-item">
+                        <div class="state-item-label">Direction</div>
+                        <div class="state-item-value" id="state-direction">→</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- System Controls -->
+        <div class="panel-section">
+            <div class="section-title section-collapse" data-target="systemControls">
+                🎨 Visualizer System
+            </div>
+            <div class="section-content" id="systemControls">
+                <div class="btn-group">
+                    <button class="btn active system-btn" data-system="quantum">Quantum</button>
+                    <button class="btn system-btn" data-system="faceted">Faceted</button>
+                    <button class="btn system-btn" data-system="holographic">Holographic</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Base Parameters -->
+        <div class="panel-section">
+            <div class="section-title section-collapse" data-target="baseParams">
+                🎛️ Base Parameters
+            </div>
+            <div class="section-content" id="baseParams">
+                <div class="control-group">
+                    <div class="control-label">
+                        <span>Intensity</span>
+                        <span id="intensityVal">1.00</span>
+                    </div>
+                    <input type="range" id="intensity" min="0.1" max="2.0" step="0.01" value="1.0">
+                </div>
+
+                <div class="control-group">
+                    <div class="control-label">
+                        <span>Base Density</span>
+                        <span id="gridDensityVal">20</span>
+                    </div>
+                    <input type="range" id="gridDensity" min="5" max="40" step="1" value="20">
+                </div>
+
+                <div class="control-group">
+                    <div class="control-label">
+                        <span>Base Morph</span>
+                        <span id="morphFactorVal">1.00</span>
+                    </div>
+                    <input type="range" id="morphFactor" min="0.1" max="2.0" step="0.01" value="1.0">
+                </div>
+
+                <div class="control-group">
+                    <div class="control-label">
+                        <span>Base Chaos</span>
+                        <span id="chaosVal">0.20</span>
+                    </div>
+                    <input type="range" id="chaos" min="0.0" max="0.5" step="0.01" value="0.2">
+                </div>
+
+                <div class="control-group">
+                    <div class="control-label">
+                        <span>Base Speed</span>
+                        <span id="speedVal">1.00</span>
+                    </div>
+                    <input type="range" id="speed" min="0.5" max="2.0" step="0.01" value="1.0">
+                </div>
+
+                <div class="control-group">
+                    <div class="control-label">
+                        <span>Base Hue</span>
+                        <span id="hueVal">180°</span>
+                    </div>
+                    <input type="range" id="hue" min="0" max="360" step="1" value="180">
+                </div>
+            </div>
+        </div>
+
+        <!-- Reactivity Toggles -->
+        <div class="panel-section">
+            <div class="section-title section-collapse" data-target="reactivityToggles">
+                🔀 Reactivity Layers
+            </div>
+            <div class="section-content" id="reactivityToggles">
+                <div class="toggle-container">
+                    <span>Density Reactivity</span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="toggle-density" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="toggle-container">
+                    <span>Color Cycling</span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="toggle-color" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="toggle-container">
+                    <span>Geometry Cycling</span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="toggle-geometry" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="toggle-container">
+                    <span>Motion Modulation</span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="toggle-motion" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="toggle-container">
+                    <span>4D Rotation Mod</span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="toggle-rotation" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <!-- Choreography -->
+        <div class="panel-section">
+            <div class="section-title section-collapse" data-target="choreography">
+                🎬 Choreography
+            </div>
+            <div class="section-content" id="choreography">
+                <div class="btn-group">
+                    <button class="btn btn-full" id="startEngine">🚀 Start Engine</button>
+                </div>
+                <div class="control-group">
+                    <div class="control-label">
+                        <span>BPM</span>
+                        <span id="bpmVal">128</span>
+                    </div>
+                    <input type="range" id="bpm" min="60" max="200" step="1" value="128">
+                </div>
+                <div id="rotationPatterns"></div>
+            </div>
+        </div>
+
+        <!-- Presets -->
+        <div class="panel-section">
+            <div class="section-title section-collapse" data-target="presets">
+                💾 Reactivity Presets
+            </div>
+            <div class="section-content" id="presets">
+                <div class="preset-selector">
+                    <button class="btn preset-btn" data-preset="balanced">Balanced</button>
+                    <button class="btn preset-btn" data-preset="heavy">Heavy</button>
+                    <button class="btn preset-btn" data-preset="subtle">Subtle</button>
+                    <button class="btn preset-btn" data-preset="chaotic">Chaotic</button>
+                    <button class="btn preset-btn" data-preset="smooth">Smooth</button>
+                    <button class="btn preset-btn" data-preset="explosive">Explosive</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { ChoreographyEngine } from '../src/core/ChoreographyEngine.js';
+        import { RotationChoreographer } from '../src/choreographers/RotationChoreographer.js';
+        import { AudioReactivityEngine } from '../src/audio/AudioReactivityEngine.js';
+        import { applyPreset } from '../src/audio/ReactivityPresets.js';
+        import { QuantumHolographicVisualizer } from '../src/visualizers/quantum/QuantumVisualizer.js';
+        import { IntegratedHolographicVisualizer } from '../src/visualizers/faceted/FacetedVisualizer.js';
+        import { HolographicVisualizer } from '../src/visualizers/holographic/HolographicVisualizer.js';
+        import { AudioAnalyzer } from '../src/audio/AudioAnalyzer.js';
+
+        // Setup canvas
+        const canvas = document.getElementById('mainCanvas');
+        canvas.width = window.innerWidth * (window.devicePixelRatio || 1);
+        canvas.height = window.innerHeight * (window.devicePixelRatio || 1);
+
+        // Setup frequency visualizer canvas
+        const freqCanvas = document.getElementById('freqCanvas');
+        const freqCtx = freqCanvas.getContext('2d');
+        freqCanvas.width = 400;
+        freqCanvas.height = 70;
+
+        // Initialize systems
+        let currentVisualizer = new QuantumHolographicVisualizer('mainCanvas', 'content', 1.0, 0);
+        let audioAnalyzer = null;
+        let audioContext = null;
+        let audioElement = null;
+        const reactivityEngine = new AudioReactivityEngine();
+        const rotationChoreographer = new RotationChoreographer();
+
+        const engine = new ChoreographyEngine({
+            visualizers: [currentVisualizer],
+            audioAnalyzer: null,
+            bpm: 128
+        });
+
+        // Base parameters (user-controlled)
+        const baseParams = {
+            intensity: 1.0,
+            gridDensity: 20,
+            morphFactor: 1.0,
+            chaos: 0.2,
+            speed: 1.0,
+            hue: 180,
+            saturation: 0.8,
+            dimension: 3.5,
+            rot4dXW: 0,
+            rot4dYW: 0,
+            rot4dZW: 0
+        };
+
+        // Reactivity toggles
+        const reactivityToggles = {
+            density: true,
+            color: true,
+            geometry: true,
+            motion: true,
+            rotation: true
+        };
+
+        // FPS counter
+        let lastFrameTime = Date.now();
+        let frameCount = 0;
+        let fps = 0;
+
+        // Audio file handling
+        document.getElementById('audioFile').onchange = async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            try {
+                document.getElementById('fileName').textContent = file.name;
+                document.getElementById('statusText').textContent = 'Loading...';
+
+                if (audioElement) {
+                    audioElement.pause();
+                    audioElement.src = '';
+                }
+
+                const url = URL.createObjectURL(file);
+                audioElement = new Audio();
+                audioElement.src = url;
+                audioElement.volume = 1.0;
+                audioElement.preload = 'auto';
+                audioElement.style.display = 'none';
+                document.body.appendChild(audioElement);
+
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                audioAnalyzer = new AudioAnalyzer(audioContext);
+
+                const source = audioContext.createMediaElementSource(audioElement);
+                source.connect(audioAnalyzer.analyser);
+                audioAnalyzer.analyser.connect(audioContext.destination);
+
+                engine.audioAnalyzer = audioAnalyzer;
+
+                document.getElementById('statusText').textContent = 'Ready';
+            } catch (err) {
+                console.error('Audio load error:', err);
+                document.getElementById('statusText').textContent = 'Error!';
+            }
+        };
+
+        document.getElementById('playBtn').onclick = async () => {
+            if (!audioElement) {
+                alert('Load audio file first');
+                return;
+            }
+
+            try {
+                if (audioContext && audioContext.state === 'suspended') {
+                    await audioContext.resume();
+                }
+                await audioElement.play();
+                document.getElementById('statusText').textContent = 'Playing 🔊';
+            } catch (err) {
+                console.error('Play error:', err);
+            }
+        };
+
+        document.getElementById('pauseBtn').onclick = () => {
+            if (audioElement) {
+                audioElement.pause();
+                document.getElementById('statusText').textContent = 'Paused';
+            }
+        };
+
+        // Base parameter controls
+        ['intensity', 'gridDensity', 'morphFactor', 'chaos', 'speed', 'hue'].forEach(param => {
+            const slider = document.getElementById(param);
+            const display = document.getElementById(param + 'Val');
+            slider.oninput = () => {
+                const val = parseFloat(slider.value);
+                baseParams[param] = val;
+                if (param === 'gridDensity') {
+                    display.textContent = Math.round(val);
+                } else if (param === 'hue') {
+                    display.textContent = Math.round(val) + '°';
+                } else {
+                    display.textContent = val.toFixed(2);
+                }
+            };
+        });
+
+        // BPM control
+        document.getElementById('bpm').oninput = (e) => {
+            const bpm = parseInt(e.target.value);
+            engine.bpm = bpm;
+            reactivityEngine.beatState.bpm = bpm;
+            document.getElementById('bpmVal').textContent = bpm;
+        };
+
+        // System switching
+        document.querySelectorAll('.system-btn').forEach(btn => {
+            btn.onclick = () => {
+                const system = btn.dataset.system;
+
+                if (currentVisualizer && currentVisualizer.destroy) {
+                    currentVisualizer.destroy();
+                }
+
+                if (system === 'quantum') {
+                    currentVisualizer = new QuantumHolographicVisualizer('mainCanvas', 'content', 1.0, 0);
+                } else if (system === 'faceted') {
+                    currentVisualizer = new IntegratedHolographicVisualizer('mainCanvas', 'content', 1.0, 0);
+                } else if (system === 'holographic') {
+                    currentVisualizer = new HolographicVisualizer('mainCanvas', 'content', 1.0, 0);
+                }
+
+                engine.visualizers = [currentVisualizer];
+
+                document.querySelectorAll('.system-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+            };
+        });
+
+        // Reactivity toggles
+        ['density', 'color', 'geometry', 'motion', 'rotation'].forEach(key => {
+            const toggle = document.getElementById('toggle-' + key);
+            toggle.onchange = () => {
+                reactivityToggles[key] = toggle.checked;
+            };
+        });
+
+        // Section collapse/expand
+        document.querySelectorAll('.section-collapse').forEach(header => {
+            header.onclick = () => {
+                const targetId = header.dataset.target;
+                const content = document.getElementById(targetId);
+                header.classList.toggle('collapsed');
+                content.classList.toggle('collapsed');
+            };
+        });
+
+        // Start engine
+        document.getElementById('startEngine').onclick = () => {
+            engine.start();
+            startRenderLoop();
+            document.getElementById('startEngine').textContent = '✅ Running';
+            document.getElementById('startEngine').classList.add('active');
+        };
+
+        // Render loop
+        function startRenderLoop() {
+            function render() {
+                if (!engine.running) return;
+
+                // Get audio data
+                const audioData = audioAnalyzer ? audioAnalyzer.analyze() : engine.getMockAudioData();
+
+                // Update reactivity engine
+                const beatInfo = {
+                    beatInMeasure: engine.currentBeat % engine.beatsPerMeasure,
+                    beatsPerMeasure: engine.beatsPerMeasure,
+                    bpm: engine.bpm
+                };
+                reactivityEngine.update(audioData, beatInfo, 16);
+
+                // Get reactive parameters
+                let params = { ...baseParams };
+                if (audioAnalyzer) {
+                    const reactive = reactivityEngine.getReactiveParameters(baseParams);
+
+                    // Apply based on toggles
+                    if (reactivityToggles.density) {
+                        params.gridDensity = reactive.gridDensity;
+                        params.morphFactor = reactive.morphFactor;
+                        params.chaos = reactive.chaos;
+                    }
+                    if (reactivityToggles.color) {
+                        params.hue = reactive.hue;
+                        params.saturation = reactive.saturation;
+                        params.intensity = reactive.intensity;
+                    }
+                    if (reactivityToggles.geometry) {
+                        params.geometry = reactive.geometry;
+                    }
+                    if (reactivityToggles.motion) {
+                        params.speed = reactive.speed;
+                    }
+                    if (reactivityToggles.rotation) {
+                        params.rot4dXW = reactive.rot4dXW;
+                        params.rot4dYW = reactive.rot4dYW;
+                        params.rot4dZW = reactive.rot4dZW;
+                    }
+                }
+
+                // Update visualizer with reactive parameters
+                Object.keys(params).forEach(key => {
+                    if (currentVisualizer.updateParameter) {
+                        currentVisualizer.updateParameter(key, params[key]);
+                    }
+                });
+
+                // Set global audio reactive for visualizer internal use
+                window.audioEnabled = !!audioAnalyzer;
+                window.audioReactive = audioData.bands || { bass: 0, mid: 0, high: 0, energy: 0 };
+
+                // Render
+                if (currentVisualizer.render) {
+                    currentVisualizer.render();
+                }
+
+                // Update UI
+                updateUI(audioData, reactivityEngine.getState());
+
+                // Update FPS
+                frameCount++;
+                const now = Date.now();
+                if (now - lastFrameTime >= 1000) {
+                    fps = frameCount;
+                    frameCount = 0;
+                    lastFrameTime = now;
+                    document.getElementById('fpsCounter').textContent = fps + ' FPS';
+                }
+
+                requestAnimationFrame(render);
+            }
+            render();
+        }
+
+        // Update UI displays
+        function updateUI(audioData, state) {
+            // Update frequency bands
+            if (audioData.bands) {
+                const bands = ['subBass', 'bass', 'lowMid', 'mid', 'highMid', 'high', 'ultraHigh'];
+                bands.forEach(band => {
+                    const value = (audioData.bands[band] || 0) * 100;
+                    const bar = document.getElementById('band-' + band);
+                    const val = document.getElementById('val-' + band);
+                    if (bar) bar.style.height = value + '%';
+                    if (val) val.textContent = Math.round(value) + '%';
+                });
+            }
+
+            // Update state display
+            if (state) {
+                document.getElementById('state-geometry').textContent = Math.floor(state.geometry.current);
+                document.getElementById('state-speed').textContent = state.motion.speed.toFixed(2) + 'x';
+                document.getElementById('state-hue').textContent = Math.round(state.color.hue) + '°';
+                document.getElementById('state-direction').textContent = state.motion.direction > 0 ? '→' : '←';
+            }
+
+            // Draw frequency visualizer
+            drawFrequencyViz(audioData);
+        }
+
+        // Draw frequency visualization
+        function drawFrequencyViz(audioData) {
+            if (!audioAnalyzer) return;
+
+            const freqData = audioAnalyzer.getFrequencyData();
+            const width = freqCanvas.width;
+            const height = freqCanvas.height;
+
+            freqCtx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+            freqCtx.fillRect(0, 0, width, height);
+
+            const barWidth = width / freqData.length;
+
+            for (let i = 0; i < freqData.length; i++) {
+                const barHeight = (freqData[i] / 255) * height;
+                const hue = (i / freqData.length) * 180 + 180;
+                freqCtx.fillStyle = `hsl(${hue}, 100%, 50%)`;
+                freqCtx.fillRect(i * barWidth, height - barHeight, barWidth - 1, barHeight);
+            }
+        }
+
+        // Preset buttons
+        document.querySelectorAll('.preset-btn').forEach(btn => {
+            btn.onclick = () => {
+                const preset = btn.dataset.preset;
+                const success = applyPreset(reactivityEngine, preset);
+                if (success) {
+                    document.querySelectorAll('.preset-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    document.getElementById('statusText').textContent = `Preset: ${preset}`;
+                    setTimeout(() => {
+                        if (document.getElementById('statusText').textContent.startsWith('Preset:')) {
+                            document.getElementById('statusText').textContent = audioElement && !audioElement.paused ? 'Playing 🔊' : 'Ready';
+                        }
+                    }, 2000);
+                }
+            };
+        });
+
+        // Auto-start
+        engine.start();
+        startRenderLoop();
+        document.getElementById('startEngine').textContent = '✅ Running';
+        document.getElementById('startEngine').classList.add('active');
+
+        console.log('🌌 VIB34D Advanced Reactive System initialized');
+        console.log('🎛️ AudioReactivityEngine:', reactivityEngine);
+    </script>
+</body>
+</html>
