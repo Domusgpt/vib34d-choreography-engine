@@ -42,6 +42,10 @@ executeSequence("bass_drop_cascade", {
 
 **🔴 LIVE DEMO**: https://domusgpt.github.io/vib34d-choreography-engine/
 
+**🎚️ ENHANCED VERSION** (Recommended): Real-time threshold controls, audio level monitoring, instant parameter adjustment
+
+**📚 [TUNING GUIDE](TUNING_GUIDE.md)**: Complete guide to optimizing for your music genre
+
 ```bash
 # Clone repository
 git clone https://github.com/Domusgpt/vib34d-choreography-engine.git
@@ -253,27 +257,33 @@ engine.addSequence(choreography);
 
 ## 🎨 Examples
 
-### Live Demo: `examples/real-visualizers.html`
+### 🎚️ Enhanced Demo: `examples/enhanced-visualizers.html` ⭐ RECOMMENDED
 **🔴 [Try it now](https://domusgpt.github.io/vib34d-choreography-engine/)**
 
-Features:
+Advanced features:
+- 🎚️ **Real-time Controls**: Adjust onset/bass thresholds while music plays
+- 📊 **Live Audio Monitoring**: See bass/mid/high/energy/onset levels in real-time
+- 🎛️ **Parameter Sliders**: Intensity (0.3-1.5), Grid Density (10-50)
 - 🎨 **3 VIB34D Visualizers**: Quantum, Faceted, Holographic (actual WebGL systems)
 - 🎵 **Audio Upload**: Load your own music files
 - 🌀 **8 Rotation Patterns**: smooth, hyperspace_spiral, beat_locked, bass_momentum, spectral_orbit, energy_sweep, chaos_spin, onset_snap
 - 💥 **5 Bass Drop Sequences**: cascade, explosion, freeze, spiral, pulse
-- 🎬 **Live Engine Control**: Start/stop choreography, trigger sequences manually
-- 📊 **Real-time Logging**: See beat detection, sequence execution, onset detection
-- 🔄 **System Switching**: Switch between visualizers on the fly
+- 🎬 **Advanced Controls**: Start/stop, clear sequences, manual triggers
+- 📋 **Live Logging**: Beat detection, sequence execution, onset detection
+- 🔄 **Instant Switching**: Change visualizers on the fly
 
-### Simplified Demo: `examples/basic-choreography.html`
-Minimal 2D demo showing choreography engine fundamentals
+### Basic Demo: `examples/real-visualizers.html`
+Full-featured demo without advanced controls
+
+### Debug Console: `examples/debug-visualizer.html`
+Technical diagnostics and error detection
 
 ## 📚 Documentation
 
-- [API Documentation](docs/API.md)
-- [Sequence Format](docs/SEQUENCES.md)
-- [Shader Integration](docs/SHADERS.md)
-- [Full Choreography Plan](docs/CHOREOGRAPHY_PLAN.md)
+- **[🎚️ Tuning Guide](TUNING_GUIDE.md)** - How to optimize for your music genre
+- [Getting Started](docs/GETTING_STARTED.md) - Quick integration guide
+- [Deployment Info](DEPLOYMENT.md) - Live demo and technical details
+- [Full Choreography Plan](docs/CHOREOGRAPHY_PLAN.md) - Complete vision and roadmap
 
 ## 🤝 Contributing
 
