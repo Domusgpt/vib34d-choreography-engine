@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Audio Test</title>
+    <style>
+        body {
+            background: #000;
+            color: #0f0;
+            font-family: monospace;
+            padding: 20px;
+        }
+        button {
+            background: #0f0;
+            color: #000;
+            border: none;
+            padding: 15px 30px;
+            margin: 10px;
+            font-size: 18px;
+            cursor: pointer;
+        }
+        #log {
+            margin-top: 20px;
+            padding: 10px;
+            background: #111;
+            border: 1px solid #0f0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔊 Audio Test</h1>
+    <input type="file" id="audioFile" accept="audio/*">
+    <br><br>
+    <button id="playBtn">▶️ PLAY AUDIO</button>
+    <button id="pauseBtn">⏸️ PAUSE</button>
+    <br><br>
+    <div id="status">Status: Ready</div>
+    <div id="log"></div>
+
+    <script>
+        let audioElement = null;
+        let audioContext = null;
+        const statusEl = document.getElementById('status');
+        const logEl = document.getElementById('log');
+
+        function log(msg) {
+            console.log(msg);
+            logEl.innerHTML += `<div>${msg}</div>`;
+            statusEl.textContent = msg;
+        }
+
+        document.getElementById('audioFile').onchange = (e) => {
+            const file = e.target.files[0];
+            if (!file) {
+                log('❌ No file selected');
+                return;
+            }
+
+            log(`📁 File selected: ${file.name}`);
+
+            try {
+                // Create audio element
+                if (audioElement) {
+                    audioElement.pause();
+                    audioElement.src = '';
+                }
+
+                const url = URL.createObjectURL(file);
+                log(`🔗 Created URL: ${url.substring(0, 50)}...`);
+
+                audioElement = new Audio();
+                audioElement.src = url;
+                audioElement.volume = 1.0;
+                audioElement.loop = false;
+                audioElement.preload = 'auto';
+
+                log('✅ Audio element created');
+
+                // Add to DOM (some browsers require this)
+                audioElement.style.display = 'none';
+                document.body.appendChild(audioElement);
+                log('✅ Audio element added to DOM');
+
+                // Create Web Audio context
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                log(`✅ AudioContext created: ${audioContext.state}`);
+
+                // Connect audio element to context
+                const source = audioContext.createMediaElementSource(audioElement);
+                const gainNode = audioContext.createGain();
+                gainNode.gain.value = 1.0;
+
+                source.connect(gainNode);
+                gainNode.connect(audioContext.destination);
+
+                log('✅ Audio graph connected');
+                log('🎵 Ready to play! Click PLAY button');
+
+            } catch (err) {
+                log(`❌ Error: ${err.message}`);
+                console.error(err);
+            }
+        };
+
+        document.getElementById('playBtn').onclick = async () => {
+            if (!audioElement) {
+                log('⚠️ Load audio file first!');
+                return;
+            }
+
+            try {
+                log('🎬 Attempting to play...');
+
+                // Resume audio context
+                if (audioContext && audioContext.state === 'suspended') {
+                    await audioContext.resume();
+                    log(`✅ AudioContext resumed: ${audioContext.state}`);
+                }
+
+                // Play audio
+                await audioElement.play();
+                log('✅ AUDIO IS PLAYING! 🔊');
+                log(`Volume: ${audioElement.volume}`);
+                log(`Duration: ${audioElement.duration}s`);
+                log(`Current time: ${audioElement.currentTime}s`);
+
+            } catch (err) {
+                log(`❌ Play error: ${err.message}`);
+                console.error(err);
+            }
+        };
+
+        document.getElementById('pauseBtn').onclick = () => {
+            if (audioElement) {
+                audioElement.pause();
+                log('⏸️ Paused');
+            }
+        };
+
+        // Monitor playback
+        setInterval(() => {
+            if (audioElement && !audioElement.paused) {
+                statusEl.textContent = `▶️ Playing: ${audioElement.currentTime.toFixed(1)}s / ${audioElement.duration.toFixed(1)}s`;
+            }
+        }, 100);
+
+        log('Ready to test audio!');
+    </script>
+</body>
+</html>

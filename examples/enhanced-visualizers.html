@@ -393,42 +393,92 @@
             };
         });
 
-        // Audio handling
+        // Audio handling - BULLETPROOF VERSION
         document.getElementById('audioFile').onchange = async (e) => {
             const file = e.target.files[0];
-            if (!file) return;
-
-            const url = URL.createObjectURL(file);
-
-            if (audioElement) {
-                audioElement.pause();
+            if (!file) {
+                log('❌ No file selected');
+                return;
             }
 
-            audioElement = new Audio(url);
-            audioElement.volume = 1.0;
-            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            try {
+                log(`📁 Loading: ${file.name}`);
 
-            const source = audioContext.createMediaElementSource(audioElement);
-            audioAnalyzer = new AudioAnalyzer(audioContext);
-            source.connect(audioAnalyzer.analyser);
-            audioAnalyzer.analyser.connect(audioContext.destination);
+                // Clean up old audio
+                if (audioElement) {
+                    audioElement.pause();
+                    audioElement.src = '';
+                }
 
-            engine.audioAnalyzer = audioAnalyzer;
+                // Create URL and audio element
+                const url = URL.createObjectURL(file);
+                audioElement = new Audio();
+                audioElement.src = url;
+                audioElement.volume = 1.0;
+                audioElement.loop = false;
+                audioElement.preload = 'auto';
 
-            log(`🎵 Loaded: ${file.name}`);
-            log('🔊 Click Play to hear audio');
+                // Add to DOM (some browsers require this)
+                audioElement.style.display = 'none';
+                document.body.appendChild(audioElement);
+
+                // Create AudioContext
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                log(`🎵 AudioContext state: ${audioContext.state}`);
+
+                // Create audio analyzer
+                audioAnalyzer = new AudioAnalyzer(audioContext);
+
+                // Connect: Audio Element → Analyzer → Destination
+                const source = audioContext.createMediaElementSource(audioElement);
+                source.connect(audioAnalyzer.analyser);
+                audioAnalyzer.analyser.connect(audioContext.destination);
+
+                engine.audioAnalyzer = audioAnalyzer;
+
+                log(`✅ Loaded: ${file.name}`);
+                log('🔊 Click PLAY button to start');
+
+            } catch (err) {
+                log(`❌ Load error: ${err.message}`);
+                console.error(err);
+            }
         };
 
-        document.getElementById('playBtn').onclick = () => {
-            if (audioElement) {
-                audioElement.play().then(() => {
-                    audioContext.resume();
-                    log('▶️ Playing audio');
-                }).catch(err => {
-                    log(`❌ Audio error: ${err.message}`);
-                });
-            } else {
-                log('⚠️ Load audio file first');
+        document.getElementById('playBtn').onclick = async () => {
+            if (!audioElement) {
+                log('⚠️ Load audio file first!');
+                return;
+            }
+
+            try {
+                log('🎬 Starting playback...');
+
+                // Resume AudioContext first
+                if (audioContext && audioContext.state === 'suspended') {
+                    await audioContext.resume();
+                    log(`✅ AudioContext resumed: ${audioContext.state}`);
+                }
+
+                // Play audio
+                await audioElement.play();
+                log('✅ AUDIO PLAYING! 🔊');
+                log(`Volume: ${audioElement.volume * 100}%`);
+
+            } catch (err) {
+                log(`❌ Play error: ${err.message}`);
+                console.error(err);
+
+                // Try alternative method
+                if (audioContext) {
+                    try {
+                        await audioContext.resume();
+                        await audioElement.play();
+                        log('✅ Retry successful!');
+                    } catch (retryErr) {
+                        log(`❌ Retry failed: ${retryErr.message}`);
+                    }
+                }
             }
         };
 

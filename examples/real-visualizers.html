@@ -317,42 +317,65 @@
             };
         });
 
-        // Audio handling
+        // Audio handling - BULLETPROOF VERSION
         document.getElementById('audioFile').onchange = async (e) => {
             const file = e.target.files[0];
             if (!file) return;
 
-            const url = URL.createObjectURL(file);
+            try {
+                log(`📁 Loading: ${file.name}`);
 
-            if (audioElement) {
-                audioElement.pause();
+                if (audioElement) {
+                    audioElement.pause();
+                    audioElement.src = '';
+                }
+
+                const url = URL.createObjectURL(file);
+                audioElement = new Audio();
+                audioElement.src = url;
+                audioElement.volume = 1.0;
+                audioElement.preload = 'auto';
+                audioElement.style.display = 'none';
+                document.body.appendChild(audioElement);
+
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                audioAnalyzer = new AudioAnalyzer(audioContext);
+
+                const source = audioContext.createMediaElementSource(audioElement);
+                source.connect(audioAnalyzer.analyser);
+                audioAnalyzer.analyser.connect(audioContext.destination);
+
+                engine.audioAnalyzer = audioAnalyzer;
+
+                log(`✅ Loaded: ${file.name}`);
+                log('🔊 Click Play button');
+            } catch (err) {
+                log(`❌ Error: ${err.message}`);
             }
-
-            audioElement = new Audio(url);
-            audioElement.volume = 1.0; // Full volume
-            audioContext = new (window.AudioContext || window.webkitAudioContext)();
-
-            const source = audioContext.createMediaElementSource(audioElement);
-            audioAnalyzer = new AudioAnalyzer(audioContext);
-            source.connect(audioAnalyzer.analyser);
-            audioAnalyzer.analyser.connect(audioContext.destination);
-
-            engine.audioAnalyzer = audioAnalyzer;
-
-            log(`🎵 Loaded: ${file.name}`);
-            log('🔊 Click Play to hear audio');
         };
 
-        document.getElementById('playBtn').onclick = () => {
-            if (audioElement) {
-                audioElement.play().then(() => {
-                    audioContext.resume();
-                    log('▶️ Playing audio');
-                }).catch(err => {
-                    log(`❌ Audio error: ${err.message}`);
-                });
-            } else {
+        document.getElementById('playBtn').onclick = async () => {
+            if (!audioElement) {
                 log('⚠️ Load audio file first');
+                return;
+            }
+
+            try {
+                log('🎬 Starting...');
+                if (audioContext && audioContext.state === 'suspended') {
+                    await audioContext.resume();
+                }
+                await audioElement.play();
+                log('✅ PLAYING! 🔊');
+            } catch (err) {
+                log(`❌ Error: ${err.message}`);
+                try {
+                    await audioContext.resume();
+                    await audioElement.play();
+                    log('✅ Retry OK!');
+                } catch (e) {
+                    log(`❌ Failed: ${e.message}`);
+                }
             }
         };
 
