@@ -130,7 +130,7 @@ export class RotationChoreographer {
                 lastOnset: 0,
                 targetRotation: { xw: 0, yw: 0, zw: 0 },
                 currentRotation: { xw: 0, yw: 0, zw: 0 },
-                update: (onset, time) => {
+                update: function(onset, time) {
                     if (onset > 0.5 && time - this.lastOnset > 500) {
                         // New onset - snap to new target
                         this.lastOnset = time;
