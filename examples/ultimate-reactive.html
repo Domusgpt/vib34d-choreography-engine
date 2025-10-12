@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VIB34D ULTIMATE CONTROLS</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #000;
+            color: #0f0;
+            font-family: 'Courier New', monospace;
+            overflow: hidden;
+        }
+        canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+        }
+        #controls {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: rgba(0, 0, 0, 0.95);
+            padding: 15px;
+            border: 2px solid #0f0;
+            max-width: 380px;
+            max-height: 95vh;
+            overflow-y: auto;
+            z-index: 1000;
+            font-size: 11px;
+        }
+        h1 {
+            color: #0ff;
+            font-size: 16px;
+            margin-bottom: 10px;
+            text-shadow: 0 0 10px #0ff;
+        }
+        h2 {
+            color: #0ff;
+            font-size: 13px;
+            margin: 12px 0 8px 0;
+            border-bottom: 1px solid #0f0;
+            padding-bottom: 3px;
+        }
+        button {
+            background: #0f0;
+            color: #000;
+            border: none;
+            padding: 6px 12px;
+            margin: 2px;
+            cursor: pointer;
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            font-size: 10px;
+        }
+        button:hover { background: #0ff; box-shadow: 0 0 10px #0ff; }
+        button.active { background: #f0f; box-shadow: 0 0 10px #f0f; }
+        .slider-row {
+            display: flex;
+            align-items: center;
+            margin: 5px 0;
+            gap: 8px;
+        }
+        .slider-row label {
+            flex: 0 0 90px;
+            font-size: 10px;
+        }
+        .slider-row input[type="range"] {
+            flex: 1;
+            height: 20px;
+        }
+        .slider-row .value {
+            flex: 0 0 45px;
+            text-align: right;
+            color: #0ff;
+            font-weight: bold;
+        }
+        .btn-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 3px;
+            margin: 5px 0;
+        }
+        input[type="file"] {
+            background: rgba(0, 255, 0, 0.2);
+            color: #0f0;
+            border: 1px solid #0f0;
+            padding: 4px;
+            font-family: 'Courier New', monospace;
+            width: 100%;
+            margin: 5px 0;
+            font-size: 10px;
+        }
+        #audioLevels {
+            background: rgba(0, 100, 255, 0.1);
+            padding: 8px;
+            margin: 8px 0;
+            border-left: 3px solid #0ff;
+            font-size: 10px;
+        }
+        .level-bar {
+            height: 12px;
+            background: rgba(0, 255, 0, 0.2);
+            margin: 3px 0;
+            position: relative;
+        }
+        .level-fill {
+            height: 100%;
+            background: #0f0;
+            transition: width 0.1s;
+        }
+        .level-label {
+            position: absolute;
+            left: 4px;
+            top: 0;
+            color: #000;
+            font-weight: bold;
+            font-size: 9px;
+            line-height: 12px;
+            mix-blend-mode: difference;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="mainCanvas"></canvas>
+
+    <div id="controls">
+        <h1>🔧 VIB34D ULTIMATE</h1>
+
+        <!-- Audio -->
+        <h2>🎵 Audio</h2>
+        <input type="file" id="audioFile" accept="audio/*">
+        <div class="btn-group">
+            <button id="playBtn">▶ PLAY</button>
+            <button id="pauseBtn">⏸ PAUSE</button>
+        </div>
+        <div id="audioLevels">
+            <div class="level-bar"><div class="level-fill" id="bassBar"></div><div class="level-label">BASS</div></div>
+            <div class="level-bar"><div class="level-fill" id="midBar"></div><div class="level-label">MID</div></div>
+            <div class="level-bar"><div class="level-fill" id="highBar"></div><div class="level-label">HIGH</div></div>
+        </div>
+
+        <!-- Geometry -->
+        <h2>🔷 Geometry Type</h2>
+        <div class="btn-group" id="geometryBtns"></div>
+
+        <!-- All Parameters -->
+        <h2>🎚️ Parameters</h2>
+        <div class="slider-row">
+            <label>Intensity:</label>
+            <input type="range" id="intensity" min="0.1" max="2.0" step="0.05" value="1.0">
+            <span class="value" id="intensityVal">1.0</span>
+        </div>
+        <div class="slider-row">
+            <label>Grid Density:</label>
+            <input type="range" id="gridDensity" min="5" max="80" step="1" value="25">
+            <span class="value" id="gridDensityVal">25</span>
+        </div>
+        <div class="slider-row">
+            <label>Morph Factor:</label>
+            <input type="range" id="morphFactor" min="0.1" max="3.0" step="0.1" value="1.0">
+            <span class="value" id="morphFactorVal">1.0</span>
+        </div>
+        <div class="slider-row">
+            <label>Chaos:</label>
+            <input type="range" id="chaos" min="0.0" max="1.0" step="0.05" value="0.2">
+            <span class="value" id="chaosVal">0.2</span>
+        </div>
+        <div class="slider-row">
+            <label>Speed:</label>
+            <input type="range" id="speed" min="0.1" max="3.0" step="0.1" value="1.0">
+            <span class="value" id="speedVal">1.0</span>
+        </div>
+        <div class="slider-row">
+            <label>Hue:</label>
+            <input type="range" id="hue" min="0" max="360" step="1" value="180">
+            <span class="value" id="hueVal">180</span>
+        </div>
+        <div class="slider-row">
+            <label>Saturation:</label>
+            <input type="range" id="saturation" min="0.0" max="1.0" step="0.05" value="1.0">
+            <span class="value" id="saturationVal">1.0</span>
+        </div>
+        <div class="slider-row">
+            <label>Dimension:</label>
+            <input type="range" id="dimension" min="2.0" max="5.0" step="0.1" value="3.5">
+            <span class="value" id="dimensionVal">3.5</span>
+        </div>
+
+        <!-- 4D Rotations -->
+        <h2>🌀 4D Rotation</h2>
+        <div class="slider-row">
+            <label>Rot XW:</label>
+            <input type="range" id="rot4dXW" min="-6.28" max="6.28" step="0.1" value="0">
+            <span class="value" id="rot4dXWVal">0.0</span>
+        </div>
+        <div class="slider-row">
+            <label>Rot YW:</label>
+            <input type="range" id="rot4dYW" min="-6.28" max="6.28" step="0.1" value="0">
+            <span class="value" id="rot4dYWVal">0.0</span>
+        </div>
+        <div class="slider-row">
+            <label>Rot ZW:</label>
+            <input type="range" id="rot4dZW" min="-6.28" max="6.28" step="0.1" value="0">
+            <span class="value" id="rot4dZWVal">0.0</span>
+        </div>
+
+        <!-- Systems -->
+        <h2>🎨 System</h2>
+        <div class="btn-group">
+            <button class="system-btn active" data-system="quantum">Quantum</button>
+            <button class="system-btn" data-system="faceted">Faceted</button>
+            <button class="system-btn" data-system="holographic">Holographic</button>
+        </div>
+
+        <!-- Rotation Patterns -->
+        <h2>🌀 Rotation Pattern</h2>
+        <div class="btn-group" id="rotationBtns"></div>
+
+        <!-- Sequences -->
+        <h2>💥 Sequences</h2>
+        <div class="btn-group" id="sequenceBtns"></div>
+
+        <!-- Thresholds -->
+        <h2>🎚️ Thresholds</h2>
+        <div class="slider-row">
+            <label>Onset:</label>
+            <input type="range" id="onsetThresh" min="0.5" max="0.99" step="0.01" value="0.85">
+            <span class="value" id="onsetThreshVal">0.85</span>
+        </div>
+        <div class="slider-row">
+            <label>Bass:</label>
+            <input type="range" id="bassThresh" min="0.5" max="0.99" step="0.01" value="0.83">
+            <span class="value" id="bassThreshVal">0.83</span>
+        </div>
+    </div>
+
+    <script type="module">
+        import { ChoreographyEngine } from '../src/core/ChoreographyEngine.js';
+        import { RotationChoreographer } from '../src/choreographers/RotationChoreographer.js';
+        import { ShaderChoreographer } from '../src/choreographers/ShaderChoreographer.js';
+        import { QuantumHolographicVisualizer } from '../src/visualizers/quantum/QuantumVisualizer.js';
+        import { IntegratedHolographicVisualizer } from '../src/visualizers/faceted/FacetedVisualizer.js';
+        import { HolographicVisualizer } from '../src/visualizers/holographic/HolographicVisualizer.js';
+        import { AudioAnalyzer } from '../src/audio/AudioAnalyzer.js';
+        import { GeometryLibrary } from '../src/geometry/GeometryLibrary.js';
+
+        const canvas = document.getElementById('mainCanvas');
+        canvas.width = window.innerWidth * (window.devicePixelRatio || 1);
+        canvas.height = window.innerHeight * (window.devicePixelRatio || 1);
+
+        let currentVisualizer, audioAnalyzer, audioContext, audioElement;
+        let onsetThreshold = 0.85, bassThreshold = 0.83;
+
+        // Initialize Quantum
+        currentVisualizer = new QuantumHolographicVisualizer('mainCanvas', 'content', 1.0, 0);
+        currentVisualizer.updateParameter('intensity', 1.0);
+        currentVisualizer.updateParameter('hue', 180);
+        currentVisualizer.updateParameter('saturation', 1.0);
+        currentVisualizer.updateParameter('gridDensity', 25);
+
+        const engine = new ChoreographyEngine({
+            visualizers: [currentVisualizer],
+            audioAnalyzer: null,
+            bpm: 128
+        });
+
+        const rotationChoreographer = new RotationChoreographer();
+        const shaderChoreographer = new ShaderChoreographer(currentVisualizer);
+
+        await engine.loadSequenceLibrary('../src/sequences/presets/bass-drops.json');
+
+        // Geometry buttons
+        const geoNames = GeometryLibrary.getGeometryNames();
+        const geoBtns = document.getElementById('geometryBtns');
+        geoNames.forEach((name, i) => {
+            const btn = document.createElement('button');
+            btn.textContent = name;
+            btn.onclick = () => {
+                currentVisualizer.updateParameter('geometry', i);
+                geoBtns.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+            };
+            if (i === 0) btn.classList.add('active');
+            geoBtns.appendChild(btn);
+        });
+
+        // All parameter sliders
+        ['intensity', 'gridDensity', 'morphFactor', 'chaos', 'speed', 'hue', 'saturation', 'dimension', 'rot4dXW', 'rot4dYW', 'rot4dZW'].forEach(param => {
+            const slider = document.getElementById(param);
+            const val = document.getElementById(param + 'Val');
+            slider.oninput = () => {
+                const v = parseFloat(slider.value);
+                val.textContent = v.toFixed(2);
+                currentVisualizer.updateParameter(param, v);
+            };
+        });
+
+        // Thresholds
+        document.getElementById('onsetThresh').oninput = (e) => {
+            onsetThreshold = parseFloat(e.target.value);
+            document.getElementById('onsetThreshVal').textContent = onsetThreshold.toFixed(2);
+        };
+        document.getElementById('bassThresh').oninput = (e) => {
+            bassThreshold = parseFloat(e.target.value);
+            document.getElementById('bassThreshVal').textContent = bassThreshold.toFixed(2);
+        };
+
+        // System switching
+        document.querySelectorAll('.system-btn').forEach(btn => {
+            btn.onclick = () => {
+                const system = btn.dataset.system;
+                if (currentVisualizer.destroy) currentVisualizer.destroy();
+
+                if (system === 'quantum') currentVisualizer = new QuantumHolographicVisualizer('mainCanvas', 'content', 1.0, 0);
+                else if (system === 'faceted') currentVisualizer = new IntegratedHolographicVisualizer('mainCanvas', 'content', 1.0, 0);
+                else currentVisualizer = new HolographicVisualizer('mainCanvas', 'content', 1.0, 0);
+
+                // Restore all slider values
+                ['intensity', 'gridDensity', 'morphFactor', 'chaos', 'speed', 'hue', 'saturation', 'dimension', 'rot4dXW', 'rot4dYW', 'rot4dZW'].forEach(param => {
+                    currentVisualizer.updateParameter(param, parseFloat(document.getElementById(param).value));
+                });
+
+                engine.visualizers = [currentVisualizer];
+                document.querySelectorAll('.system-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+            };
+        });
+
+        // Audio
+        document.getElementById('audioFile').onchange = async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            try {
+                if (audioElement) {
+                    audioElement.pause();
+                    audioElement.src = '';
+                }
+                const url = URL.createObjectURL(file);
+                audioElement = new Audio();
+                audioElement.src = url;
+                audioElement.volume = 1.0;
+                audioElement.preload = 'auto';
+                audioElement.style.display = 'none';
+                document.body.appendChild(audioElement);
+
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                audioAnalyzer = new AudioAnalyzer(audioContext);
+                const source = audioContext.createMediaElementSource(audioElement);
+                source.connect(audioAnalyzer.analyser);
+                audioAnalyzer.analyser.connect(audioContext.destination);
+                engine.audioAnalyzer = audioAnalyzer;
+            } catch (err) {
+                console.error(err);
+            }
+        };
+
+        document.getElementById('playBtn').onclick = async () => {
+            if (!audioElement) return;
+            try {
+                if (audioContext && audioContext.state === 'suspended') await audioContext.resume();
+                await audioElement.play();
+            } catch (err) {
+                console.error(err);
+            }
+        };
+
+        document.getElementById('pauseBtn').onclick = () => {
+            if (audioElement) audioElement.pause();
+        };
+
+        // Rotation patterns
+        const rotBtns = document.getElementById('rotationBtns');
+        rotationChoreographer.getPatternNames().forEach(name => {
+            const btn = document.createElement('button');
+            btn.textContent = name.replace(/_/g, ' ');
+            btn.onclick = () => {
+                rotationChoreographer.setPattern(name);
+                rotBtns.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+            };
+            rotBtns.appendChild(btn);
+        });
+
+        // Sequences
+        const seqBtns = document.getElementById('sequenceBtns');
+        engine.sequences.forEach((seq, name) => {
+            const btn = document.createElement('button');
+            btn.textContent = name.replace(/_/g, ' ').substring(10);
+            btn.onclick = () => engine.startSequence(name, Date.now());
+            seqBtns.appendChild(btn);
+        });
+
+        // Render loop
+        engine.start();
+        function render() {
+            const audioData = audioAnalyzer ? audioAnalyzer.analyze() : engine.getMockAudioData();
+
+            // Update audio bars
+            if (audioData.bands) {
+                document.getElementById('bassBar').style.width = (audioData.bands.bass * 100) + '%';
+                document.getElementById('midBar').style.width = (audioData.bands.mid * 100) + '%';
+                document.getElementById('highBar').style.width = (audioData.bands.high * 100) + '%';
+            }
+
+            // Set global audio reactive
+            window.audioEnabled = true;
+            window.audioReactive = {
+                bass: audioData.bands?.bass || 0.3,
+                mid: audioData.bands?.mid || 0.3,
+                high: audioData.bands?.high || 0.3,
+                energy: audioData.rms || 0.3
+            };
+
+            const rotations = rotationChoreographer.update(audioData, (Date.now() - engine.startTime) / 1000, engine.currentBeat, 16);
+            shaderChoreographer.update(audioData, (engine.currentBeat % engine.beatsPerMeasure) / engine.beatsPerMeasure, engine.currentBeat, engine.currentMeasure, Date.now());
+
+            // Apply rotations from pattern (don't override manual controls)
+            // currentVisualizer.updateParameter('rot4dXW', rotations.rot4dXW);
+            // currentVisualizer.updateParameter('rot4dYW', rotations.rot4dYW);
+            // currentVisualizer.updateParameter('rot4dZW', rotations.rot4dZW);
+
+            currentVisualizer.render();
+            requestAnimationFrame(render);
+        }
+        render();
+    </script>
+</body>
+</html>
