@@ -1,0 +1,999 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>VIB34D Ultimate - Complete Control</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background: #000;
+            color: #0f0;
+            font-family: 'Courier New', monospace;
+            overflow: hidden;
+            position: fixed;
+            width: 100%;
+            height: 100%;
+        }
+
+        canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 1;
+        }
+
+        /* Control Panel */
+        #panel {
+            position: fixed;
+            top: 0;
+            right: 0;
+            width: min(400px, 100vw);
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.98);
+            border-left: 2px solid #0ff;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* Header */
+        .panel-header {
+            flex-shrink: 0;
+            padding: 15px;
+            background: linear-gradient(135deg, #001a1a 0%, #003333 100%);
+            border-bottom: 2px solid #0ff;
+        }
+
+        .panel-header h1 {
+            color: #0ff;
+            font-size: 18px;
+            text-shadow: 0 0 10px #0ff;
+            margin-bottom: 8px;
+        }
+
+        .status-bar {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            color: #0f0;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 5px;
+            animation: pulse 2s infinite;
+        }
+
+        .status-indicator.mock {
+            background: #ff0;
+        }
+
+        .status-indicator.real {
+            background: #0f0;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        /* Scrollable Content */
+        .panel-content {
+            flex: 1;
+            overflow-y: auto;
+            overflow-x: hidden;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .panel-content::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .panel-content::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.5);
+        }
+
+        .panel-content::-webkit-scrollbar-thumb {
+            background: #0ff;
+            border-radius: 4px;
+        }
+
+        /* Collapsible Sections */
+        .section {
+            border-bottom: 1px solid rgba(0, 255, 255, 0.2);
+        }
+
+        .section-header {
+            padding: 12px 15px;
+            background: rgba(0, 40, 40, 0.5);
+            cursor: pointer;
+            user-select: none;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: background 0.2s;
+        }
+
+        .section-header:hover {
+            background: rgba(0, 60, 60, 0.7);
+        }
+
+        .section-header:active {
+            background: rgba(0, 80, 80, 0.9);
+        }
+
+        .section-title {
+            color: #0ff;
+            font-size: 14px;
+            font-weight: bold;
+        }
+
+        .section-icon {
+            color: #0ff;
+            font-size: 12px;
+            transition: transform 0.3s;
+        }
+
+        .section.collapsed .section-icon {
+            transform: rotate(-90deg);
+        }
+
+        .section-content {
+            max-height: 2000px;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out, opacity 0.3s;
+            opacity: 1;
+        }
+
+        .section.collapsed .section-content {
+            max-height: 0;
+            opacity: 0;
+        }
+
+        .section-inner {
+            padding: 15px;
+        }
+
+        /* Controls */
+        .control {
+            margin-bottom: 12px;
+        }
+
+        .control-label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+            font-size: 11px;
+        }
+
+        .control-label span:first-child {
+            color: #0f0;
+        }
+
+        .control-label span:last-child {
+            color: #0ff;
+            font-weight: bold;
+            min-width: 50px;
+            text-align: right;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            height: 6px;
+            background: rgba(0, 255, 255, 0.2);
+            border-radius: 3px;
+            outline: none;
+            -webkit-appearance: none;
+            cursor: pointer;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            background: #0ff;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 0 5px #0ff;
+            transition: all 0.2s;
+        }
+
+        input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+            box-shadow: 0 0 10px #0ff;
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            background: #0ff;
+            border-radius: 50%;
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 0 5px #0ff;
+        }
+
+        /* Buttons */
+        .btn-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+            gap: 6px;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #003333 0%, #005555 100%);
+            color: #0ff;
+            border: 1px solid #0ff;
+            padding: 8px;
+            font-family: inherit;
+            font-size: 10px;
+            font-weight: bold;
+            cursor: pointer;
+            border-radius: 3px;
+            transition: all 0.2s;
+            text-transform: uppercase;
+        }
+
+        .btn:hover {
+            background: linear-gradient(135deg, #005555 0%, #007777 100%);
+            box-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+            transform: translateY(-2px);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn.active {
+            background: linear-gradient(135deg, #330033 0%, #550055 100%);
+            color: #f0f;
+            border-color: #f0f;
+            box-shadow: 0 0 10px rgba(255, 0, 255, 0.5);
+        }
+
+        /* File Input */
+        .file-input-wrapper {
+            position: relative;
+            margin-bottom: 10px;
+        }
+
+        .file-input-wrapper input[type="file"] {
+            display: none;
+        }
+
+        .file-input-label {
+            display: block;
+            background: linear-gradient(135deg, #003300 0%, #005500 100%);
+            color: #0f0;
+            border: 1px solid #0f0;
+            padding: 10px;
+            text-align: center;
+            cursor: pointer;
+            border-radius: 3px;
+            transition: all 0.2s;
+            font-size: 11px;
+            font-weight: bold;
+        }
+
+        .file-input-label:hover {
+            background: linear-gradient(135deg, #005500 0%, #007700 100%);
+            box-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+        }
+
+        .file-name {
+            color: #0f0;
+            font-size: 10px;
+            margin-top: 5px;
+            text-align: center;
+            word-break: break-all;
+        }
+
+        /* Audio Bars */
+        .audio-bars {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 4px;
+            height: 60px;
+            margin: 10px 0;
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid rgba(0, 255, 255, 0.3);
+            border-radius: 3px;
+            padding: 5px;
+        }
+
+        .audio-bar-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .audio-bar-bg {
+            flex: 1;
+            width: 100%;
+            background: rgba(0, 50, 50, 0.5);
+            border-radius: 2px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .audio-bar {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: linear-gradient(to top, #0ff, #0f0, #ff0);
+            transition: height 0.05s ease-out;
+        }
+
+        .audio-bar-label {
+            font-size: 8px;
+            color: #0ff;
+            margin-top: 2px;
+        }
+
+        /* Checkboxes */
+        .checkbox-group {
+            display: grid;
+            gap: 8px;
+        }
+
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            padding: 5px;
+            border-radius: 3px;
+            transition: background 0.2s;
+        }
+
+        .checkbox-item:hover {
+            background: rgba(0, 255, 255, 0.1);
+        }
+
+        .checkbox-item input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+            accent-color: #0ff;
+        }
+
+        .checkbox-item label {
+            font-size: 11px;
+            color: #0f0;
+            cursor: pointer;
+        }
+
+        /* Mobile Optimizations */
+        @media (max-width: 600px) {
+            #panel {
+                width: 100vw;
+            }
+
+            .panel-header h1 {
+                font-size: 16px;
+            }
+
+            .section-title {
+                font-size: 12px;
+            }
+
+            .btn-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+
+            input[type="range"]::-webkit-slider-thumb {
+                width: 20px;
+                height: 20px;
+            }
+        }
+
+        /* Reactivity Strength Indicator */
+        .reactivity-strength {
+            height: 8px;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+
+        .reactivity-strength-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #0f0, #0ff, #ff0);
+            width: 0%;
+            transition: width 0.1s;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+
+    <div id="panel">
+        <div class="panel-header">
+            <h1>🌌 VIB34D ULTIMATE</h1>
+            <div class="status-bar">
+                <span id="audioStatus">
+                    <span class="status-indicator mock"></span>
+                    MOCK AUDIO
+                </span>
+                <span id="fps">0 FPS</span>
+            </div>
+        </div>
+
+        <div class="panel-content">
+            <!-- Audio Section -->
+            <div class="section">
+                <div class="section-header" onclick="toggleSection(this)">
+                    <span class="section-title">🎵 AUDIO</span>
+                    <span class="section-icon">▼</span>
+                </div>
+                <div class="section-content">
+                    <div class="section-inner">
+                        <div class="file-input-wrapper">
+                            <input type="file" id="audioFile" accept="audio/*">
+                            <label for="audioFile" class="file-input-label">
+                                📁 LOAD AUDIO FILE
+                            </label>
+                            <div class="file-name" id="fileName">No file loaded</div>
+                        </div>
+                        <div class="btn-grid">
+                            <button class="btn" id="playBtn">▶️ PLAY</button>
+                            <button class="btn" id="pauseBtn">⏸️ PAUSE</button>
+                        </div>
+                        <div class="audio-bars">
+                            <div class="audio-bar-container">
+                                <div class="audio-bar-bg"><div class="audio-bar" id="bar-sub"></div></div>
+                                <div class="audio-bar-label">SUB</div>
+                            </div>
+                            <div class="audio-bar-container">
+                                <div class="audio-bar-bg"><div class="audio-bar" id="bar-bass"></div></div>
+                                <div class="audio-bar-label">BASS</div>
+                            </div>
+                            <div class="audio-bar-container">
+                                <div class="audio-bar-bg"><div class="audio-bar" id="bar-low"></div></div>
+                                <div class="audio-bar-label">LOW</div>
+                            </div>
+                            <div class="audio-bar-container">
+                                <div class="audio-bar-bg"><div class="audio-bar" id="bar-mid"></div></div>
+                                <div class="audio-bar-label">MID</div>
+                            </div>
+                            <div class="audio-bar-container">
+                                <div class="audio-bar-bg"><div class="audio-bar" id="bar-hmid"></div></div>
+                                <div class="audio-bar-label">H-MID</div>
+                            </div>
+                            <div class="audio-bar-container">
+                                <div class="audio-bar-bg"><div class="audio-bar" id="bar-high"></div></div>
+                                <div class="audio-bar-label">HIGH</div>
+                            </div>
+                            <div class="audio-bar-container">
+                                <div class="audio-bar-bg"><div class="audio-bar" id="bar-ultra"></div></div>
+                                <div class="audio-bar-label">ULTRA</div>
+                            </div>
+                        </div>
+                        <div class="reactivity-strength">
+                            <div class="reactivity-strength-bar" id="reactivityBar"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Visual Parameters -->
+            <div class="section">
+                <div class="section-header" onclick="toggleSection(this)">
+                    <span class="section-title">🎨 VISUAL PARAMETERS</span>
+                    <span class="section-icon">▼</span>
+                </div>
+                <div class="section-content">
+                    <div class="section-inner">
+                        <div class="control">
+                            <div class="control-label">
+                                <span>Intensity</span>
+                                <span id="intensityVal">1.0</span>
+                            </div>
+                            <input type="range" id="intensity" min="0.1" max="2.0" step="0.01" value="1.0">
+                        </div>
+                        <div class="control">
+                            <div class="control-label">
+                                <span>Grid Density</span>
+                                <span id="gridDensityVal">25</span>
+                            </div>
+                            <input type="range" id="gridDensity" min="5" max="80" step="1" value="25">
+                        </div>
+                        <div class="control">
+                            <div class="control-label">
+                                <span>Morph Factor</span>
+                                <span id="morphFactorVal">1.0</span>
+                            </div>
+                            <input type="range" id="morphFactor" min="0.1" max="3.0" step="0.01" value="1.0">
+                        </div>
+                        <div class="control">
+                            <div class="control-label">
+                                <span>Chaos</span>
+                                <span id="chaosVal">0.2</span>
+                            </div>
+                            <input type="range" id="chaos" min="0.0" max="1.0" step="0.01" value="0.2">
+                        </div>
+                        <div class="control">
+                            <div class="control-label">
+                                <span>Speed</span>
+                                <span id="speedVal">1.0</span>
+                            </div>
+                            <input type="range" id="speed" min="0.1" max="3.0" step="0.01" value="1.0">
+                        </div>
+                        <div class="control">
+                            <div class="control-label">
+                                <span>Hue</span>
+                                <span id="hueVal">180</span>
+                            </div>
+                            <input type="range" id="hue" min="0" max="360" step="1" value="180">
+                        </div>
+                        <div class="control">
+                            <div class="control-label">
+                                <span>Saturation</span>
+                                <span id="saturationVal">0.8</span>
+                            </div>
+                            <input type="range" id="saturation" min="0.0" max="1.0" step="0.01" value="0.8">
+                        </div>
+                        <div class="control">
+                            <div class="control-label">
+                                <span>Dimension</span>
+                                <span id="dimensionVal">3.5</span>
+                            </div>
+                            <input type="range" id="dimension" min="2.0" max="5.0" step="0.1" value="3.5">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Geometry -->
+            <div class="section">
+                <div class="section-header" onclick="toggleSection(this)">
+                    <span class="section-title">⬡ GEOMETRY</span>
+                    <span class="section-icon">▼</span>
+                </div>
+                <div class="section-content">
+                    <div class="section-inner">
+                        <div class="btn-grid" id="geometryBtns"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 4D Rotations -->
+            <div class="section">
+                <div class="section-header" onclick="toggleSection(this)">
+                    <span class="section-title">🌀 4D ROTATIONS</span>
+                    <span class="section-icon">▼</span>
+                </div>
+                <div class="section-content">
+                    <div class="section-inner">
+                        <div class="control">
+                            <div class="control-label">
+                                <span>Rotation XW</span>
+                                <span id="rot4dXWVal">0.0</span>
+                            </div>
+                            <input type="range" id="rot4dXW" min="-3.14" max="3.14" step="0.01" value="0">
+                        </div>
+                        <div class="control">
+                            <div class="control-label">
+                                <span>Rotation YW</span>
+                                <span id="rot4dYWVal">0.0</span>
+                            </div>
+                            <input type="range" id="rot4dYW" min="-3.14" max="3.14" step="0.01" value="0">
+                        </div>
+                        <div class="control">
+                            <div class="control-label">
+                                <span>Rotation ZW</span>
+                                <span id="rot4dZWVal">0.0</span>
+                            </div>
+                            <input type="range" id="rot4dZW" min="-3.14" max="3.14" step="0.01" value="0">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Visualizer System -->
+            <div class="section">
+                <div class="section-header" onclick="toggleSection(this)">
+                    <span class="section-title">🖥️ SYSTEM</span>
+                    <span class="section-icon">▼</span>
+                </div>
+                <div class="section-content">
+                    <div class="section-inner">
+                        <div class="btn-grid">
+                            <button class="btn active system-btn" data-system="quantum">Quantum</button>
+                            <button class="btn system-btn" data-system="faceted">Faceted</button>
+                            <button class="btn system-btn" data-system="holographic">Holo</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Audio Reactivity -->
+            <div class="section">
+                <div class="section-header" onclick="toggleSection(this)">
+                    <span class="section-title">⚡ AUDIO REACTIVITY</span>
+                    <span class="section-icon">▼</span>
+                </div>
+                <div class="section-content">
+                    <div class="section-inner">
+                        <div class="checkbox-group">
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="reactDensity" checked>
+                                <label for="reactDensity">Density → Bass</label>
+                            </div>
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="reactMorph" checked>
+                                <label for="reactMorph">Morph → Mid</label>
+                            </div>
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="reactColor" checked>
+                                <label for="reactColor">Hue → High</label>
+                            </div>
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="reactChaos" checked>
+                                <label for="reactChaos">Chaos → Energy</label>
+                            </div>
+                            <div class="checkbox-item">
+                                <input type="checkbox" id="reactRotation" checked>
+                                <label for="reactRotation">4D Rotation → Spectrum</label>
+                            </div>
+                        </div>
+                        <div class="control" style="margin-top: 15px;">
+                            <div class="control-label">
+                                <span>Reactivity Amount</span>
+                                <span id="reactivityVal">1.0</span>
+                            </div>
+                            <input type="range" id="reactivity" min="0.0" max="3.0" step="0.1" value="1.0">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { QuantumHolographicVisualizer } from '../src/visualizers/quantum/QuantumVisualizer.js';
+        import { IntegratedHolographicVisualizer } from '../src/visualizers/faceted/FacetedVisualizer.js';
+        import { HolographicVisualizer } from '../src/visualizers/holographic/HolographicVisualizer.js';
+        import { AudioAnalyzer } from '../src/audio/AudioAnalyzer.js';
+        import { GeometryLibrary } from '../src/geometry/GeometryLibrary.js';
+
+        // Collapsible sections
+        window.toggleSection = function(header) {
+            header.parentElement.classList.toggle('collapsed');
+        };
+
+        // Canvas setup
+        const canvas = document.getElementById('canvas');
+        canvas.width = window.innerWidth * (window.devicePixelRatio || 1);
+        canvas.height = window.innerHeight * (window.devicePixelRatio || 1);
+
+        // Audio
+        let audioContext = null;
+        let audioAnalyzer = null;
+        let audioElement = null;
+
+        // Visualizer
+        let visualizer = new QuantumHolographicVisualizer('canvas', 'content', 1.0, 0);
+
+        // Base parameters
+        const baseParams = {
+            intensity: 1.0,
+            gridDensity: 25,
+            morphFactor: 1.0,
+            chaos: 0.2,
+            speed: 1.0,
+            hue: 180,
+            saturation: 0.8,
+            dimension: 3.5,
+            rot4dXW: 0,
+            rot4dYW: 0,
+            rot4dZW: 0,
+            geometry: 1
+        };
+
+        // Reactivity settings
+        const reactivity = {
+            enabled: {
+                density: true,
+                morph: true,
+                color: true,
+                chaos: true,
+                rotation: true
+            },
+            amount: 1.0
+        };
+
+        // Setup geometry buttons
+        const geoNames = GeometryLibrary.getGeometryNames();
+        const geoBtns = document.getElementById('geometryBtns');
+        geoNames.forEach((name, i) => {
+            const btn = document.createElement('button');
+            btn.className = 'btn' + (i === 1 ? ' active' : '');
+            btn.textContent = name;
+            btn.onclick = () => {
+                baseParams.geometry = i;
+                visualizer.updateParameter('geometry', i);
+                document.querySelectorAll('#geometryBtns .btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+            };
+            geoBtns.appendChild(btn);
+        });
+
+        // Setup all sliders
+        Object.keys(baseParams).forEach(key => {
+            const slider = document.getElementById(key);
+            if (!slider) return;
+
+            const display = document.getElementById(key + 'Val');
+            slider.oninput = () => {
+                const val = parseFloat(slider.value);
+                baseParams[key] = val;
+
+                if (display) {
+                    if (key === 'gridDensity' || key === 'hue') {
+                        display.textContent = Math.round(val);
+                    } else {
+                        display.textContent = val.toFixed(1);
+                    }
+                }
+
+                if (!audioAnalyzer || !audioElement || audioElement.paused) {
+                    visualizer.updateParameter(key, val);
+                }
+            };
+        });
+
+        // Reactivity toggles
+        ['density', 'morph', 'color', 'chaos', 'rotation'].forEach(key => {
+            const checkbox = document.getElementById('react' + key.charAt(0).toUpperCase() + key.slice(1));
+            if (checkbox) {
+                checkbox.onchange = () => reactivity.enabled[key] = checkbox.checked;
+            }
+        });
+
+        document.getElementById('reactivity').oninput = (e) => {
+            reactivity.amount = parseFloat(e.target.value);
+            document.getElementById('reactivityVal').textContent = reactivity.amount.toFixed(1);
+        };
+
+        // System switching
+        document.querySelectorAll('.system-btn').forEach(btn => {
+            btn.onclick = () => {
+                const system = btn.dataset.system;
+
+                if (visualizer && visualizer.destroy) {
+                    visualizer.destroy();
+                }
+
+                if (system === 'quantum') {
+                    visualizer = new QuantumHolographicVisualizer('canvas', 'content', 1.0, 0);
+                } else if (system === 'faceted') {
+                    visualizer = new IntegratedHolographicVisualizer('canvas', 'content', 1.0, 0);
+                } else {
+                    visualizer = new HolographicVisualizer('canvas', 'content', 1.0, 0);
+                }
+
+                // Apply all params
+                Object.keys(baseParams).forEach(key => {
+                    visualizer.updateParameter(key, baseParams[key]);
+                });
+
+                document.querySelectorAll('.system-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+            };
+        });
+
+        // Audio file - BULLETPROOF
+        document.getElementById('audioFile').onchange = async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            try {
+                document.getElementById('fileName').textContent = `Loading ${file.name}...`;
+
+                if (audioElement) {
+                    audioElement.pause();
+                    audioElement.src = '';
+                    if (audioElement.parentNode) {
+                        audioElement.parentNode.removeChild(audioElement);
+                    }
+                }
+
+                const url = URL.createObjectURL(file);
+                audioElement = new Audio();
+                audioElement.src = url;
+                audioElement.volume = 1.0;
+                audioElement.preload = 'auto';
+                audioElement.crossOrigin = 'anonymous';
+                audioElement.style.display = 'none';
+                audioElement.style.position = 'fixed';
+                audioElement.style.bottom = '0';
+                audioElement.style.left = '0';
+                document.body.appendChild(audioElement);
+
+                await new Promise((resolve, reject) => {
+                    audioElement.addEventListener('loadeddata', resolve, { once: true });
+                    audioElement.addEventListener('error', reject, { once: true });
+                    setTimeout(() => resolve(), 3000);
+                });
+
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                audioAnalyzer = new AudioAnalyzer(audioContext);
+
+                const source = audioContext.createMediaElementSource(audioElement);
+                source.connect(audioAnalyzer.analyser);
+                audioAnalyzer.analyser.connect(audioContext.destination);
+
+                document.getElementById('fileName').textContent = file.name;
+                console.log('✅ Audio loaded:', file.name);
+            } catch (err) {
+                console.error('Audio load error:', err);
+                document.getElementById('fileName').textContent = 'Error: ' + err.message;
+            }
+        };
+
+        document.getElementById('playBtn').onclick = async () => {
+            if (!audioElement) {
+                alert('Load audio file first');
+                return;
+            }
+
+            try {
+                console.log('🎬 Playing...');
+                if (audioContext && audioContext.state === 'suspended') {
+                    await audioContext.resume();
+                }
+                await audioElement.play();
+                console.log('✅ Playing!');
+            } catch (err) {
+                console.error('Play error:', err);
+                try {
+                    await audioContext.resume();
+                    await audioElement.play();
+                    console.log('✅ Retry worked!');
+                } catch (e) {
+                    alert('Playback failed: ' + e.message);
+                }
+            }
+        };
+
+        document.getElementById('pauseBtn').onclick = () => {
+            if (audioElement) {
+                audioElement.pause();
+                console.log('⏸️ Paused');
+            }
+        };
+
+        // Render loop
+        let lastTime = Date.now();
+        let frameCount = 0;
+        let fps = 0;
+        let logCounter = 0;
+
+        function render() {
+            const now = Date.now();
+            const dt = now - lastTime;
+            lastTime = now;
+
+            // FPS
+            frameCount++;
+            if (frameCount >= 60) {
+                fps = Math.round(60000 / (now - lastTime + dt * frameCount));
+                document.getElementById('fps').textContent = fps + ' FPS';
+                frameCount = 0;
+            }
+
+            // Get audio data
+            const audioPlaying = audioAnalyzer && audioElement && !audioElement.paused;
+            let audioData = { bands: {}, rms: 0 };
+
+            if (audioPlaying) {
+                audioData = audioAnalyzer.analyze();
+
+                // Update status
+                document.getElementById('audioStatus').innerHTML = '<span class="status-indicator real"></span>REAL AUDIO';
+
+                // Log every second
+                logCounter++;
+                if (logCounter >= 60) {
+                    console.log('🎵 REAL:', {
+                        bass: audioData.bands?.bass?.toFixed(2),
+                        mid: audioData.bands?.mid?.toFixed(2),
+                        high: audioData.bands?.high?.toFixed(2)
+                    });
+                    logCounter = 0;
+                }
+            } else {
+                document.getElementById('audioStatus').innerHTML = '<span class="status-indicator mock"></span>MOCK AUDIO';
+            }
+
+            // Update audio bars
+            const bands = audioData.bands || {};
+            const bandKeys = ['subBass', 'bass', 'lowMid', 'mid', 'highMid', 'high', 'ultraHigh'];
+            const barIds = ['bar-sub', 'bar-bass', 'bar-low', 'bar-mid', 'bar-hmid', 'bar-high', 'bar-ultra'];
+
+            barIds.forEach((id, i) => {
+                const bar = document.getElementById(id);
+                const val = bands[bandKeys[i]] || 0;
+                if (bar) bar.style.height = (val * 100) + '%';
+            });
+
+            // Reactivity strength indicator
+            const avgReactivity = Object.values(bands).reduce((a, b) => a + b, 0) / 7;
+            document.getElementById('reactivityBar').style.width = (avgReactivity * 100) + '%';
+
+            // Set global for visualizer internal use
+            window.audioEnabled = audioPlaying;
+            window.audioReactive = bands;
+
+            // APPLY AUDIO REACTIVITY
+            if (audioPlaying) {
+                const mult = reactivity.amount;
+
+                if (reactivity.enabled.density) {
+                    const densityMod = ((bands.bass || 0) * 40 + (bands.subBass || 0) * 30) * mult;
+                    visualizer.updateParameter('gridDensity', Math.min(80, baseParams.gridDensity + densityMod));
+                }
+
+                if (reactivity.enabled.morph) {
+                    const morphMod = (bands.mid || 0) * 1.5 * mult;
+                    visualizer.updateParameter('morphFactor', Math.min(3.0, baseParams.morphFactor + morphMod));
+                }
+
+                if (reactivity.enabled.color) {
+                    const hueShift = (bands.high || 0) * 120 * mult;
+                    visualizer.updateParameter('hue', (baseParams.hue + hueShift) % 360);
+
+                    const satMod = (bands.mid || 0) * 0.3 * mult;
+                    visualizer.updateParameter('saturation', Math.min(1.0, baseParams.saturation + satMod));
+                }
+
+                if (reactivity.enabled.chaos) {
+                    const chaosMod = (audioData.rms || 0) * 0.6 * mult;
+                    visualizer.updateParameter('chaos', Math.min(1.0, baseParams.chaos + chaosMod));
+                }
+
+                if (reactivity.enabled.rotation) {
+                    visualizer.updateParameter('rot4dXW', baseParams.rot4dXW + (bands.lowMid || 0) * 0.5 * mult);
+                    visualizer.updateParameter('rot4dYW', baseParams.rot4dYW + (bands.mid || 0) * 0.6 * mult);
+                    visualizer.updateParameter('rot4dZW', baseParams.rot4dZW + (bands.high || 0) * 0.8 * mult);
+                }
+
+                const speedMod = ((bands.bass || 0) + (audioData.rms || 0)) * 0.8 * mult;
+                visualizer.updateParameter('speed', Math.min(3.0, baseParams.speed + speedMod));
+            }
+
+            // Render
+            if (visualizer.render) {
+                visualizer.render();
+            }
+
+            requestAnimationFrame(render);
+        }
+
+        // Initialize
+        Object.keys(baseParams).forEach(key => {
+            visualizer.updateParameter(key, baseParams[key]);
+        });
+
+        render();
+        console.log('🌌 VIB34D Ultimate initialized');
+        console.log('📱 Mobile-optimized UI with collapsible sections');
+        console.log('🎵 Load audio and press PLAY to see REAL audio reactivity');
+    </script>
+</body>
+</html>
