@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VIB34D Properly Reactive</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #000;
+            color: #0f0;
+            font-family: 'Courier New', monospace;
+            overflow: hidden;
+        }
+
+        canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        #controls {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            width: 380px;
+            max-height: calc(100vh - 20px);
+            background: rgba(0, 0, 0, 0.9);
+            border: 2px solid #0ff;
+            padding: 15px;
+            overflow-y: auto;
+            z-index: 1000;
+            font-size: 13px;
+        }
+
+        #controls::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        #controls::-webkit-scrollbar-track {
+            background: #000;
+        }
+
+        #controls::-webkit-scrollbar-thumb {
+            background: #0ff;
+        }
+
+        h2 {
+            color: #0ff;
+            font-size: 16px;
+            margin: 15px 0 10px 0;
+            border-bottom: 1px solid #0ff;
+            padding-bottom: 5px;
+        }
+
+        h2:first-child {
+            margin-top: 0;
+        }
+
+        .control {
+            margin: 8px 0;
+        }
+
+        .control label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 3px;
+            font-size: 12px;
+        }
+
+        .control label span:first-child {
+            color: #0f0;
+        }
+
+        .control label span:last-child {
+            color: #0ff;
+            font-weight: bold;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            height: 4px;
+            background: rgba(0, 255, 255, 0.2);
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 12px;
+            height: 12px;
+            background: #0ff;
+            cursor: pointer;
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            width: 12px;
+            height: 12px;
+            background: #0ff;
+            cursor: pointer;
+            border: none;
+        }
+
+        button {
+            background: #003;
+            color: #0ff;
+            border: 1px solid #0ff;
+            padding: 8px;
+            margin: 3px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 11px;
+            width: calc(50% - 6px);
+        }
+
+        button:hover {
+            background: #005;
+        }
+
+        button.active {
+            background: #305;
+            color: #f0f;
+            border-color: #f0f;
+        }
+
+        .btn-full {
+            width: calc(100% - 6px);
+        }
+
+        .file-input {
+            margin: 10px 0;
+        }
+
+        input[type="file"] {
+            font-size: 11px;
+            color: #0f0;
+            width: 100%;
+        }
+
+        .audio-bars {
+            display: flex;
+            gap: 3px;
+            height: 40px;
+            margin: 10px 0;
+            align-items: flex-end;
+        }
+
+        .audio-bar {
+            flex: 1;
+            background: linear-gradient(to top, #0ff, #0f0, #ff0);
+            transition: height 0.05s;
+            min-height: 2px;
+        }
+
+        .status {
+            padding: 8px;
+            background: rgba(0, 100, 100, 0.2);
+            margin: 10px 0;
+            border-left: 3px solid #0ff;
+            font-size: 11px;
+        }
+
+        .checkbox-group {
+            margin: 8px 0;
+        }
+
+        .checkbox-group label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin: 5px 0;
+            cursor: pointer;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+
+    <div id="controls">
+        <h2>🎵 AUDIO</h2>
+        <div class="file-input">
+            <input type="file" id="audioFile" accept="audio/*">
+        </div>
+        <button id="playBtn">▶️ PLAY</button>
+        <button id="pauseBtn">⏸️ PAUSE</button>
+        <div class="audio-bars">
+            <div class="audio-bar" id="bar1"></div>
+            <div class="audio-bar" id="bar2"></div>
+            <div class="audio-bar" id="bar3"></div>
+            <div class="audio-bar" id="bar4"></div>
+            <div class="audio-bar" id="bar5"></div>
+            <div class="audio-bar" id="bar6"></div>
+            <div class="audio-bar" id="bar7"></div>
+        </div>
+        <div class="status" id="status">Ready</div>
+
+        <h2>🎨 SYSTEM</h2>
+        <button class="system-btn active" data-system="quantum">Quantum</button>
+        <button class="system-btn" data-system="faceted">Faceted</button>
+        <button class="system-btn" data-system="holographic">Holographic</button>
+
+        <h2>🎛️ VISUAL CONTROLS</h2>
+
+        <div class="control">
+            <label>
+                <span>Intensity</span>
+                <span id="intensityVal">1.0</span>
+            </label>
+            <input type="range" id="intensity" min="0.1" max="2.0" step="0.01" value="1.0">
+        </div>
+
+        <div class="control">
+            <label>
+                <span>Grid Density</span>
+                <span id="gridDensityVal">20</span>
+            </label>
+            <input type="range" id="gridDensity" min="5" max="80" step="1" value="20">
+        </div>
+
+        <div class="control">
+            <label>
+                <span>Morph Factor</span>
+                <span id="morphFactorVal">1.0</span>
+            </label>
+            <input type="range" id="morphFactor" min="0.1" max="3.0" step="0.01" value="1.0">
+        </div>
+
+        <div class="control">
+            <label>
+                <span>Chaos</span>
+                <span id="chaosVal">0.2</span>
+            </label>
+            <input type="range" id="chaos" min="0.0" max="1.0" step="0.01" value="0.2">
+        </div>
+
+        <div class="control">
+            <label>
+                <span>Speed</span>
+                <span id="speedVal">1.0</span>
+            </label>
+            <input type="range" id="speed" min="0.1" max="3.0" step="0.01" value="1.0">
+        </div>
+
+        <div class="control">
+            <label>
+                <span>Hue</span>
+                <span id="hueVal">180</span>
+            </label>
+            <input type="range" id="hue" min="0" max="360" step="1" value="180">
+        </div>
+
+        <div class="control">
+            <label>
+                <span>Saturation</span>
+                <span id="saturationVal">0.8</span>
+            </label>
+            <input type="range" id="saturation" min="0.0" max="1.0" step="0.01" value="0.8">
+        </div>
+
+        <div class="control">
+            <label>
+                <span>Dimension</span>
+                <span id="dimensionVal">3.5</span>
+            </label>
+            <input type="range" id="dimension" min="2.0" max="5.0" step="0.1" value="3.5">
+        </div>
+
+        <div class="control">
+            <label>
+                <span>Geometry</span>
+                <span id="geometryVal">HYPERCUBE</span>
+            </label>
+            <input type="range" id="geometry" min="0" max="7" step="1" value="1">
+        </div>
+
+        <h2>🌀 4D ROTATIONS</h2>
+
+        <div class="control">
+            <label>
+                <span>Rot XW</span>
+                <span id="rot4dXWVal">0.0</span>
+            </label>
+            <input type="range" id="rot4dXW" min="-3.14" max="3.14" step="0.01" value="0">
+        </div>
+
+        <div class="control">
+            <label>
+                <span>Rot YW</span>
+                <span id="rot4dYWVal">0.0</span>
+            </label>
+            <input type="range" id="rot4dYW" min="-3.14" max="3.14" step="0.01" value="0">
+        </div>
+
+        <div class="control">
+            <label>
+                <span>Rot ZW</span>
+                <span id="rot4dZWVal">0.0</span>
+            </label>
+            <input type="range" id="rot4dZW" min="-3.14" max="3.14" step="0.01" value="0">
+        </div>
+
+        <h2>⚡ AUDIO REACTIVITY</h2>
+
+        <div class="checkbox-group">
+            <label>
+                <input type="checkbox" id="reactDensity" checked>
+                <span>Density → Bass</span>
+            </label>
+            <label>
+                <input type="checkbox" id="reactMorph" checked>
+                <span>Morph → Mid</span>
+            </label>
+            <label>
+                <input type="checkbox" id="reactColor" checked>
+                <span>Hue → High</span>
+            </label>
+            <label>
+                <input type="checkbox" id="reactChaos" checked>
+                <span>Chaos → Energy</span>
+            </label>
+            <label>
+                <input type="checkbox" id="reactRotation" checked>
+                <span>4D Rotation → Spectrum</span>
+            </label>
+        </div>
+
+        <div class="control">
+            <label>
+                <span>Reactivity Amount</span>
+                <span id="reactivityVal">1.0</span>
+            </label>
+            <input type="range" id="reactivity" min="0.0" max="3.0" step="0.1" value="1.0">
+        </div>
+    </div>
+
+    <script type="module">
+        import { QuantumHolographicVisualizer } from '../src/visualizers/quantum/QuantumVisualizer.js';
+        import { IntegratedHolographicVisualizer } from '../src/visualizers/faceted/FacetedVisualizer.js';
+        import { HolographicVisualizer } from '../src/visualizers/holographic/HolographicVisualizer.js';
+        import { AudioAnalyzer } from '../src/audio/AudioAnalyzer.js';
+
+        const canvas = document.getElementById('canvas');
+        canvas.width = window.innerWidth * (window.devicePixelRatio || 1);
+        canvas.height = window.innerHeight * (window.devicePixelRatio || 1);
+
+        const GEOMETRY_NAMES = ['TETRA', 'HYPERCUBE', 'SPHERE', 'TORUS', 'KLEIN', 'FRACTAL', 'WAVE', 'CRYSTAL'];
+
+        // Audio
+        let audioContext = null;
+        let audioAnalyzer = null;
+        let audioElement = null;
+
+        // Visualizer
+        let visualizer = new QuantumHolographicVisualizer('canvas', 'content', 1.0, 0);
+
+        // User parameters
+        const params = {
+            intensity: 1.0,
+            gridDensity: 20,
+            morphFactor: 1.0,
+            chaos: 0.2,
+            speed: 1.0,
+            hue: 180,
+            saturation: 0.8,
+            dimension: 3.5,
+            geometry: 1,
+            rot4dXW: 0,
+            rot4dYW: 0,
+            rot4dZW: 0
+        };
+
+        // Reactivity settings
+        const reactivity = {
+            enabled: {
+                density: true,
+                morph: true,
+                color: true,
+                chaos: true,
+                rotation: true
+            },
+            amount: 1.0
+        };
+
+        // Setup all sliders
+        Object.keys(params).forEach(key => {
+            const slider = document.getElementById(key);
+            const display = document.getElementById(key + 'Val');
+
+            if (slider && display) {
+                slider.oninput = () => {
+                    let val = parseFloat(slider.value);
+                    params[key] = val;
+
+                    if (key === 'geometry') {
+                        display.textContent = GEOMETRY_NAMES[Math.floor(val)] || val;
+                    } else if (key === 'gridDensity') {
+                        display.textContent = Math.round(val);
+                    } else if (key === 'hue') {
+                        display.textContent = Math.round(val);
+                    } else {
+                        display.textContent = val.toFixed(1);
+                    }
+
+                    // Apply immediately
+                    visualizer.updateParameter(key, val);
+                };
+            }
+        });
+
+        // Reactivity checkboxes
+        document.getElementById('reactDensity').onchange = (e) => reactivity.enabled.density = e.target.checked;
+        document.getElementById('reactMorph').onchange = (e) => reactivity.enabled.morph = e.target.checked;
+        document.getElementById('reactColor').onchange = (e) => reactivity.enabled.color = e.target.checked;
+        document.getElementById('reactChaos').onchange = (e) => reactivity.enabled.chaos = e.target.checked;
+        document.getElementById('reactRotation').onchange = (e) => reactivity.enabled.rotation = e.target.checked;
+
+        document.getElementById('reactivity').oninput = (e) => {
+            reactivity.amount = parseFloat(e.target.value);
+            document.getElementById('reactivityVal').textContent = reactivity.amount.toFixed(1);
+        };
+
+        // System switching
+        document.querySelectorAll('.system-btn').forEach(btn => {
+            btn.onclick = () => {
+                const system = btn.dataset.system;
+
+                if (visualizer && visualizer.destroy) {
+                    visualizer.destroy();
+                }
+
+                if (system === 'quantum') {
+                    visualizer = new QuantumHolographicVisualizer('canvas', 'content', 1.0, 0);
+                } else if (system === 'faceted') {
+                    visualizer = new IntegratedHolographicVisualizer('canvas', 'content', 1.0, 0);
+                } else if (system === 'holographic') {
+                    visualizer = new HolographicVisualizer('canvas', 'content', 1.0, 0);
+                }
+
+                // Apply all current params
+                Object.keys(params).forEach(key => {
+                    visualizer.updateParameter(key, params[key]);
+                });
+
+                document.querySelectorAll('.system-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+
+                document.getElementById('status').textContent = `Switched to ${system}`;
+            };
+        });
+
+        // Audio file
+        document.getElementById('audioFile').onchange = async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            try {
+                document.getElementById('status').textContent = `Loading ${file.name}...`;
+
+                if (audioElement) {
+                    audioElement.pause();
+                    audioElement.src = '';
+                }
+
+                const url = URL.createObjectURL(file);
+                audioElement = new Audio();
+                audioElement.src = url;
+                audioElement.volume = 1.0;
+                audioElement.style.display = 'none';
+                document.body.appendChild(audioElement);
+
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                audioAnalyzer = new AudioAnalyzer(audioContext);
+
+                const source = audioContext.createMediaElementSource(audioElement);
+                source.connect(audioAnalyzer.analyser);
+                audioAnalyzer.analyser.connect(audioContext.destination);
+
+                document.getElementById('status').textContent = 'Loaded! Press PLAY';
+            } catch (err) {
+                document.getElementById('status').textContent = 'Error: ' + err.message;
+            }
+        };
+
+        document.getElementById('playBtn').onclick = async () => {
+            if (!audioElement) {
+                alert('Load audio file first');
+                return;
+            }
+
+            try {
+                if (audioContext.state === 'suspended') {
+                    await audioContext.resume();
+                }
+                await audioElement.play();
+                document.getElementById('status').textContent = '🔊 PLAYING';
+            } catch (err) {
+                document.getElementById('status').textContent = 'Play error: ' + err.message;
+            }
+        };
+
+        document.getElementById('pauseBtn').onclick = () => {
+            if (audioElement) {
+                audioElement.pause();
+                document.getElementById('status').textContent = 'Paused';
+            }
+        };
+
+        // Render loop
+        let lastTime = Date.now();
+
+        function render() {
+            const now = Date.now();
+            const dt = (now - lastTime) / 1000;
+            lastTime = now;
+
+            // Get audio data
+            let audioData = { bands: {}, rms: 0, onset: 0 };
+            if (audioAnalyzer && audioElement && !audioElement.paused) {
+                audioData = audioAnalyzer.analyze();
+            }
+
+            // Update audio bars
+            const bands = audioData.bands || {};
+            for (let i = 1; i <= 7; i++) {
+                const bar = document.getElementById('bar' + i);
+                const bandKeys = Object.keys(bands);
+                const val = bands[bandKeys[i - 1]] || 0;
+                if (bar) bar.style.height = (val * 100) + '%';
+            }
+
+            // Calculate reactive parameters
+            const finalParams = { ...params };
+
+            if (audioAnalyzer && audioElement && !audioElement.paused) {
+                const mult = reactivity.amount;
+
+                // Density reacts to bass
+                if (reactivity.enabled.density) {
+                    const bassBoost = (bands.bass || 0) * 40 * mult + (bands.subBass || 0) * 30 * mult;
+                    finalParams.gridDensity = Math.min(80, params.gridDensity + bassBoost);
+                }
+
+                // Morph reacts to mid
+                if (reactivity.enabled.morph) {
+                    const midBoost = (bands.mid || 0) * 1.5 * mult;
+                    finalParams.morphFactor = Math.min(3.0, params.morphFactor + midBoost);
+                }
+
+                // Hue reacts to high
+                if (reactivity.enabled.color) {
+                    const highShift = (bands.high || 0) * 120 * mult;
+                    finalParams.hue = (params.hue + highShift) % 360;
+
+                    const midSat = (bands.mid || 0) * 0.3 * mult;
+                    finalParams.saturation = Math.min(1.0, params.saturation + midSat);
+                }
+
+                // Chaos reacts to energy
+                if (reactivity.enabled.chaos) {
+                    const energyBoost = (audioData.rms || 0) * 0.6 * mult;
+                    finalParams.chaos = Math.min(1.0, params.chaos + energyBoost);
+                }
+
+                // 4D rotations react to spectrum
+                if (reactivity.enabled.rotation) {
+                    const lowMidMod = (bands.lowMid || 0) * 0.5 * mult;
+                    finalParams.rot4dXW = params.rot4dXW + lowMidMod;
+
+                    const midMod = (bands.mid || 0) * 0.6 * mult;
+                    finalParams.rot4dYW = params.rot4dYW + midMod;
+
+                    const highMod = (bands.high || 0) * 0.8 * mult;
+                    finalParams.rot4dZW = params.rot4dZW + highMod;
+                }
+
+                // Speed reacts to bass + energy
+                const speedMod = ((bands.bass || 0) + (audioData.rms || 0)) * 0.8 * mult;
+                finalParams.speed = Math.min(3.0, params.speed + speedMod);
+            }
+
+            // Apply all parameters to visualizer
+            Object.keys(finalParams).forEach(key => {
+                visualizer.updateParameter(key, finalParams[key]);
+            });
+
+            // Set global for internal visualizer reactivity
+            window.audioEnabled = !!(audioAnalyzer && audioElement && !audioElement.paused);
+            window.audioReactive = audioData.bands || {};
+
+            // Render
+            if (visualizer.render) {
+                visualizer.render();
+            }
+
+            requestAnimationFrame(render);
+        }
+
+        // Initialize with good defaults
+        Object.keys(params).forEach(key => {
+            visualizer.updateParameter(key, params[key]);
+        });
+
+        // Start
+        render();
+        console.log('🌌 VIB34D Properly Reactive initialized');
+    </script>
+</body>
+</html>
