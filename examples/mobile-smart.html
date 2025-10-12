@@ -522,24 +522,23 @@
         import { GeometryLibrary } from '../src/geometry/GeometryLibrary.js';
 
         const canvas = document.getElementById('canvas');
-        const gl = canvas.getContext('webgl2');
-
-        if (!gl) {
-            alert('WebGL 2 not supported');
-            throw new Error('WebGL 2 not supported');
-        }
+        canvas.width = window.innerWidth * (window.devicePixelRatio || 1);
+        canvas.height = window.innerHeight * (window.devicePixelRatio || 1);
 
         // Resize
         function resize() {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-            gl.viewport(0, 0, canvas.width, canvas.height);
+            canvas.width = window.innerWidth * (window.devicePixelRatio || 1);
+            canvas.height = window.innerHeight * (window.devicePixelRatio || 1);
         }
-        resize();
         window.addEventListener('resize', resize);
 
-        // Initialize visualizer
-        let visualizer = new QuantumHolographicVisualizer(gl);
+        // Initialize visualizer - EXACTLY like ultimate-controls.html
+        let visualizer = new QuantumHolographicVisualizer('canvas', 'content', 1.0, 0);
+        visualizer.updateParameter('intensity', 1.0);
+        visualizer.updateParameter('hue', 180);
+        visualizer.updateParameter('saturation', 1.0);
+        visualizer.updateParameter('gridDensity', 25);
+
         let currentGeometry = 'tesseract';
 
         // Base parameters
@@ -621,28 +620,30 @@
         // Geometry
         window.setGeometry = function(type) {
             currentGeometry = type;
-            const geom = GeometryLibrary.getGeometry(type);
-            visualizer.updateGeometry(geom);
+            const geoIndex = GeometryLibrary.getGeometryNames().indexOf(type);
+            if (geoIndex >= 0) {
+                visualizer.updateParameter('geometry', geoIndex);
+            }
             console.log('🔷 Geometry:', type);
         };
 
         // Visualizer
         window.setVisualizer = function(type) {
-            const params = Object.assign({}, baseParams);
+            if (visualizer.destroy) visualizer.destroy();
+
             if (type === 'quantum') {
-                visualizer = new QuantumHolographicVisualizer(gl);
+                visualizer = new QuantumHolographicVisualizer('canvas', 'content', 1.0, 0);
             } else if (type === 'faceted') {
-                visualizer = new IntegratedHolographicVisualizer(gl);
+                visualizer = new IntegratedHolographicVisualizer('canvas', 'content', 1.0, 0);
             } else if (type === 'holographic') {
-                visualizer = new HolographicVisualizer(gl);
+                visualizer = new HolographicVisualizer('canvas', 'content', 1.0, 0);
             }
-            const geom = GeometryLibrary.getGeometry(currentGeometry);
-            visualizer.updateGeometry(geom);
-            Object.keys(params).forEach(k => {
-                if (visualizer.updateParameter) {
-                    visualizer.updateParameter(k, params[k]);
-                }
+
+            // Restore all parameters
+            Object.keys(baseParams).forEach(k => {
+                visualizer.updateParameter(k, baseParams[k]);
             });
+
             console.log('🎨 Visualizer:', type);
         };
 
@@ -774,38 +775,42 @@
             if (audioPlaying) {
                 const mult = reactivity.amount;
 
-                if (reactivity.enabled.density && visualizer.updateParameter) {
+                if (reactivity.enabled.density) {
                     const mod = ((bands.bass || 0) * 40 + (bands.subBass || 0) * 30) * mult;
                     visualizer.updateParameter('gridDensity', Math.min(80, baseParams.gridDensity + mod));
+                } else {
+                    visualizer.updateParameter('gridDensity', baseParams.gridDensity);
                 }
 
-                if (reactivity.enabled.morph && visualizer.updateParameter) {
+                if (reactivity.enabled.morph) {
                     const mod = (bands.mid || 0) * 1.5 * mult;
                     visualizer.updateParameter('morphFactor', Math.min(3.0, baseParams.morphFactor + mod));
+                } else {
+                    visualizer.updateParameter('morphFactor', baseParams.morphFactor);
                 }
 
-                if (reactivity.enabled.color && visualizer.updateParameter) {
+                if (reactivity.enabled.color) {
                     const hueShift = (bands.high || 0) * 120 * mult;
                     visualizer.updateParameter('hue', (baseParams.hue + hueShift) % 360);
+                } else {
+                    visualizer.updateParameter('hue', baseParams.hue);
                 }
 
-                if (reactivity.enabled.chaos && visualizer.updateParameter) {
+                if (reactivity.enabled.chaos) {
                     const mod = (audioData.rms || 0) * 0.6 * mult;
                     visualizer.updateParameter('chaos', Math.min(1.0, baseParams.chaos + mod));
+                } else {
+                    visualizer.updateParameter('chaos', baseParams.chaos);
                 }
 
-                if (visualizer.updateParameter) {
-                    const speedMod = ((bands.bass || 0) + (audioData.rms || 0)) * 0.8 * mult;
-                    visualizer.updateParameter('speed', Math.min(3.0, baseParams.speed + speedMod));
-                    visualizer.updateParameter('intensity', baseParams.intensity);
-                    visualizer.updateParameter('saturation', baseParams.saturation);
-                }
+                const speedMod = ((bands.bass || 0) + (audioData.rms || 0)) * 0.8 * mult;
+                visualizer.updateParameter('speed', Math.min(3.0, baseParams.speed + speedMod));
+                visualizer.updateParameter('intensity', baseParams.intensity);
+                visualizer.updateParameter('saturation', baseParams.saturation);
             } else {
-                // No audio - apply base params
+                // No audio - apply base params only
                 Object.keys(baseParams).forEach(key => {
-                    if (visualizer.updateParameter) {
-                        visualizer.updateParameter(key, baseParams[key]);
-                    }
+                    visualizer.updateParameter(key, baseParams[key]);
                 });
             }
 
@@ -817,13 +822,9 @@
             requestAnimationFrame(render);
         }
 
-        // Initialize
-        const geom = GeometryLibrary.getGeometry(currentGeometry);
-        visualizer.updateGeometry(geom);
+        // Initialize - set base params
         Object.keys(baseParams).forEach(key => {
-            if (visualizer.updateParameter) {
-                visualizer.updateParameter(key, baseParams[key]);
-            }
+            visualizer.updateParameter(key, baseParams[key]);
         });
 
         render();
