@@ -5,7 +5,7 @@
     {
       "name": "bass_drop_cascade",
       "description": "4-beat cascade with anticipation, impact, and release",
-      "trigger": "bass > 0.7 && onset > 0.5",
+      "trigger": "bass > 0.85 && onset > 0.85",
       "duration": 4000,
       "stages": [
         {
@@ -27,14 +27,14 @@
           "duration": 2500,
           "rot4dYW": { "from": 0, "to": -3.14, "easing": "easeOut" },
           "morphFactor": { "from": "current", "to": 1.5, "easing": "easeOut" },
-          "saturation": { "from": 1.0, "to": 0.3, "easing": "easeOut" }
+          "saturation": { "from": 1.0, "to": 0.7, "easing": "easeOut" }
         }
       ]
     },
     {
       "name": "bass_drop_explosion",
       "description": "Explosive bass drop with chaos",
-      "trigger": "bass > 0.8 && energy > 0.7",
+      "trigger": "bass > 0.9 && energy > 0.8",
       "duration": 2000,
       "stages": [
         {
@@ -56,13 +56,13 @@
     {
       "name": "bass_drop_freeze",
       "description": "Freeze then release",
-      "trigger": "bass > 0.75",
+      "trigger": "bass > 0.88",
       "duration": 3000,
       "stages": [
         {
           "start": 0,
           "duration": 1000,
-          "intensity": { "from": "current", "to": 0.2, "easing": "easeIn" },
+          "intensity": { "from": "current", "to": 0.6, "easing": "easeIn" },
           "speed": { "from": "current", "to": 0.1, "easing": "easeIn" }
         },
         {
@@ -78,7 +78,7 @@
     {
       "name": "bass_drop_spiral",
       "description": "Spiraling descent into bass",
-      "trigger": "bass > 0.7",
+      "trigger": "bass > 0.87",
       "duration": 4000,
       "stages": [
         {
@@ -95,7 +95,7 @@
     {
       "name": "bass_drop_pulse",
       "description": "Rhythmic pulsing on bass",
-      "trigger": "bass > 0.65",
+      "trigger": "bass > 0.83",
       "duration": 2000,
       "stages": [
         {

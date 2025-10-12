@@ -156,8 +156,8 @@ export class ChoreographyEngine {
             this.onBeat(this.currentBeat % this.beatsPerMeasure, audioData);
         }
 
-        // Check for onset
-        if (audioData.onset > 0.5) {
+        // Check for onset - higher threshold to avoid constant triggering
+        if (audioData.onset > 0.85) {
             this.onOnset(audioData.onset, currentTime);
         }
     }
