@@ -1,0 +1,931 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>VIB34D Bezel Ultimate - Floating Controls</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background: #000;
+            color: #0f0;
+            font-family: 'Courier New', monospace;
+            overflow: hidden;
+            position: fixed;
+            width: 100%;
+            height: 100%;
+        }
+
+        canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 1;
+        }
+
+        /* Floating Bezel Panels */
+        .bezel-panel {
+            position: fixed;
+            background: rgba(0, 0, 0, 0.95);
+            border: 2px solid #0ff;
+            border-radius: 8px;
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
+            max-height: 90vh;
+            overflow: hidden;
+        }
+
+        /* Top-left: Audio + Status */
+        #audio-panel {
+            top: 10px;
+            left: 10px;
+            width: 280px;
+        }
+
+        /* Top-right: Visual Parameters */
+        #visual-panel {
+            top: 10px;
+            right: 10px;
+            width: 300px;
+        }
+
+        /* Bottom-left: Geometry + Systems */
+        #geometry-panel {
+            bottom: 10px;
+            left: 10px;
+            width: 280px;
+        }
+
+        /* Bottom-right: Reactivity + Audio Viz */
+        #reactivity-panel {
+            bottom: 10px;
+            right: 10px;
+            width: 300px;
+        }
+
+        /* Panel Header */
+        .panel-header {
+            padding: 10px;
+            background: linear-gradient(135deg, #001a1a 0%, #003333 100%);
+            border-bottom: 2px solid #0ff;
+            cursor: pointer;
+            user-select: none;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .panel-header:hover {
+            background: linear-gradient(135deg, #002828 0%, #004444 100%);
+        }
+
+        .panel-title {
+            color: #0ff;
+            font-size: 13px;
+            font-weight: bold;
+            text-shadow: 0 0 5px #0ff;
+        }
+
+        .panel-icon {
+            color: #0ff;
+            font-size: 10px;
+            transition: transform 0.3s;
+        }
+
+        .bezel-panel.collapsed .panel-icon {
+            transform: rotate(-90deg);
+        }
+
+        /* Panel Content */
+        .panel-content {
+            max-height: 400px;
+            overflow-y: auto;
+            overflow-x: hidden;
+            -webkit-overflow-scrolling: touch;
+            transition: max-height 0.3s ease-out, opacity 0.3s;
+            opacity: 1;
+        }
+
+        .bezel-panel.collapsed .panel-content {
+            max-height: 0;
+            opacity: 0;
+        }
+
+        .panel-content::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .panel-content::-webkit-scrollbar-thumb {
+            background: #0ff;
+            border-radius: 3px;
+        }
+
+        .panel-inner {
+            padding: 10px;
+        }
+
+        /* Status indicators */
+        .status-line {
+            display: flex;
+            justify-content: space-between;
+            font-size: 10px;
+            margin-bottom: 5px;
+            color: #0f0;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            margin-right: 4px;
+            animation: pulse 2s infinite;
+        }
+
+        .status-indicator.mock {
+            background: #ff0;
+        }
+
+        .status-indicator.real {
+            background: #0f0;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        /* Controls */
+        .control {
+            margin-bottom: 10px;
+        }
+
+        .control-label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 4px;
+            font-size: 10px;
+        }
+
+        .control-label span:first-child {
+            color: #0f0;
+        }
+
+        .control-label span:last-child {
+            color: #0ff;
+            font-weight: bold;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            height: 5px;
+            background: rgba(0, 255, 255, 0.2);
+            border-radius: 3px;
+            outline: none;
+            -webkit-appearance: none;
+            cursor: pointer;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 14px;
+            height: 14px;
+            background: #0ff;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 0 5px #0ff;
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            width: 14px;
+            height: 14px;
+            background: #0ff;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 0 5px #0ff;
+        }
+
+        /* Buttons */
+        .btn-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 6px;
+            margin-bottom: 10px;
+        }
+
+        button, input[type="file"]::file-selector-button {
+            background: rgba(0, 255, 255, 0.2);
+            border: 1px solid #0ff;
+            color: #0ff;
+            padding: 8px;
+            font-size: 10px;
+            font-family: 'Courier New', monospace;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: all 0.2s;
+            font-weight: bold;
+        }
+
+        button:hover, input[type="file"]::file-selector-button:hover {
+            background: rgba(0, 255, 255, 0.4);
+            box-shadow: 0 0 10px rgba(0, 255, 255, 0.5);
+        }
+
+        button:active, input[type="file"]::file-selector-button:active {
+            background: rgba(0, 255, 255, 0.6);
+            transform: scale(0.98);
+        }
+
+        button.active {
+            background: rgba(0, 255, 0, 0.4);
+            border-color: #0f0;
+            color: #0f0;
+        }
+
+        input[type="file"] {
+            width: 100%;
+            font-size: 10px;
+            color: #0f0;
+            margin-bottom: 8px;
+        }
+
+        /* Audio Bars */
+        .audio-bars {
+            display: flex;
+            gap: 4px;
+            height: 60px;
+            align-items: flex-end;
+            margin-bottom: 10px;
+            padding: 5px;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 4px;
+        }
+
+        .bar-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .bar {
+            width: 100%;
+            background: linear-gradient(to top, #0f0 0%, #0ff 50%, #f0f 100%);
+            border-radius: 2px;
+            transition: height 0.1s;
+            min-height: 2px;
+        }
+
+        .bar-label {
+            font-size: 7px;
+            color: #0ff;
+            margin-top: 2px;
+        }
+
+        /* Reactivity Strength */
+        .strength-bar-container {
+            height: 10px;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 5px;
+            overflow: hidden;
+            margin-bottom: 10px;
+        }
+
+        .strength-bar {
+            height: 100%;
+            background: linear-gradient(to right, #0f0, #ff0, #f00);
+            transition: width 0.1s;
+            width: 0;
+        }
+
+        /* Toggles */
+        .toggle-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 6px;
+            margin-bottom: 10px;
+        }
+
+        .toggle-btn {
+            padding: 6px;
+            font-size: 9px;
+        }
+
+        /* Mobile responsive */
+        @media (max-width: 768px) {
+            .bezel-panel {
+                width: calc(50vw - 15px) !important;
+                font-size: 9px;
+            }
+
+            #audio-panel, #geometry-panel {
+                width: calc(50vw - 15px);
+            }
+
+            #visual-panel, #reactivity-panel {
+                width: calc(50vw - 15px);
+            }
+
+            .panel-content {
+                max-height: 250px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .bezel-panel {
+                width: calc(100vw - 20px) !important;
+            }
+
+            #audio-panel {
+                top: 5px;
+                left: 5px;
+            }
+
+            #visual-panel {
+                top: auto;
+                bottom: 320px;
+                right: auto;
+                left: 5px;
+            }
+
+            #geometry-panel {
+                bottom: 165px;
+                left: 5px;
+            }
+
+            #reactivity-panel {
+                bottom: 5px;
+                left: 5px;
+                right: auto;
+            }
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+
+    <!-- AUDIO + STATUS PANEL -->
+    <div id="audio-panel" class="bezel-panel">
+        <div class="panel-header" onclick="togglePanel(this.parentElement)">
+            <span class="panel-title">🎵 AUDIO + STATUS</span>
+            <span class="panel-icon">▼</span>
+        </div>
+        <div class="panel-content">
+            <div class="panel-inner">
+                <div class="status-line">
+                    <span id="audioStatus"><span class="status-indicator mock"></span>MOCK AUDIO</span>
+                    <span id="fps">60 FPS</span>
+                </div>
+                <input type="file" id="audioFile" accept="audio/*">
+                <div id="fileName" style="font-size: 9px; color: #0f0; margin-bottom: 8px;">No file loaded</div>
+                <div class="btn-grid">
+                    <button id="playBtn">▶ PLAY</button>
+                    <button id="pauseBtn">⏸ PAUSE</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- VISUAL PARAMETERS PANEL -->
+    <div id="visual-panel" class="bezel-panel">
+        <div class="panel-header" onclick="togglePanel(this.parentElement)">
+            <span class="panel-title">🎨 VISUAL PARAMS</span>
+            <span class="panel-icon">▼</span>
+        </div>
+        <div class="panel-content">
+            <div class="panel-inner">
+                <div class="control">
+                    <div class="control-label">
+                        <span>Intensity</span>
+                        <span id="val-intensity">1.00</span>
+                    </div>
+                    <input type="range" id="intensity" min="0" max="3" step="0.01" value="1">
+                </div>
+                <div class="control">
+                    <div class="control-label">
+                        <span>Grid Density</span>
+                        <span id="val-gridDensity">25</span>
+                    </div>
+                    <input type="range" id="gridDensity" min="5" max="60" step="1" value="25">
+                </div>
+                <div class="control">
+                    <div class="control-label">
+                        <span>Morph Factor</span>
+                        <span id="val-morphFactor">1.00</span>
+                    </div>
+                    <input type="range" id="morphFactor" min="0" max="3" step="0.01" value="1">
+                </div>
+                <div class="control">
+                    <div class="control-label">
+                        <span>Chaos</span>
+                        <span id="val-chaos">0.20</span>
+                    </div>
+                    <input type="range" id="chaos" min="0" max="1" step="0.01" value="0.2">
+                </div>
+                <div class="control">
+                    <div class="control-label">
+                        <span>Speed</span>
+                        <span id="val-speed">1.00</span>
+                    </div>
+                    <input type="range" id="speed" min="0" max="3" step="0.01" value="1">
+                </div>
+                <div class="control">
+                    <div class="control-label">
+                        <span>Hue</span>
+                        <span id="val-hue">180</span>
+                    </div>
+                    <input type="range" id="hue" min="0" max="360" step="1" value="180">
+                </div>
+                <div class="control">
+                    <div class="control-label">
+                        <span>Saturation</span>
+                        <span id="val-saturation">1.00</span>
+                    </div>
+                    <input type="range" id="saturation" min="0" max="1" step="0.01" value="1">
+                </div>
+                <div class="control">
+                    <div class="control-label">
+                        <span>Dimension</span>
+                        <span id="val-dimension">3.50</span>
+                    </div>
+                    <input type="range" id="dimension" min="3" max="4" step="0.01" value="3.5">
+                </div>
+                <div class="control">
+                    <div class="control-label">
+                        <span>Rotation XW</span>
+                        <span id="val-rot4dXW">0.00</span>
+                    </div>
+                    <input type="range" id="rot4dXW" min="-3.14" max="3.14" step="0.01" value="0">
+                </div>
+                <div class="control">
+                    <div class="control-label">
+                        <span>Rotation YW</span>
+                        <span id="val-rot4dYW">0.00</span>
+                    </div>
+                    <input type="range" id="rot4dYW" min="-3.14" max="3.14" step="0.01" value="0">
+                </div>
+                <div class="control">
+                    <div class="control-label">
+                        <span>Rotation ZW</span>
+                        <span id="val-rot4dZW">0.00</span>
+                    </div>
+                    <input type="range" id="rot4dZW" min="-3.14" max="3.14" step="0.01" value="0">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- GEOMETRY + SYSTEMS PANEL -->
+    <div id="geometry-panel" class="bezel-panel">
+        <div class="panel-header" onclick="togglePanel(this.parentElement)">
+            <span class="panel-title">🔷 GEOMETRY + SYSTEMS</span>
+            <span class="panel-icon">▼</span>
+        </div>
+        <div class="panel-content">
+            <div class="panel-inner">
+                <div style="font-size: 10px; color: #0ff; margin-bottom: 6px;">GEOMETRY TYPE:</div>
+                <div class="btn-grid">
+                    <button onclick="setGeometry('tesseract')">Tesseract</button>
+                    <button onclick="setGeometry('120cell')">120-Cell</button>
+                    <button onclick="setGeometry('24cell')">24-Cell</button>
+                    <button onclick="setGeometry('600cell')">600-Cell</button>
+                    <button onclick="setGeometry('hypersphere')">Hypersphere</button>
+                    <button onclick="setGeometry('kleinBottle')">Klein Bottle</button>
+                    <button onclick="setGeometry('toroidalPoly')">Toroidal Poly</button>
+                    <button onclick="setGeometry('fractal')">Fractal</button>
+                </div>
+                <div style="font-size: 10px; color: #0ff; margin: 10px 0 6px;">VISUALIZER:</div>
+                <div class="btn-grid">
+                    <button onclick="setVisualizer('quantum')">Quantum</button>
+                    <button onclick="setVisualizer('faceted')">Faceted</button>
+                    <button onclick="setVisualizer('holographic')">Holographic</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- REACTIVITY + AUDIO VIZ PANEL -->
+    <div id="reactivity-panel" class="bezel-panel">
+        <div class="panel-header" onclick="togglePanel(this.parentElement)">
+            <span class="panel-title">⚡ REACTIVITY + AUDIO VIZ</span>
+            <span class="panel-icon">▼</span>
+        </div>
+        <div class="panel-content">
+            <div class="panel-inner">
+                <div style="font-size: 10px; color: #0ff; margin-bottom: 6px;">REACTIVITY STRENGTH:</div>
+                <div class="strength-bar-container">
+                    <div class="strength-bar" id="reactivityBar"></div>
+                </div>
+
+                <div class="control">
+                    <div class="control-label">
+                        <span>Amount (0-3x)</span>
+                        <span id="val-reactivity">1.00</span>
+                    </div>
+                    <input type="range" id="reactivity" min="0" max="3" step="0.1" value="1">
+                </div>
+
+                <div style="font-size: 10px; color: #0ff; margin: 8px 0 6px;">TOGGLE REACTIVITY:</div>
+                <div class="toggle-grid">
+                    <button class="toggle-btn active" id="toggle-density" onclick="toggleReactivity('density')">Density</button>
+                    <button class="toggle-btn active" id="toggle-morph" onclick="toggleReactivity('morph')">Morph</button>
+                    <button class="toggle-btn active" id="toggle-color" onclick="toggleReactivity('color')">Color</button>
+                    <button class="toggle-btn active" id="toggle-chaos" onclick="toggleReactivity('chaos')">Chaos</button>
+                    <button class="toggle-btn active" id="toggle-rotation" onclick="toggleReactivity('rotation')">Rotation</button>
+                </div>
+
+                <div style="font-size: 10px; color: #0ff; margin: 8px 0 4px;">7-BAND AUDIO:</div>
+                <div class="audio-bars">
+                    <div class="bar-container">
+                        <div class="bar" id="bar-sub"></div>
+                        <div class="bar-label">SUB</div>
+                    </div>
+                    <div class="bar-container">
+                        <div class="bar" id="bar-bass"></div>
+                        <div class="bar-label">BASS</div>
+                    </div>
+                    <div class="bar-container">
+                        <div class="bar" id="bar-low"></div>
+                        <div class="bar-label">LOW</div>
+                    </div>
+                    <div class="bar-container">
+                        <div class="bar" id="bar-mid"></div>
+                        <div class="bar-label">MID</div>
+                    </div>
+                    <div class="bar-container">
+                        <div class="bar" id="bar-hmid"></div>
+                        <div class="bar-label">H-MID</div>
+                    </div>
+                    <div class="bar-container">
+                        <div class="bar" id="bar-high"></div>
+                        <div class="bar-label">HIGH</div>
+                    </div>
+                    <div class="bar-container">
+                        <div class="bar" id="bar-ultra"></div>
+                        <div class="bar-label">ULTRA</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { QuantumVisualizer } from '../src/visualizers/QuantumVisualizer.js';
+        import { FacetedVisualizer } from '../src/visualizers/FacetedVisualizer.js';
+        import { HolographicVisualizer } from '../src/visualizers/HolographicVisualizer.js';
+        import { AudioAnalyzer } from '../src/audio/AudioAnalyzer.js';
+        import { GeometryLibrary } from '../src/geometry/GeometryLibrary.js';
+
+        const canvas = document.getElementById('canvas');
+        const gl = canvas.getContext('webgl2');
+
+        if (!gl) {
+            alert('WebGL 2 not supported');
+            throw new Error('WebGL 2 not supported');
+        }
+
+        // Resize
+        function resize() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            gl.viewport(0, 0, canvas.width, canvas.height);
+        }
+        resize();
+        window.addEventListener('resize', resize);
+
+        // Initialize visualizer
+        let visualizer = new QuantumVisualizer(gl);
+        let currentGeometry = 'tesseract';
+
+        // Base parameters (what sliders control)
+        const baseParams = {
+            intensity: 1.0,
+            gridDensity: 25,
+            morphFactor: 1.0,
+            chaos: 0.2,
+            speed: 1.0,
+            hue: 180,
+            saturation: 1.0,
+            dimension: 3.5,
+            rot4dXW: 0,
+            rot4dYW: 0,
+            rot4dZW: 0
+        };
+
+        // Reactivity settings
+        const reactivity = {
+            amount: 1.0,
+            enabled: {
+                density: true,
+                morph: true,
+                color: true,
+                chaos: true,
+                rotation: true
+            }
+        };
+
+        // Audio
+        let audioContext = null;
+        let audioAnalyzer = null;
+        let audioElement = null;
+
+        // Setup sliders
+        Object.keys(baseParams).forEach(param => {
+            const slider = document.getElementById(param);
+            const display = document.getElementById('val-' + param);
+            if (!slider || !display) return;
+
+            slider.value = baseParams[param];
+            display.textContent = baseParams[param].toFixed(2);
+
+            slider.oninput = () => {
+                const val = parseFloat(slider.value);
+                baseParams[param] = val;
+                display.textContent = val.toFixed(2);
+            };
+        });
+
+        // Reactivity amount slider
+        document.getElementById('reactivity').oninput = (e) => {
+            reactivity.amount = parseFloat(e.target.value);
+            document.getElementById('val-reactivity').textContent = reactivity.amount.toFixed(2);
+        };
+
+        // Toggle panel collapse
+        window.togglePanel = function(panel) {
+            panel.classList.toggle('collapsed');
+        };
+
+        // Toggle reactivity
+        window.toggleReactivity = function(type) {
+            reactivity.enabled[type] = !reactivity.enabled[type];
+            const btn = document.getElementById('toggle-' + type);
+            btn.classList.toggle('active');
+        };
+
+        // Geometry change
+        window.setGeometry = function(type) {
+            currentGeometry = type;
+            const geom = GeometryLibrary.getGeometry(type);
+            visualizer.updateGeometry(geom);
+            console.log('🔷 Geometry:', type);
+        };
+
+        // Visualizer change
+        window.setVisualizer = function(type) {
+            const params = Object.assign({}, baseParams);
+            if (type === 'quantum') {
+                visualizer = new QuantumVisualizer(gl);
+            } else if (type === 'faceted') {
+                visualizer = new FacetedVisualizer(gl);
+            } else if (type === 'holographic') {
+                visualizer = new HolographicVisualizer(gl);
+            }
+            const geom = GeometryLibrary.getGeometry(currentGeometry);
+            visualizer.updateGeometry(geom);
+            Object.keys(params).forEach(k => {
+                visualizer.updateParameter(k, params[k]);
+            });
+            console.log('🎨 Visualizer:', type);
+        };
+
+        // Audio file
+        document.getElementById('audioFile').onchange = async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            try {
+                document.getElementById('fileName').textContent = `Loading ${file.name}...`;
+
+                // Cleanup old audio
+                if (audioElement) {
+                    audioElement.pause();
+                    audioElement.src = '';
+                    if (audioElement.parentNode) {
+                        audioElement.parentNode.removeChild(audioElement);
+                    }
+                }
+
+                // Create new audio element
+                const url = URL.createObjectURL(file);
+                audioElement = new Audio();
+                audioElement.src = url;
+                audioElement.volume = 1.0;
+                audioElement.preload = 'auto';
+                audioElement.crossOrigin = 'anonymous';
+                audioElement.style.display = 'none';
+                audioElement.style.position = 'fixed';
+                audioElement.style.bottom = '0';
+                audioElement.style.left = '0';
+                document.body.appendChild(audioElement);
+
+                // Wait for load
+                await new Promise((resolve, reject) => {
+                    audioElement.addEventListener('loadeddata', resolve, { once: true });
+                    audioElement.addEventListener('error', reject, { once: true });
+                    setTimeout(() => resolve(), 3000);
+                });
+
+                // Setup audio context
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                audioAnalyzer = new AudioAnalyzer(audioContext);
+
+                const source = audioContext.createMediaElementSource(audioElement);
+                source.connect(audioAnalyzer.analyser);
+                audioAnalyzer.analyser.connect(audioContext.destination);
+
+                document.getElementById('fileName').textContent = file.name;
+                console.log('✅ Audio loaded:', file.name);
+            } catch (err) {
+                console.error('Audio load error:', err);
+                document.getElementById('fileName').textContent = 'Error: ' + err.message;
+            }
+        };
+
+        // Play button
+        document.getElementById('playBtn').onclick = async () => {
+            if (!audioElement) {
+                alert('Load audio file first');
+                return;
+            }
+
+            try {
+                console.log('🎬 Playing...');
+                if (audioContext && audioContext.state === 'suspended') {
+                    await audioContext.resume();
+                }
+                await audioElement.play();
+                console.log('✅ Playing!');
+            } catch (err) {
+                console.error('Play error:', err);
+                try {
+                    await audioContext.resume();
+                    await audioElement.play();
+                    console.log('✅ Retry worked!');
+                } catch (e) {
+                    alert('Playback failed: ' + e.message);
+                }
+            }
+        };
+
+        // Pause button
+        document.getElementById('pauseBtn').onclick = () => {
+            if (audioElement) {
+                audioElement.pause();
+                console.log('⏸️ Paused');
+            }
+        };
+
+        // Render loop
+        let lastTime = Date.now();
+        let frameCount = 0;
+        let fps = 0;
+        let logCounter = 0;
+
+        function render() {
+            const now = Date.now();
+            const dt = now - lastTime;
+            lastTime = now;
+
+            // FPS
+            frameCount++;
+            if (frameCount >= 60) {
+                fps = Math.round(60000 / (now - lastTime + dt * frameCount));
+                document.getElementById('fps').textContent = fps + ' FPS';
+                frameCount = 0;
+            }
+
+            // Check if audio is playing
+            const audioPlaying = audioAnalyzer && audioElement && !audioElement.paused;
+            let audioData = { bands: {}, rms: 0 };
+
+            if (audioPlaying) {
+                // Get REAL audio data
+                audioData = audioAnalyzer.analyze();
+
+                // Update status
+                document.getElementById('audioStatus').innerHTML = '<span class="status-indicator real"></span>REAL AUDIO';
+
+                // Log every second
+                logCounter++;
+                if (logCounter >= 60) {
+                    console.log('🎵 REAL AUDIO:', {
+                        bass: audioData.bands?.bass?.toFixed(2),
+                        mid: audioData.bands?.mid?.toFixed(2),
+                        high: audioData.bands?.high?.toFixed(2)
+                    });
+                    logCounter = 0;
+                }
+            } else {
+                // MOCK audio status
+                document.getElementById('audioStatus').innerHTML = '<span class="status-indicator mock"></span>MOCK AUDIO';
+            }
+
+            // Update audio bars
+            const bands = audioData.bands || {};
+            const bandKeys = ['subBass', 'bass', 'lowMid', 'mid', 'highMid', 'high', 'ultraHigh'];
+            const barIds = ['bar-sub', 'bar-bass', 'bar-low', 'bar-mid', 'bar-hmid', 'bar-high', 'bar-ultra'];
+
+            barIds.forEach((id, i) => {
+                const bar = document.getElementById(id);
+                const val = bands[bandKeys[i]] || 0;
+                if (bar) bar.style.height = (val * 100) + '%';
+            });
+
+            // Reactivity strength indicator
+            const avgReactivity = Object.values(bands).reduce((a, b) => a + b, 0) / 7;
+            document.getElementById('reactivityBar').style.width = (avgReactivity * 100) + '%';
+
+            // APPLY PARAMETERS
+            if (audioPlaying) {
+                // Audio is playing - apply baseParams + reactivity modulation
+                const mult = reactivity.amount;
+
+                if (reactivity.enabled.density) {
+                    const densityMod = ((bands.bass || 0) * 40 + (bands.subBass || 0) * 30) * mult;
+                    visualizer.updateParameter('gridDensity', Math.min(80, baseParams.gridDensity + densityMod));
+                } else {
+                    visualizer.updateParameter('gridDensity', baseParams.gridDensity);
+                }
+
+                if (reactivity.enabled.morph) {
+                    const morphMod = (bands.mid || 0) * 1.5 * mult;
+                    visualizer.updateParameter('morphFactor', Math.min(3.0, baseParams.morphFactor + morphMod));
+                } else {
+                    visualizer.updateParameter('morphFactor', baseParams.morphFactor);
+                }
+
+                if (reactivity.enabled.color) {
+                    const hueShift = (bands.high || 0) * 120 * mult;
+                    visualizer.updateParameter('hue', (baseParams.hue + hueShift) % 360);
+
+                    const satMod = (bands.mid || 0) * 0.3 * mult;
+                    visualizer.updateParameter('saturation', Math.min(1.0, baseParams.saturation + satMod));
+                } else {
+                    visualizer.updateParameter('hue', baseParams.hue);
+                    visualizer.updateParameter('saturation', baseParams.saturation);
+                }
+
+                if (reactivity.enabled.chaos) {
+                    const chaosMod = (audioData.rms || 0) * 0.6 * mult;
+                    visualizer.updateParameter('chaos', Math.min(1.0, baseParams.chaos + chaosMod));
+                } else {
+                    visualizer.updateParameter('chaos', baseParams.chaos);
+                }
+
+                if (reactivity.enabled.rotation) {
+                    visualizer.updateParameter('rot4dXW', baseParams.rot4dXW + (bands.lowMid || 0) * 0.5 * mult);
+                    visualizer.updateParameter('rot4dYW', baseParams.rot4dYW + (bands.mid || 0) * 0.6 * mult);
+                    visualizer.updateParameter('rot4dZW', baseParams.rot4dZW + (bands.high || 0) * 0.8 * mult);
+                } else {
+                    visualizer.updateParameter('rot4dXW', baseParams.rot4dXW);
+                    visualizer.updateParameter('rot4dYW', baseParams.rot4dYW);
+                    visualizer.updateParameter('rot4dZW', baseParams.rot4dZW);
+                }
+
+                const speedMod = ((bands.bass || 0) + (audioData.rms || 0)) * 0.8 * mult;
+                visualizer.updateParameter('speed', Math.min(3.0, baseParams.speed + speedMod));
+
+                // Other params
+                visualizer.updateParameter('intensity', baseParams.intensity);
+                visualizer.updateParameter('dimension', baseParams.dimension);
+            } else {
+                // No audio playing - just use baseParams directly
+                Object.keys(baseParams).forEach(key => {
+                    visualizer.updateParameter(key, baseParams[key]);
+                });
+            }
+
+            // Render
+            if (visualizer.render) {
+                visualizer.render();
+            }
+
+            requestAnimationFrame(render);
+        }
+
+        // Initialize
+        const geom = GeometryLibrary.getGeometry(currentGeometry);
+        visualizer.updateGeometry(geom);
+        Object.keys(baseParams).forEach(key => {
+            visualizer.updateParameter(key, baseParams[key]);
+        });
+
+        render();
+        console.log('🌌 VIB34D Bezel Ultimate initialized');
+        console.log('📱 Floating bezel panels - collapse/expand by clicking headers');
+        console.log('🎵 Load audio and press PLAY to see REAL audio reactivity');
+    </script>
+</body>
+</html>
