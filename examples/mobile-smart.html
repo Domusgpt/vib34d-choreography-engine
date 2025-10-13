@@ -806,69 +806,78 @@
                 document.getElementById('statusText').textContent = 'MOCK AUDIO';
             }
 
-            // Update bars
+            // Update bars - AudioAnalyzer returns bands as objects with .value property
             const bands = audioData.bands || {};
-            const bandKeys = ['subBass', 'bass', 'lowMid', 'mid', 'highMid', 'high', 'ultraHigh'];
+            const bandKeys = ['subBass', 'bass', 'lowMid', 'mid', 'highMid', 'high', 'air'];
             const barIds = ['bar-sub', 'bar-bass', 'bar-low', 'bar-mid', 'bar-hmid', 'bar-high', 'bar-ultra'];
 
             barIds.forEach((id, i) => {
                 const bar = document.getElementById(id);
-                const val = bands[bandKeys[i]] || 0;
+                const bandData = bands[bandKeys[i]];
+                const val = bandData?.value || 0;  // CRITICAL: bands are objects with .value
                 if (bar) bar.style.height = (val * 100) + '%';
             });
 
-            // Strength
-            const avgReactivity = Object.values(bands).reduce((a, b) => a + b, 0) / 7;
+            // Strength - sum all band values
+            const bandValues = Object.values(bands).map(b => b?.value || 0);
+            const avgReactivity = bandValues.reduce((a, b) => a + b, 0) / bandValues.length;
             document.getElementById('reactivityBar').style.width = (avgReactivity * 100) + '%';
 
-            // APPLY PARAMETERS - EXACTLY like ultimate-controls.html
+            // APPLY PARAMETERS - bands are OBJECTS with .value property!
             if (audioPlaying) {
                 // Audio is playing - apply base + modulation
                 const mult = reactivity.amount;
                 const b = audioData.bands || {};
 
+                // CRITICAL FIX: Extract .value from band objects
+                const bassVal = b.bass?.value || 0;
+                const midVal = b.mid?.value || 0;
+                const lowMidVal = b.lowMid?.value || 0;
+                const highVal = b.high?.value || 0;
+                const rmsVal = audioData.rms || 0;
+
                 // Log once per second
                 if (frameCount % 60 === 0) {
-                    console.log(`🎵 AUDIO REACTIVITY: bass=${b.bass?.toFixed(2)}, mult=${mult}, enabled=`, reactivity.enabled);
+                    console.log(`🎵 AUDIO: bass=${bassVal.toFixed(2)} mid=${midVal.toFixed(2)} high=${highVal.toFixed(2)} mult=${mult}`);
                 }
 
                 // Apply ALL parameters with modulation
                 if (reactivity.enabled.density) {
-                    const modded = Math.min(80, baseParams.gridDensity + (b.bass || 0) * 40 * mult);
+                    const modded = Math.min(80, baseParams.gridDensity + bassVal * 40 * mult);
                     visualizer.updateParameter('gridDensity', modded);
                 } else {
                     visualizer.updateParameter('gridDensity', baseParams.gridDensity);
                 }
 
                 if (reactivity.enabled.morph) {
-                    visualizer.updateParameter('morphFactor', Math.min(3.0, baseParams.morphFactor + (b.mid || 0) * 1.5 * mult));
+                    visualizer.updateParameter('morphFactor', Math.min(3.0, baseParams.morphFactor + midVal * 1.5 * mult));
                 } else {
                     visualizer.updateParameter('morphFactor', baseParams.morphFactor);
                 }
 
                 if (reactivity.enabled.color) {
-                    visualizer.updateParameter('hue', (baseParams.hue + (b.high || 0) * 120 * mult) % 360);
-                    visualizer.updateParameter('saturation', Math.min(1.0, baseParams.saturation + (b.mid || 0) * 0.3 * mult));
+                    visualizer.updateParameter('hue', (baseParams.hue + highVal * 120 * mult) % 360);
+                    visualizer.updateParameter('saturation', Math.min(1.0, baseParams.saturation + midVal * 0.3 * mult));
                 } else {
                     visualizer.updateParameter('hue', baseParams.hue);
                     visualizer.updateParameter('saturation', baseParams.saturation);
                 }
 
                 if (reactivity.enabled.chaos) {
-                    visualizer.updateParameter('chaos', Math.min(1.0, baseParams.chaos + (audioData.rms || 0) * 0.6 * mult));
+                    visualizer.updateParameter('chaos', Math.min(1.0, baseParams.chaos + rmsVal * 0.6 * mult));
                 } else {
                     visualizer.updateParameter('chaos', baseParams.chaos);
                 }
 
-                visualizer.updateParameter('speed', Math.min(3.0, baseParams.speed + (((b.bass || 0) + (audioData.rms || 0)) * 0.8 * mult)));
+                visualizer.updateParameter('speed', Math.min(3.0, baseParams.speed + ((bassVal + rmsVal) * 0.8 * mult)));
                 visualizer.updateParameter('intensity', baseParams.intensity);
                 visualizer.updateParameter('dimension', baseParams.dimension);
 
                 // Apply 4D rotations with audio modulation if enabled
                 if (reactivity.enabled.rotation) {
-                    visualizer.updateParameter('rot4dXW', baseParams.rot4dXW + (b.lowMid || 0) * 0.5 * mult);
-                    visualizer.updateParameter('rot4dYW', baseParams.rot4dYW + (b.mid || 0) * 0.6 * mult);
-                    visualizer.updateParameter('rot4dZW', baseParams.rot4dZW + (b.high || 0) * 0.8 * mult);
+                    visualizer.updateParameter('rot4dXW', baseParams.rot4dXW + lowMidVal * 0.5 * mult);
+                    visualizer.updateParameter('rot4dYW', baseParams.rot4dYW + midVal * 0.6 * mult);
+                    visualizer.updateParameter('rot4dZW', baseParams.rot4dZW + highVal * 0.8 * mult);
                 } else {
                     visualizer.updateParameter('rot4dXW', baseParams.rot4dXW);
                     visualizer.updateParameter('rot4dYW', baseParams.rot4dYW);
