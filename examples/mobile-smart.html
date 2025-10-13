@@ -615,9 +615,14 @@
                 const val = parseFloat(slider.value);
                 display.textContent = val.toFixed(1);
                 baseParams[param] = val;  // UPDATE BASE
+
                 // Apply directly if no audio playing
-                if (!audioAnalyzer || !audioElement || audioElement.paused) {
+                const noAudio = !audioAnalyzer || !audioElement || audioElement.paused;
+                console.log(`🎚️ Slider ${param}=${val}, noAudio=${noAudio}, applying=${noAudio}`);
+
+                if (noAudio) {
                     visualizer.updateParameter(param, val);
+                    console.log(`✅ Applied ${param}=${val} to visualizer`);
                 }
             };
         });
@@ -658,9 +663,10 @@
         // Geometry - pass index directly
         window.setGeometry = function(geoIndex) {
             currentGeometry = geoIndex;
-            visualizer.updateParameter('geometry', geoIndex);
             const name = GeometryLibrary.getGeometryName(geoIndex);
-            console.log('🔷 Geometry:', name, 'index:', geoIndex);
+            console.log(`🔷 Setting geometry to ${name} (index ${geoIndex})`);
+            visualizer.updateParameter('geometry', geoIndex);
+            console.log(`✅ Geometry set to ${geoIndex}`);
         };
 
         // Visualizer
@@ -821,9 +827,15 @@
                 const mult = reactivity.amount;
                 const b = audioData.bands || {};
 
+                // Log once per second
+                if (frameCount % 60 === 0) {
+                    console.log(`🎵 AUDIO REACTIVITY: bass=${b.bass?.toFixed(2)}, mult=${mult}, enabled=`, reactivity.enabled);
+                }
+
                 // Apply ALL parameters with modulation
                 if (reactivity.enabled.density) {
-                    visualizer.updateParameter('gridDensity', Math.min(80, baseParams.gridDensity + (b.bass || 0) * 40 * mult));
+                    const modded = Math.min(80, baseParams.gridDensity + (b.bass || 0) * 40 * mult);
+                    visualizer.updateParameter('gridDensity', modded);
                 } else {
                     visualizer.updateParameter('gridDensity', baseParams.gridDensity);
                 }
