@@ -384,13 +384,30 @@
 
             <!-- VISUAL TAB -->
             <div class="tab-content">
+                <div class="section-header">🎨 COLOR</div>
                 <div class="control">
                     <div class="control-label">
-                        <span>Intensity</span>
+                        <span>Hue (Color)</span>
+                        <span class="control-value" id="val-hue">180</span>
+                    </div>
+                    <input type="range" id="hue" min="0" max="360" step="1" value="180">
+                </div>
+                <div class="control">
+                    <div class="control-label">
+                        <span>Saturation</span>
+                        <span class="control-value" id="val-saturation">1.0</span>
+                    </div>
+                    <input type="range" id="saturation" min="0" max="1" step="0.01" value="1">
+                </div>
+                <div class="control">
+                    <div class="control-label">
+                        <span>Intensity (Brightness)</span>
                         <span class="control-value" id="val-intensity">1.0</span>
                     </div>
                     <input type="range" id="intensity" min="0" max="3" step="0.1" value="1">
                 </div>
+
+                <div class="section-header">⚙️ GEOMETRY</div>
                 <div class="control">
                     <div class="control-label">
                         <span>Grid Density</span>
@@ -418,20 +435,6 @@
                         <span class="control-value" id="val-speed">1.0</span>
                     </div>
                     <input type="range" id="speed" min="0" max="3" step="0.1" value="1">
-                </div>
-                <div class="control">
-                    <div class="control-label">
-                        <span>Hue</span>
-                        <span class="control-value" id="val-hue">180</span>
-                    </div>
-                    <input type="range" id="hue" min="0" max="360" step="5" value="180">
-                </div>
-                <div class="control">
-                    <div class="control-label">
-                        <span>Saturation</span>
-                        <span class="control-value" id="val-saturation">1.0</span>
-                    </div>
-                    <input type="range" id="saturation" min="0" max="1" step="0.05" value="1">
                 </div>
                 <div class="control">
                     <div class="control-label">
@@ -616,15 +619,8 @@
                 const val = parseFloat(slider.value);
                 display.textContent = val.toFixed(1);
                 baseParams[param] = val;  // UPDATE BASE
-
-                // Apply directly if no audio playing
-                const noAudio = !audioAnalyzer || !audioElement || audioElement.paused;
-                console.log(`🎚️ Slider ${param}=${val}, noAudio=${noAudio}, applying=${noAudio}`);
-
-                if (noAudio) {
-                    visualizer.updateParameter(param, val);
-                    console.log(`✅ Applied ${param}=${val} to visualizer`);
-                }
+                // Render loop will apply it every frame
+                console.log(`🎚️ Slider ${param}=${val}`);
             };
         });
 
@@ -878,6 +874,20 @@
                     visualizer.updateParameter('rot4dYW', baseParams.rot4dYW);
                     visualizer.updateParameter('rot4dZW', baseParams.rot4dZW);
                 }
+            } else {
+                // NO audio playing - still need to apply base params every frame
+                // This makes sliders work even without audio
+                visualizer.updateParameter('gridDensity', baseParams.gridDensity);
+                visualizer.updateParameter('morphFactor', baseParams.morphFactor);
+                visualizer.updateParameter('hue', baseParams.hue);
+                visualizer.updateParameter('saturation', baseParams.saturation);
+                visualizer.updateParameter('chaos', baseParams.chaos);
+                visualizer.updateParameter('speed', baseParams.speed);
+                visualizer.updateParameter('intensity', baseParams.intensity);
+                visualizer.updateParameter('dimension', baseParams.dimension);
+                visualizer.updateParameter('rot4dXW', baseParams.rot4dXW);
+                visualizer.updateParameter('rot4dYW', baseParams.rot4dYW);
+                visualizer.updateParameter('rot4dZW', baseParams.rot4dZW);
             }
 
             // Render
