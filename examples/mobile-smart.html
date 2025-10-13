@@ -433,6 +433,34 @@
                     </div>
                     <input type="range" id="saturation" min="0" max="1" step="0.05" value="1">
                 </div>
+                <div class="control">
+                    <div class="control-label">
+                        <span>Dimension</span>
+                        <span class="control-value" id="val-dimension">3.5</span>
+                    </div>
+                    <input type="range" id="dimension" min="3" max="4" step="0.1" value="3.5">
+                </div>
+                <div class="control">
+                    <div class="control-label">
+                        <span>Rotation XW</span>
+                        <span class="control-value" id="val-rot4dXW">0.0</span>
+                    </div>
+                    <input type="range" id="rot4dXW" min="-3.14" max="3.14" step="0.1" value="0">
+                </div>
+                <div class="control">
+                    <div class="control-label">
+                        <span>Rotation YW</span>
+                        <span class="control-value" id="val-rot4dYW">0.0</span>
+                    </div>
+                    <input type="range" id="rot4dYW" min="-3.14" max="3.14" step="0.1" value="0">
+                </div>
+                <div class="control">
+                    <div class="control-label">
+                        <span>Rotation ZW</span>
+                        <span class="control-value" id="val-rot4dZW">0.0</span>
+                    </div>
+                    <input type="range" id="rot4dZW" min="-3.14" max="3.14" step="0.1" value="0">
+                </div>
             </div>
 
             <!-- GEOMETRY TAB -->
@@ -477,6 +505,7 @@
                     <button class="active" id="toggle-morph" onclick="toggleReactivity('morph')">Morph</button>
                     <button class="active" id="toggle-color" onclick="toggleReactivity('color')">Color</button>
                     <button class="active" id="toggle-chaos" onclick="toggleReactivity('chaos')">Chaos</button>
+                    <button class="active" id="toggle-rotation" onclick="toggleReactivity('rotation')">Rotation</button>
                 </div>
 
                 <div class="section-header">7-BAND AUDIO</div>
@@ -541,7 +570,7 @@
 
         let currentGeometry = 'tesseract';
 
-        // Base parameters
+        // Base parameters - ALL of them like ultimate-controls.html
         const baseParams = {
             intensity: 1.0,
             gridDensity: 25,
@@ -549,7 +578,11 @@
             chaos: 0.2,
             speed: 1.0,
             hue: 180,
-            saturation: 1.0
+            saturation: 1.0,
+            dimension: 3.5,
+            rot4dXW: 0,
+            rot4dYW: 0,
+            rot4dZW: 0
         };
 
         // Reactivity
@@ -559,7 +592,8 @@
                 density: true,
                 morph: true,
                 color: true,
-                chaos: true
+                chaos: true,
+                rotation: true
             }
         };
 
@@ -568,7 +602,7 @@
         let audioAnalyzer = null;
         let audioElement = null;
 
-        // Setup sliders
+        // Setup sliders - EXACTLY like ultimate-controls.html
         Object.keys(baseParams).forEach(param => {
             const slider = document.getElementById(param);
             const display = document.getElementById('val-' + param);
@@ -579,8 +613,12 @@
 
             slider.oninput = () => {
                 const val = parseFloat(slider.value);
-                baseParams[param] = val;
                 display.textContent = val.toFixed(1);
+                baseParams[param] = val;  // UPDATE BASE
+                // Apply directly if no audio playing
+                if (!audioAnalyzer || !audioElement || audioElement.paused) {
+                    visualizer.updateParameter(param, val);
+                }
             };
         });
 
@@ -771,47 +809,53 @@
             const avgReactivity = Object.values(bands).reduce((a, b) => a + b, 0) / 7;
             document.getElementById('reactivityBar').style.width = (avgReactivity * 100) + '%';
 
-            // Apply parameters
+            // APPLY PARAMETERS - EXACTLY like ultimate-controls.html
             if (audioPlaying) {
+                // Audio is playing - apply base + modulation
                 const mult = reactivity.amount;
+                const b = audioData.bands || {};
 
+                // Apply ALL parameters with modulation
                 if (reactivity.enabled.density) {
-                    const mod = ((bands.bass || 0) * 40 + (bands.subBass || 0) * 30) * mult;
-                    visualizer.updateParameter('gridDensity', Math.min(80, baseParams.gridDensity + mod));
+                    visualizer.updateParameter('gridDensity', Math.min(80, baseParams.gridDensity + (b.bass || 0) * 40 * mult));
                 } else {
                     visualizer.updateParameter('gridDensity', baseParams.gridDensity);
                 }
 
                 if (reactivity.enabled.morph) {
-                    const mod = (bands.mid || 0) * 1.5 * mult;
-                    visualizer.updateParameter('morphFactor', Math.min(3.0, baseParams.morphFactor + mod));
+                    visualizer.updateParameter('morphFactor', Math.min(3.0, baseParams.morphFactor + (b.mid || 0) * 1.5 * mult));
                 } else {
                     visualizer.updateParameter('morphFactor', baseParams.morphFactor);
                 }
 
                 if (reactivity.enabled.color) {
-                    const hueShift = (bands.high || 0) * 120 * mult;
-                    visualizer.updateParameter('hue', (baseParams.hue + hueShift) % 360);
+                    visualizer.updateParameter('hue', (baseParams.hue + (b.high || 0) * 120 * mult) % 360);
+                    visualizer.updateParameter('saturation', Math.min(1.0, baseParams.saturation + (b.mid || 0) * 0.3 * mult));
                 } else {
                     visualizer.updateParameter('hue', baseParams.hue);
+                    visualizer.updateParameter('saturation', baseParams.saturation);
                 }
 
                 if (reactivity.enabled.chaos) {
-                    const mod = (audioData.rms || 0) * 0.6 * mult;
-                    visualizer.updateParameter('chaos', Math.min(1.0, baseParams.chaos + mod));
+                    visualizer.updateParameter('chaos', Math.min(1.0, baseParams.chaos + (audioData.rms || 0) * 0.6 * mult));
                 } else {
                     visualizer.updateParameter('chaos', baseParams.chaos);
                 }
 
-                const speedMod = ((bands.bass || 0) + (audioData.rms || 0)) * 0.8 * mult;
-                visualizer.updateParameter('speed', Math.min(3.0, baseParams.speed + speedMod));
+                visualizer.updateParameter('speed', Math.min(3.0, baseParams.speed + (((b.bass || 0) + (audioData.rms || 0)) * 0.8 * mult)));
                 visualizer.updateParameter('intensity', baseParams.intensity);
-                visualizer.updateParameter('saturation', baseParams.saturation);
-            } else {
-                // No audio - apply base params only
-                Object.keys(baseParams).forEach(key => {
-                    visualizer.updateParameter(key, baseParams[key]);
-                });
+                visualizer.updateParameter('dimension', baseParams.dimension);
+
+                // Apply 4D rotations with audio modulation if enabled
+                if (reactivity.enabled.rotation) {
+                    visualizer.updateParameter('rot4dXW', baseParams.rot4dXW + (b.lowMid || 0) * 0.5 * mult);
+                    visualizer.updateParameter('rot4dYW', baseParams.rot4dYW + (b.mid || 0) * 0.6 * mult);
+                    visualizer.updateParameter('rot4dZW', baseParams.rot4dZW + (b.high || 0) * 0.8 * mult);
+                } else {
+                    visualizer.updateParameter('rot4dXW', baseParams.rot4dXW);
+                    visualizer.updateParameter('rot4dYW', baseParams.rot4dYW);
+                    visualizer.updateParameter('rot4dZW', baseParams.rot4dZW);
+                }
             }
 
             // Render
