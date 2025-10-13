@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TEST MINIMAL</title>
+    <style>
+        body { margin: 0; background: #000; }
+        canvas { width: 100vw; height: 100vh; display: block; }
+        #status {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            color: #0f0;
+            font-family: monospace;
+            font-size: 14px;
+            background: rgba(0,0,0,0.8);
+            padding: 10px;
+            z-index: 1000;
+            max-width: 90vw;
+            word-wrap: break-word;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    <div id="status">Loading...</div>
+
+    <script type="module">
+        const status = document.getElementById('status');
+
+        function log(msg) {
+            console.log(msg);
+            status.innerHTML += '<br>' + msg;
+        }
+
+        log('🚀 Starting...');
+
+        try {
+            log('📦 Importing QuantumHolographicVisualizer...');
+            const { QuantumHolographicVisualizer } = await import('../src/visualizers/quantum/QuantumVisualizer.js');
+            log('✅ Import successful');
+
+            const canvas = document.getElementById('canvas');
+            canvas.width = window.innerWidth * window.devicePixelRatio;
+            canvas.height = window.innerHeight * window.devicePixelRatio;
+            log(`📐 Canvas: ${canvas.width}x${canvas.height}`);
+
+            log('🎨 Creating visualizer...');
+            const visualizer = new QuantumHolographicVisualizer('canvas', 'content', 1.0, 0);
+            log('✅ Visualizer created');
+
+            log('🔧 Setting parameters...');
+            visualizer.updateParameter('intensity', 1.0);
+            visualizer.updateParameter('gridDensity', 25);
+            visualizer.updateParameter('geometry', 1);
+            log('✅ Parameters set');
+
+            log('▶️ Starting render loop...');
+            let frameCount = 0;
+            function render() {
+                visualizer.render();
+                frameCount++;
+                if (frameCount === 60) {
+                    log(`✅ ${frameCount} frames rendered`);
+                }
+                requestAnimationFrame(render);
+            }
+            render();
+
+        } catch (err) {
+            log('❌ ERROR: ' + err.message);
+            log('Stack: ' + err.stack);
+        }
+    </script>
+</body>
+</html>
