@@ -467,14 +467,14 @@
             <div class="tab-content">
                 <div class="section-header">GEOMETRY TYPE</div>
                 <div class="btn-grid">
-                    <button onclick="setGeometry('tesseract')">Tesseract</button>
-                    <button onclick="setGeometry('120cell')">120-Cell</button>
-                    <button onclick="setGeometry('24cell')">24-Cell</button>
-                    <button onclick="setGeometry('600cell')">600-Cell</button>
-                    <button onclick="setGeometry('hypersphere')">Hypersphere</button>
-                    <button onclick="setGeometry('kleinBottle')">Klein</button>
-                    <button onclick="setGeometry('toroidalPoly')">Toroidal</button>
-                    <button onclick="setGeometry('fractal')">Fractal</button>
+                    <button onclick="setGeometry(0)">Tetrahedron</button>
+                    <button onclick="setGeometry(1)">Hypercube</button>
+                    <button onclick="setGeometry(2)">Sphere</button>
+                    <button onclick="setGeometry(3)">Torus</button>
+                    <button onclick="setGeometry(4)">Klein Bottle</button>
+                    <button onclick="setGeometry(5)">Fractal</button>
+                    <button onclick="setGeometry(6)">Wave</button>
+                    <button onclick="setGeometry(7)">Crystal</button>
                 </div>
                 <div class="section-header">VISUALIZER SYSTEM</div>
                 <div class="btn-grid">
@@ -568,7 +568,7 @@
         visualizer.updateParameter('saturation', 1.0);
         visualizer.updateParameter('gridDensity', 25);
 
-        let currentGeometry = 'tesseract';
+        let currentGeometry = 0; // Start with Tetrahedron (index 0)
 
         // Base parameters - ALL of them like ultimate-controls.html
         const baseParams = {
@@ -655,14 +655,12 @@
             btn.classList.toggle('active');
         };
 
-        // Geometry
-        window.setGeometry = function(type) {
-            currentGeometry = type;
-            const geoIndex = GeometryLibrary.getGeometryNames().indexOf(type);
-            if (geoIndex >= 0) {
-                visualizer.updateParameter('geometry', geoIndex);
-            }
-            console.log('🔷 Geometry:', type);
+        // Geometry - pass index directly
+        window.setGeometry = function(geoIndex) {
+            currentGeometry = geoIndex;
+            visualizer.updateParameter('geometry', geoIndex);
+            const name = GeometryLibrary.getGeometryName(geoIndex);
+            console.log('🔷 Geometry:', name, 'index:', geoIndex);
         };
 
         // Visualizer
@@ -775,9 +773,9 @@
                 frameCount = 0;
             }
 
-            // Audio check
+            // Get audio data - ALWAYS (like ultimate-controls.html)
+            let audioData;
             const audioPlaying = audioAnalyzer && audioElement && !audioElement.paused;
-            let audioData = { bands: {}, rms: 0 };
 
             if (audioPlaying) {
                 audioData = audioAnalyzer.analyze();
@@ -790,6 +788,14 @@
                     logCounter = 0;
                 }
             } else {
+                // No real audio - use empty data
+                audioData = {
+                    bands: {
+                        subBass: 0, bass: 0, lowMid: 0, mid: 0,
+                        highMid: 0, high: 0, ultraHigh: 0
+                    },
+                    rms: 0
+                };
                 document.getElementById('statusDot').className = 'status-dot mock';
                 document.getElementById('statusText').textContent = 'MOCK AUDIO';
             }
@@ -866,7 +872,8 @@
             requestAnimationFrame(render);
         }
 
-        // Initialize - set base params
+        // Initialize - set base params AND geometry
+        visualizer.updateParameter('geometry', currentGeometry);
         Object.keys(baseParams).forEach(key => {
             visualizer.updateParameter(key, baseParams[key]);
         });
