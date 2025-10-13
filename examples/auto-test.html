@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AUTO TEST</title>
+    <style>
+        body { margin: 0; background: #000; }
+        canvas { width: 100vw; height: 70vh; display: block; }
+        #log {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 30vh;
+            background: rgba(0,0,0,0.95);
+            color: #0f0;
+            font-family: monospace;
+            font-size: 11px;
+            padding: 10px;
+            overflow-y: auto;
+            border-top: 2px solid #0ff;
+        }
+        .pass { color: #0f0; }
+        .fail { color: #f00; }
+        .info { color: #0ff; }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    <div id="log"></div>
+
+    <script type="module">
+        const logEl = document.getElementById('log');
+        let testResults = { pass: 0, fail: 0 };
+
+        function log(msg, type = 'info') {
+            console.log(msg);
+            const line = document.createElement('div');
+            line.className = type;
+            line.textContent = msg;
+            logEl.appendChild(line);
+            logEl.scrollTop = logEl.scrollHeight;
+        }
+
+        function test(name, fn) {
+            try {
+                const result = fn();
+                if (result) {
+                    log(`✅ PASS: ${name}`, 'pass');
+                    testResults.pass++;
+                    return true;
+                } else {
+                    log(`❌ FAIL: ${name}`, 'fail');
+                    testResults.fail++;
+                    return false;
+                }
+            } catch (err) {
+                log(`❌ FAIL: ${name} - ${err.message}`, 'fail');
+                testResults.fail++;
+                return false;
+            }
+        }
+
+        async function runTests() {
+            log('🚀 Starting automated tests...', 'info');
+
+            // Test 1: Import visualizer
+            let QuantumHolographicVisualizer;
+            test('Import QuantumHolographicVisualizer', () => {
+                return true; // Will test after await
+            });
+
+            try {
+                const module = await import('../src/visualizers/quantum/QuantumVisualizer.js');
+                QuantumHolographicVisualizer = module.QuantumHolographicVisualizer;
+                log('✅ Import successful', 'pass');
+                testResults.pass++;
+            } catch (err) {
+                log(`❌ Import failed: ${err.message}`, 'fail');
+                testResults.fail++;
+                return;
+            }
+
+            // Test 2: Canvas setup
+            const canvas = document.getElementById('canvas');
+            test('Canvas exists', () => canvas !== null);
+
+            canvas.width = 800;
+            canvas.height = 600;
+            test('Canvas sized', () => canvas.width === 800 && canvas.height === 600);
+
+            // Test 3: Create visualizer
+            let visualizer;
+            try {
+                visualizer = new QuantumHolographicVisualizer('canvas', 'content', 1.0, 0);
+                log('✅ Visualizer created', 'pass');
+                testResults.pass++;
+            } catch (err) {
+                log(`❌ Visualizer creation failed: ${err.message}`, 'fail');
+                testResults.fail++;
+                return;
+            }
+
+            // Test 4: Check visualizer has updateParameter method
+            test('updateParameter method exists', () => typeof visualizer.updateParameter === 'function');
+            test('render method exists', () => typeof visualizer.render === 'function');
+
+            // Test 5: Test parameter updates
+            const testParams = {
+                intensity: 0.5,
+                gridDensity: 30,
+                morphFactor: 1.5,
+                chaos: 0.3,
+                speed: 1.2,
+                hue: 200,
+                saturation: 0.9,
+                dimension: 3.7,
+                geometry: 2
+            };
+
+            Object.keys(testParams).forEach(param => {
+                try {
+                    visualizer.updateParameter(param, testParams[param]);
+                    const actual = visualizer.params[param];
+                    if (Math.abs(actual - testParams[param]) < 0.01) {
+                        log(`✅ ${param} = ${actual}`, 'pass');
+                        testResults.pass++;
+                    } else {
+                        log(`❌ ${param} expected ${testParams[param]}, got ${actual}`, 'fail');
+                        testResults.fail++;
+                    }
+                } catch (err) {
+                    log(`❌ ${param} update failed: ${err.message}`, 'fail');
+                    testResults.fail++;
+                }
+            });
+
+            // Test 6: Render test
+            let renderCount = 0;
+            try {
+                for (let i = 0; i < 3; i++) {
+                    visualizer.render();
+                    renderCount++;
+                }
+                log(`✅ Rendered ${renderCount} frames`, 'pass');
+                testResults.pass++;
+            } catch (err) {
+                log(`❌ Render failed: ${err.message}`, 'fail');
+                testResults.fail++;
+            }
+
+            // Test 7: Geometry switching test
+            log('🔷 Testing geometry switching...', 'info');
+            for (let i = 0; i < 8; i++) {
+                try {
+                    visualizer.updateParameter('geometry', i);
+                    if (visualizer.params.geometry === i) {
+                        log(`✅ Geometry ${i} set`, 'pass');
+                        testResults.pass++;
+                    } else {
+                        log(`❌ Geometry ${i} failed`, 'fail');
+                        testResults.fail++;
+                    }
+                } catch (err) {
+                    log(`❌ Geometry ${i} error: ${err.message}`, 'fail');
+                    testResults.fail++;
+                }
+            }
+
+            // Test 8: Parameter persistence test
+            log('🔄 Testing parameter persistence...', 'info');
+            visualizer.updateParameter('gridDensity', 50);
+            visualizer.render();
+            test('gridDensity persists after render', () => visualizer.params.gridDensity === 50);
+
+            // Final summary
+            log('', 'info');
+            log('═══════════════════════════════════', 'info');
+            log(`RESULTS: ${testResults.pass} passed, ${testResults.fail} failed`,
+                testResults.fail === 0 ? 'pass' : 'fail');
+            log('═══════════════════════════════════', 'info');
+
+            if (testResults.fail === 0) {
+                log('🎉 ALL TESTS PASSED - System is working correctly!', 'pass');
+                log('', 'info');
+                log('Starting continuous render to verify...', 'info');
+                let frameCount = 0;
+                function continuousRender() {
+                    visualizer.render();
+                    frameCount++;
+                    if (frameCount % 60 === 0) {
+                        log(`📊 Rendered ${frameCount} frames`, 'info');
+                    }
+                    requestAnimationFrame(continuousRender);
+                }
+                continuousRender();
+            } else {
+                log('', 'info');
+                log('⚠️ TESTS FAILED - Check errors above', 'fail');
+            }
+        }
+
+        runTests();
+    </script>
+</body>
+</html>
