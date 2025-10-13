@@ -563,6 +563,7 @@
 
         // Initialize visualizer - EXACTLY like ultimate-controls.html
         let visualizer = new QuantumHolographicVisualizer('canvas', 'content', 1.0, 0);
+        window.visualizer = visualizer; // Make globally accessible for debugging
         visualizer.updateParameter('intensity', 1.0);
         visualizer.updateParameter('hue', 180);
         visualizer.updateParameter('saturation', 1.0);
@@ -681,12 +682,15 @@
                 visualizer = new HolographicVisualizer('canvas', 'content', 1.0, 0);
             }
 
+            window.visualizer = visualizer; // Update global reference
+
             // Restore all parameters
+            visualizer.updateParameter('geometry', currentGeometry);
             Object.keys(baseParams).forEach(k => {
                 visualizer.updateParameter(k, baseParams[k]);
             });
 
-            console.log('🎨 Visualizer:', type);
+            console.log('🎨 Visualizer switched to:', type);
         };
 
         // Audio file
