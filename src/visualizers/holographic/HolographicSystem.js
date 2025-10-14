@@ -139,18 +139,33 @@ export class HolographicSystem extends BaseSystem {
 
         // Holographic system has MAXIMUM audio reactivity
         if (audioData && this.audioEnabled) {
+            const getBandLevel = (name) => {
+                if (!audioData) return 0;
+                const bands = audioData.bands || {};
+                const bandDetails = audioData.bandDetails || {};
+                if (typeof bands[name] === 'number') {
+                    return bands[name];
+                }
+                if (typeof bandDetails[name]?.value === 'number') {
+                    return bandDetails[name].value;
+                }
+                const legacyBand = bands[name];
+                return typeof legacyBand?.value === 'number' ? legacyBand.value : 0;
+            };
+
             // Bass drives layer intensity
-            const bassIntensity = (audioData.bands.bass?.value || 0) * this.audioReactivity;
+            const bassIntensity = getBandLevel('bass') * this.audioReactivity;
 
             // Mid frequencies drive layer speed
-            const midIntensity = (audioData.bands.mid?.value || 0) * this.audioReactivity;
+            const midIntensity = getBandLevel('mid') * this.audioReactivity;
 
             // High frequencies drive shimmer
-            const highIntensity = (audioData.bands.high?.value || 0) * this.audioReactivity;
+            const highIntensity = getBandLevel('high') * this.audioReactivity;
 
             // Onsets trigger layer bursts
-            if (audioData.onset.detected && this.visualizer.triggerOnset) {
-                this.visualizer.triggerOnset(audioData.onset.strength);
+            const onsetEvent = audioData.onsetEvent || (typeof audioData.onset === 'object' ? audioData.onset : null);
+            if (onsetEvent?.detected && this.visualizer.triggerOnset) {
+                this.visualizer.triggerOnset(onsetEvent.strength);
             }
 
             // Apply audio-specific effects
