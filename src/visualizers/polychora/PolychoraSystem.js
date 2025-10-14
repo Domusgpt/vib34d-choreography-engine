@@ -146,11 +146,25 @@ export class PolychoraSystem extends BaseSystem {
 
         // 4D rotation from audio
         if (audioData && this.audioEnabled) {
+            const getBandLevel = (name) => {
+                if (!audioData) return 0;
+                const bands = audioData.bands || {};
+                const bandDetails = audioData.bandDetails || {};
+                if (typeof bands[name] === 'number') {
+                    return bands[name];
+                }
+                if (typeof bandDetails[name]?.value === 'number') {
+                    return bandDetails[name].value;
+                }
+                const legacyBand = bands[name];
+                return typeof legacyBand?.value === 'number' ? legacyBand.value : 0;
+            };
+
             // Each frequency band controls a different rotation plane
-            const subBass = audioData.bands.subBass?.value || 0;
-            const bass = audioData.bands.bass?.value || 0;
-            const mid = audioData.bands.mid?.value || 0;
-            const high = audioData.bands.high?.value || 0;
+            const subBass = getBandLevel('subBass');
+            const bass = getBandLevel('bass');
+            const mid = getBandLevel('mid');
+            const high = getBandLevel('high');
 
             // Audio-driven 4D rotations
             this.rotation4D.xw += bass * this.audioReactivity * 0.05;
@@ -158,8 +172,9 @@ export class PolychoraSystem extends BaseSystem {
             this.rotation4D.zw += high * this.audioReactivity * 0.05;
 
             // Onsets cause 4D "punches"
-            if (audioData.onset.detected) {
-                const strength = audioData.onset.strength;
+            const onsetEvent = audioData.onsetEvent || (typeof audioData.onset === 'object' ? audioData.onset : null);
+            if (onsetEvent?.detected) {
+                const strength = onsetEvent.strength;
                 this.rotation4D.xy += strength * this.audioReactivity * 0.2;
                 this.rotation4D.yz += strength * this.audioReactivity * 0.15;
             }
