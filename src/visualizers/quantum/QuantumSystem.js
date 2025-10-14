@@ -92,13 +92,22 @@ export class QuantumSystem extends BaseSystem {
             this.visualizer.setColor(color);
         }
 
+        // Share expanded audio choreography data with the visualizer
+        if (audioData && this.visualizer && this.visualizer.setAudioChoreography) {
+            this.visualizer.setAudioChoreography(audioData);
+        }
+
         // Apply audio reactivity to specific Quantum parameters
         if (audioData && this.audioEnabled) {
             // Enhance volumetric effects with audio
             const volumetricBoost = audioData.rms * this.audioReactivity;
 
             // Add particle intensity from high frequencies
-            const particleIntensity = audioData.bands.high?.value || 0;
+            const bands = audioData.bands || {};
+            const bandDetails = audioData.bandDetails || {};
+            const particleIntensity = typeof bands.high === 'number'
+                ? bands.high
+                : (bandDetails.high?.value || (bands.high?.value || 0));
 
             if (this.visualizer.setVolumetricIntensity) {
                 this.visualizer.setVolumetricIntensity(volumetricBoost);
