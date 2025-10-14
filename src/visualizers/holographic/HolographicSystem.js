@@ -138,19 +138,46 @@ export class HolographicSystem extends BaseSystem {
         }
 
         // Holographic system has MAXIMUM audio reactivity
+        if (audioData && this.visualizer && this.visualizer.setAudioChoreography) {
+            this.visualizer.setAudioChoreography(audioData);
+        }
+
         if (audioData && this.audioEnabled) {
-            // Bass drives layer intensity
-            const bassIntensity = (audioData.bands.bass?.value || 0) * this.audioReactivity;
+            const getBandLevel = (name) => {
+                if (!audioData) return 0;
+                const bands = audioData.bands || {};
+                const bandDetails = audioData.bandDetails || {};
+                if (typeof bands[name] === 'number') {
+                    return bands[name];
+                }
+                if (typeof bandDetails[name]?.value === 'number') {
+                    return bandDetails[name].value;
+                }
+                const legacyBand = bands[name];
+                return typeof legacyBand?.value === 'number' ? legacyBand.value : 0;
+            };
 
-            // Mid frequencies drive layer speed
-            const midIntensity = (audioData.bands.mid?.value || 0) * this.audioReactivity;
+            // Bass drives layer intensity with transient bursts boosting the lift
+            const extremeDynamics = audioData.extremeDynamics || {};
+            const bassIntensity = (
+                getBandLevel('bass') + (extremeDynamics.transientBurst || 0) * 0.6
+            ) * this.audioReactivity;
 
-            // High frequencies drive shimmer
-            const highIntensity = (audioData.bands.high?.value || 0) * this.audioReactivity;
+            // Mid frequencies and motion velocity push the layer speed
+            const midIntensity = (
+                getBandLevel('mid') + (extremeDynamics.motionVelocity || 0) * 0.8
+            ) * this.audioReactivity;
+
+            // High frequencies and accent light drive shimmer colour pops
+            const colorMeta = audioData.colorChoreography || {};
+            const highIntensity = (
+                getBandLevel('high') + (colorMeta.accentLuma || 0) * 0.7
+            ) * this.audioReactivity;
 
             // Onsets trigger layer bursts
-            if (audioData.onset.detected && this.visualizer.triggerOnset) {
-                this.visualizer.triggerOnset(audioData.onset.strength);
+            const onsetEvent = audioData.onsetEvent || (typeof audioData.onset === 'object' ? audioData.onset : null);
+            if (onsetEvent?.detected && this.visualizer.triggerOnset) {
+                this.visualizer.triggerOnset(onsetEvent.strength);
             }
 
             // Apply audio-specific effects
