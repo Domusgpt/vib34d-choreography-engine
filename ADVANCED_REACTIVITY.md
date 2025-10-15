@@ -8,6 +8,49 @@ Unlike simple audio reactivity that just modulates a few parameters, this system
 
 ---
 
+## 🎚️ Visualizer Control Bus
+
+The new `VisualizerControlBus` routes every parameter change, gesture, and audio modulation through a shared channel system.
+
+- **Channel Smoothing** – Each parameter defines its own smoothing curve, range, and audio mappings for hyper-musical motion.
+- **Macro Capture** – Record live gestures as macros, then loop or blend them into performances without reprogramming.
+- **Modulation Stack** – Pointer gestures, onsets, and choreography cues stack as additive modulations so user baselines stay intact.
+- **Shared Access** – Quantum, Holographic, and Polychora systems now tap the same control surface to keep colour, geometry, and lighting choreographed together.
+
+### 🎞️ Gesture Macro Recording
+
+The control bus now acts as a **macro sequencer** that can capture pointer motion, touch swipes, scroll bursts, and any control channel in real time. A few highlights:
+
+- **Beat-aware capture** – Every frame stores its elapsed beat so takes can be quantized on stop.
+- **Channel & tag filters** – Record only colour channels, only geometry, or a custom set with `{ tags: ['color'] }` or `{ channels: ['hue', 'intensity'] }`.
+- **Gesture timeline** – Pointer/touch events are logged alongside parameter frames so macros can redraw choreography, not just values.
+- **Playback blending** – Loop macros with weight + blend values and they will merge with live modulations.
+
+```js
+// Record a 2-bar pointer solo on colour channels and quantize to 1/4 notes
+system.startMacroRecording('colorOrbitSolo', {
+  tags: ['color'],
+  quantizeBeats: 0.25,
+  description: 'Quarter-note ribbon orbit'
+});
+
+// ...perform pointer gestures & tweaks...
+
+const macro = system.stopMacroRecording();
+console.log('Captured macro duration', macro.duration);
+
+// Play back with a gentle blend and loop it
+const playbackId = system.playMacro('colorOrbitSolo', {
+  blend: 0.65,
+  loop: true
+});
+
+// Later, export for sharing or editing
+const json = system.exportMacro('colorOrbitSolo');
+```
+
+During playback the base system automatically applies pointer gestures to the active visualizer. Custom gesture types (e.g., scroll wheels) can be injected by calling `controlBus.recordGesture(type, payload)` and handled through `BaseSystem.applyMacroGesture` or an override in subclasses.
+
 ## 🌟 Key Features
 
 ### 1. **7-Band Frequency Analysis**
@@ -61,6 +104,18 @@ Accumulators track:
 - Mid accumulator (balanced decay)
 - High accumulator (fast decay for crisp highs)
 - Energy accumulator (overall loudness tracking)
+
+---
+
+### 7. **Hypercolor Palette Engine**
+Colour is now orchestrated by a dedicated Hypercolor Palette Engine that feeds every visualizer:
+
+- **Curated palette families** – Pastel kawaii, neon rave, deep space bloom, aurora dreams, and cosmic sorbet blends are resampled in CIE L\*a\*b\* space for velvety transitions even during wild jumps.
+- **Audio-triggered swaps** – Downbeat spikes and transient bursts can pull in fresh palettes when the energy and chaos envelopes align, keeping long sets from feeling static.
+- **Pointer + gesture routing** – Pointer orbit and distance modulate the palette sampler so live gestures bend hue ribbons, shimmer layers, and morph factors together.
+- **Shadow-aware shading** – Each palette ships with a depth tone allowing shaders to mix primary, secondary, accent, and shadow channels for cinematic contrast.
+
+The control bus exposes the palette state so Quantum, Holographic, and Polychora canvases stay colour-synced while still expressing their own dynamics.
 
 ---
 
