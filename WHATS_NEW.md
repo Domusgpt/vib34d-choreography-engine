@@ -59,6 +59,14 @@ Instant reactivity profiles for different music:
 - **Smooth**: Flowing motion (downtempo, lo-fi)
 - **Explosive**: Extreme peaks (bass drops, build-ups)
 
+### 7. **Cinematic Camera & Lighting Rails**
+- A new `CameraLightingSystem` keeps orbit, elevation, dolly, and roll synced with bass momentum, swing pulses, and onset bursts.
+- Exposure, shutter, bloom, key, rim, and ambient light uniforms now flow directly into every shader for tonemapped glow without post-processing.
+- Control bus channels (`cameraOrbit`, `cameraElevation`, `exposure`, etc.) let macros or live gestures stack additional moves atop the audio choreography.
+- Fresh `transitionCameraPreset()` easing blends plus system-specific “auto directors” swap presets (Heart Glide ↔ Orbit Sparkle ↔ Bass Drop Zoom) whenever energy, swing, or dimensional surges demand a new cinematic mood.
+- New depth cinematography uniforms drive focus distance, focus spread, parallax warp, chromatic aberration, fog density, shadow contrast, colour temperature, and godray intensity so every visualizer renders volumetric haze and prismatic flares that pulse with the beat.
+- Post-processing controls for film grain, lens distortion, frame blending, light wrap, and colour bleed ride the same camera rail so every canvas can pivot between crisp clarity and dreamlike bloom as the music evolves.
+
 ---
 
 ## 🎨 New Modern UI
