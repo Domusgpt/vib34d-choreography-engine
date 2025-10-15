@@ -1,5 +1,28 @@
 # 🎉 What's New in VIB34D Choreography Engine
 
+## Latest Update: Mobile Maestro Console & Quantum Hypercolor
+
+### 📱 Mobile-Smart evolves into the Mobile Maestro
+- Rebuilt [`examples/mobile-smart.html`](examples/mobile-smart.html) with the Advanced Reactive aesthetic, a sliding bottom console, and mobile-first tabs so choreography controls never crowd the canvas.
+- Wired the page into the full choreography engine with beat-driven rotation patterns, palette selection, geometry swaps, and RGB moiré toggles that mirror the ultimate demo while staying touch friendly.
+- Added live reactivity meters, frequency bars, and quick sequence launchers so verifying real audio input on phones is now instant.
+
+### 🌈 Quantum gets selectable palette choreography
+- Introduced six curated palette journeys (Legacy Hypercolor, Aurora Bloom, Solar Inferno, Midnight Prism, Neon Mirage, and Monochrome Bloom) plus a vibrance slider that feeds directly into shader dynamics.
+- Added a beat-reactive moiré/RGB offset glitch uniform so the lattice can lean into audio-driven chromatic interference or stay pristine.
+- Updated the shader to honour the new uniforms while keeping the legacy extreme color mode as the baseline option.
+
+## Latest Update: Demo Atlas & Visualizer Navigation
+
+### 🗺️ All demos in one searchable hub
+- Added a **Demo Atlas** at [`examples/INDEX.html`](examples/INDEX.html) that lists every active HTML entry point.
+- Documented a GitHub Pages checklist so pull request branches can deploy from the repository root before merging.
+- Live search and category filters make it simple to jump between production canvases, analyzer harnesses, diagnostics, and archival builds.
+- Automatic totals keep counts for demos, visualizer systems, reactivity modes, and macro scenarios accurate as new pages land.
+- Quick links call out priority flows such as `properly-reactive.html` for analyzer verification and the Final Ultimate cinematic showcase.
+
+---
+
 ## Latest Update: Advanced Audio Reactivity System
 
 ### 🌟 NEW PRIMARY DEMO: Advanced Reactive
@@ -58,6 +81,14 @@ Instant reactivity profiles for different music:
 - **Chaotic**: Wild unpredictability (experimental)
 - **Smooth**: Flowing motion (downtempo, lo-fi)
 - **Explosive**: Extreme peaks (bass drops, build-ups)
+
+### 7. **Cinematic Camera & Lighting Rails**
+- A new `CameraLightingSystem` keeps orbit, elevation, dolly, and roll synced with bass momentum, swing pulses, and onset bursts.
+- Exposure, shutter, bloom, key, rim, and ambient light uniforms now flow directly into every shader for tonemapped glow without post-processing.
+- Control bus channels (`cameraOrbit`, `cameraElevation`, `exposure`, etc.) let macros or live gestures stack additional moves atop the audio choreography.
+- Fresh `transitionCameraPreset()` easing blends plus system-specific “auto directors” swap presets (Heart Glide ↔ Orbit Sparkle ↔ Bass Drop Zoom) whenever energy, swing, or dimensional surges demand a new cinematic mood.
+- New depth cinematography uniforms drive focus distance, focus spread, parallax warp, chromatic aberration, fog density, shadow contrast, colour temperature, and godray intensity so every visualizer renders volumetric haze and prismatic flares that pulse with the beat.
+- Post-processing controls for film grain, lens distortion, frame blending, light wrap, and colour bleed ride the same camera rail so every canvas can pivot between crisp clarity and dreamlike bloom as the music evolves.
 
 ---
 
