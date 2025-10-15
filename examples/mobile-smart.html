@@ -275,6 +275,37 @@
             border-radius: 6px;
         }
 
+        select {
+            width: 100%;
+            padding: 10px;
+            background: rgba(0, 255, 255, 0.1);
+            border: 2px solid #0ff;
+            color: #0f0;
+            font-size: 11px;
+            font-family: 'Courier New', monospace;
+            margin-bottom: 10px;
+            border-radius: 6px;
+        }
+
+        .toggle-control {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 6px 0 12px 0;
+        }
+
+        .toggle-control input[type="checkbox"] {
+            width: 20px;
+            height: 20px;
+            accent-color: #0ff;
+        }
+
+        .toggle-control span {
+            font-size: 11px;
+            color: #0ff;
+            font-weight: bold;
+        }
+
         /* Audio bars */
         .audio-bars {
             display: flex;
@@ -406,6 +437,31 @@
                     </div>
                     <input type="range" id="intensity" min="0" max="3" step="0.1" value="1">
                 </div>
+                <div class="control">
+                    <div class="control-label">
+                        <span>Palette Mode</span>
+                        <span class="control-value" id="val-paletteMode">Hypercolor Orbit</span>
+                    </div>
+                    <select id="paletteMode"></select>
+                </div>
+                <div class="toggle-control">
+                    <input type="checkbox" id="moireToggle">
+                    <span>Enable RGB Moiré Glitch</span>
+                </div>
+                <div class="control">
+                    <div class="control-label">
+                        <span>Moiré Intensity</span>
+                        <span class="control-value" id="val-moireIntensity">0.45</span>
+                    </div>
+                    <input type="range" id="moireIntensity" min="0" max="2" step="0.05" value="0.45">
+                </div>
+                <div class="control">
+                    <div class="control-label">
+                        <span>Glitch Separation</span>
+                        <span class="control-value" id="val-glitchAmount">1.00</span>
+                    </div>
+                    <input type="range" id="glitchAmount" min="0" max="3" step="0.05" value="1">
+                </div>
 
                 <div class="section-header">⚙️ GEOMETRY</div>
                 <div class="control">
@@ -470,20 +526,20 @@
             <div class="tab-content">
                 <div class="section-header">GEOMETRY TYPE</div>
                 <div class="btn-grid">
-                    <button onclick="setGeometry(0)">Tetrahedron</button>
-                    <button onclick="setGeometry(1)">Hypercube</button>
-                    <button onclick="setGeometry(2)">Sphere</button>
-                    <button onclick="setGeometry(3)">Torus</button>
-                    <button onclick="setGeometry(4)">Klein Bottle</button>
-                    <button onclick="setGeometry(5)">Fractal</button>
-                    <button onclick="setGeometry(6)">Wave</button>
-                    <button onclick="setGeometry(7)">Crystal</button>
+                    <button data-geometry="0" onclick="setGeometry(0)">Tetrahedron</button>
+                    <button data-geometry="1" onclick="setGeometry(1)">Hypercube</button>
+                    <button data-geometry="2" onclick="setGeometry(2)">Sphere</button>
+                    <button data-geometry="3" onclick="setGeometry(3)">Torus</button>
+                    <button data-geometry="4" onclick="setGeometry(4)">Klein Bottle</button>
+                    <button data-geometry="5" onclick="setGeometry(5)">Fractal</button>
+                    <button data-geometry="6" onclick="setGeometry(6)">Wave</button>
+                    <button data-geometry="7" onclick="setGeometry(7)">Crystal</button>
                 </div>
                 <div class="section-header">VISUALIZER SYSTEM</div>
                 <div class="btn-grid">
-                    <button onclick="setVisualizer('quantum')">Quantum</button>
-                    <button onclick="setVisualizer('faceted')">Faceted</button>
-                    <button onclick="setVisualizer('holographic')">Holographic</button>
+                    <button data-visualizer="quantum" onclick="setVisualizer('quantum')">Quantum</button>
+                    <button data-visualizer="faceted" onclick="setVisualizer('faceted')">Faceted</button>
+                    <button data-visualizer="holographic" onclick="setVisualizer('holographic')">Holographic</button>
                 </div>
             </div>
 
@@ -547,376 +603,513 @@
     </div>
 
     <script type="module">
+        import { ChoreographyEngine } from '../src/core/ChoreographyEngine.js';
+        import { RotationChoreographer } from '../src/choreographers/RotationChoreographer.js';
+        import { ShaderChoreographer } from '../src/choreographers/ShaderChoreographer.js';
         import { QuantumHolographicVisualizer } from '../src/visualizers/quantum/QuantumVisualizer.js';
         import { IntegratedHolographicVisualizer } from '../src/visualizers/faceted/FacetedVisualizer.js';
         import { HolographicVisualizer } from '../src/visualizers/holographic/HolographicVisualizer.js';
         import { AudioAnalyzer } from '../src/audio/AudioAnalyzer.js';
-        import { GeometryLibrary } from '../src/geometry/GeometryLibrary.js';
 
         const canvas = document.getElementById('canvas');
-        canvas.width = window.innerWidth * (window.devicePixelRatio || 1);
-        canvas.height = window.innerHeight * (window.devicePixelRatio || 1);
+        const drawer = document.getElementById('drawer');
+        const tabs = Array.from(document.querySelectorAll('.tab'));
+        const tabContents = Array.from(document.querySelectorAll('.tab-content'));
+        const statusDot = document.getElementById('statusDot');
+        const statusText = document.getElementById('statusText');
+        const fpsLabel = document.getElementById('fps');
+        const fileInput = document.getElementById('audioFile');
+        const fileNameLabel = document.getElementById('fileName');
+        const playBtn = document.getElementById('playBtn');
+        const pauseBtn = document.getElementById('pauseBtn');
+        const reactivitySlider = document.getElementById('reactivity');
+        const reactivityLabel = document.getElementById('val-reactivity');
+        const reactivityBar = document.getElementById('reactivityBar');
+        const paletteSelect = document.getElementById('paletteMode');
+        const paletteLabel = document.getElementById('val-paletteMode');
+        const moireToggle = document.getElementById('moireToggle');
+        const moireIntensityInput = document.getElementById('moireIntensity');
+        const moireIntensityLabel = document.getElementById('val-moireIntensity');
+        const glitchInput = document.getElementById('glitchAmount');
+        const glitchLabel = document.getElementById('val-glitchAmount');
+        const geometryButtons = Array.from(document.querySelectorAll('[data-geometry]'));
+        const visualizerButtons = Array.from(document.querySelectorAll('[data-visualizer]'));
+        const bandIds = ['bar-sub', 'bar-bass', 'bar-low', 'bar-mid', 'bar-hmid', 'bar-high', 'bar-ultra'];
+        const bandKeys = ['subBass', 'bass', 'lowMid', 'mid', 'highMid', 'high', 'air'];
 
-        // Resize
-        function resize() {
-            canvas.width = window.innerWidth * (window.devicePixelRatio || 1);
-            canvas.height = window.innerHeight * (window.devicePixelRatio || 1);
-        }
-        window.addEventListener('resize', resize);
 
-        // Initialize visualizer - EXACTLY like ultimate-controls.html
-        let visualizer = new QuantumHolographicVisualizer('canvas', 'content', 1.0, 0);
-        window.visualizer = visualizer; // Make globally accessible for debugging
-        visualizer.updateParameter('intensity', 1.0);
-        visualizer.updateParameter('hue', 180);
-        visualizer.updateParameter('saturation', 1.0);
-        visualizer.updateParameter('gridDensity', 25);
-
-        let currentGeometry = 0; // Start with Tetrahedron (index 0)
-
-        // Base parameters - ALL of them like ultimate-controls.html
-        const baseParams = {
-            intensity: 1.0,
-            gridDensity: 25,
-            morphFactor: 1.0,
-            chaos: 0.2,
-            speed: 1.0,
-            hue: 180,
-            saturation: 1.0,
-            dimension: 3.5,
-            rot4dXW: 0,
-            rot4dYW: 0,
-            rot4dZW: 0
+        const formatters = {
+            hue: (value) => Math.round(value),
+            saturation: (value) => value.toFixed(2),
+            intensity: (value) => value.toFixed(1),
+            gridDensity: (value) => Math.round(value),
+            morphFactor: (value) => value.toFixed(2),
+            chaos: (value) => value.toFixed(2),
+            speed: (value) => value.toFixed(2),
+            dimension: (value) => value.toFixed(1),
+            rot4dXW: (value) => value.toFixed(2),
+            rot4dYW: (value) => value.toFixed(2),
+            rot4dZW: (value) => value.toFixed(2),
+            moireIntensity: (value) => value.toFixed(2),
+            glitchAmount: (value) => value.toFixed(2)
         };
 
-        // Reactivity
-        const reactivity = {
-            amount: 1.0,
-            enabled: {
-                density: true,
-                morph: true,
-                color: true,
-                chaos: true,
-                rotation: true
-            }
+        const state = {
+            baseParams: {
+                intensity: 1.0,
+                gridDensity: 25,
+                morphFactor: 1.0,
+                chaos: 0.2,
+                speed: 1.0,
+                hue: 180,
+                saturation: 1.0,
+                dimension: 3.5,
+                rot4dXW: 0,
+                rot4dYW: 0,
+                rot4dZW: 0,
+                paletteMode: 'hypercolor',
+                moireIntensity: 0.45,
+                glitchAmount: 1.0,
+                moireGlitch: false
+            },
+            reactivity: {
+                amount: 1.0,
+                enabled: {
+                    density: true,
+                    morph: true,
+                    color: true,
+                    chaos: true,
+                    rotation: true
+                }
+            },
+            geometryIndex: 0,
+            visualizerKey: 'quantum'
         };
 
-        // Audio
         let audioContext = null;
         let audioAnalyzer = null;
         let audioElement = null;
+        let audioObjectUrl = null;
 
-        // Setup sliders - EXACTLY like ultimate-controls.html
-        Object.keys(baseParams).forEach(param => {
-            const slider = document.getElementById(param);
-            const display = document.getElementById('val-' + param);
-            if (!slider || !display) return;
+        const visualizerFactories = {
+            quantum: () => new QuantumHolographicVisualizer('canvas', 'content', 1.0, 0),
+            faceted: () => new IntegratedHolographicVisualizer('canvas', 'content', 1.0, 0),
+            holographic: () => new HolographicVisualizer('canvas', 'content', 1.0, 0)
+        };
 
-            slider.value = baseParams[param];
-            display.textContent = baseParams[param].toFixed(1);
+        let currentVisualizer = visualizerFactories[state.visualizerKey]();
+        window.visualizer = currentVisualizer;
 
-            slider.oninput = () => {
-                const val = parseFloat(slider.value);
-                display.textContent = val.toFixed(1);
-                baseParams[param] = val;  // UPDATE BASE
-                // Render loop will apply it every frame
-                console.log(`🎚️ Slider ${param}=${val}`);
-            };
+        let shaderChoreographer = new ShaderChoreographer(currentVisualizer);
+        const rotationChoreographer = new RotationChoreographer();
+        const engine = new ChoreographyEngine({ visualizers: [currentVisualizer], bpm: 128 });
+
+        try {
+            await engine.loadSequenceLibrary('../src/sequences/presets/bass-drops.json');
+        } catch (error) {
+            console.warn('Unable to load sequence library', error);
+        }
+        engine.start();
+
+        function resizeCanvas() {
+            const dpr = Math.min(window.devicePixelRatio || 1, 2);
+            canvas.width = window.innerWidth * dpr;
+            canvas.height = window.innerHeight * dpr;
+            currentVisualizer?.handleResize?.(canvas.width, canvas.height);
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        function formatValue(key, value) {
+            const formatter = formatters[key];
+            return formatter ? formatter(value) : value;
+        }
+
+        function updateLabel(key, value) {
+            const label = document.getElementById(`val-${key}`);
+            if (label) {
+                label.textContent = formatValue(key, value);
+            }
+        }
+
+        function applyImmediateParameter(key, value) {
+            if (!currentVisualizer) return;
+            if (key === 'paletteMode') {
+                currentVisualizer.setPaletteMode?.(value);
+            } else if (key === 'moireIntensity') {
+                currentVisualizer.setMoireIntensity?.(value);
+            } else if (key === 'glitchAmount') {
+                currentVisualizer.setGlitchAmount?.(value);
+            } else if (key === 'moireGlitch') {
+                currentVisualizer.setMoireGlitch?.(value);
+            }
+            currentVisualizer.updateParameter?.(key, value);
+        }
+
+        const sliderKeys = ['intensity', 'gridDensity', 'morphFactor', 'chaos', 'speed', 'hue', 'saturation', 'dimension', 'rot4dXW', 'rot4dYW', 'rot4dZW', 'moireIntensity', 'glitchAmount'];
+
+        sliderKeys.forEach((key) => {
+            const slider = document.getElementById(key);
+            if (!slider) return;
+            slider.value = state.baseParams[key];
+            updateLabel(key, state.baseParams[key]);
+            slider.addEventListener('input', () => {
+                const value = parseFloat(slider.value);
+                state.baseParams[key] = value;
+                updateLabel(key, value);
+                applyImmediateParameter(key, value);
+            });
         });
 
-        // Reactivity amount
-        document.getElementById('reactivity').oninput = (e) => {
-            reactivity.amount = parseFloat(e.target.value);
-            document.getElementById('val-reactivity').textContent = reactivity.amount.toFixed(1);
-        };
+        reactivitySlider.value = state.reactivity.amount;
+        reactivityLabel.textContent = state.reactivity.amount.toFixed(1);
+        reactivitySlider.addEventListener('input', () => {
+            state.reactivity.amount = parseFloat(reactivitySlider.value);
+            reactivityLabel.textContent = state.reactivity.amount.toFixed(1);
+        });
 
-        // Toggle drawer
-        window.toggleDrawer = function() {
-            document.getElementById('drawer').classList.toggle('minimized');
-        };
+        Object.entries(state.reactivity.enabled).forEach(([key, value]) => {
+            const btn = document.getElementById(`toggle-${key}`);
+            if (btn) {
+                btn.classList.toggle('active', value);
+            }
+        });
 
-        // Switch tabs
-        window.switchTab = function(index) {
-            const tabs = document.querySelectorAll('.tab');
-            const contents = document.querySelectorAll('.tab-content');
-            tabs.forEach((t, i) => {
-                if (i === index) {
-                    t.classList.add('active');
-                    contents[i].classList.add('active');
+        moireToggle.checked = state.baseParams.moireGlitch;
+        moireToggle.addEventListener('change', () => {
+            state.baseParams.moireGlitch = moireToggle.checked;
+            applyImmediateParameter('moireGlitch', moireToggle.checked);
+        });
+        moireIntensityLabel.textContent = formatValue('moireIntensity', state.baseParams.moireIntensity);
+        glitchLabel.textContent = formatValue('glitchAmount', state.baseParams.glitchAmount);
+
+        function updateGeometryButtons() {
+            geometryButtons.forEach((btn) => {
+                const index = Number(btn.dataset.geometry);
+                btn.classList.toggle('active', index === state.geometryIndex);
+            });
+        }
+
+        function updateVisualizerButtons() {
+            visualizerButtons.forEach((btn) => {
+                btn.classList.toggle('active', btn.dataset.visualizer === state.visualizerKey);
+            });
+        }
+
+        function populatePaletteOptions() {
+            if (!paletteSelect) return;
+            const modes = currentVisualizer?.getAvailablePaletteModes?.();
+            paletteSelect.innerHTML = '';
+            if (!Array.isArray(modes) || modes.length === 0) {
+                paletteSelect.disabled = true;
+                paletteLabel.textContent = 'Not available';
+                return;
+            }
+            paletteSelect.disabled = false;
+            modes.forEach(({ key, label }) => {
+                const option = document.createElement('option');
+                option.value = key;
+                option.textContent = label;
+                paletteSelect.appendChild(option);
+            });
+            const desired = modes.find((mode) => mode.key === state.baseParams.paletteMode)
+                ? state.baseParams.paletteMode
+                : modes[0].key;
+            state.baseParams.paletteMode = desired;
+            paletteSelect.value = desired;
+            paletteLabel.textContent = modes.find((mode) => mode.key === desired)?.label || desired;
+            currentVisualizer.setPaletteMode?.(desired);
+            currentVisualizer.updateParameter?.('paletteMode', desired);
+        }
+
+        paletteSelect.addEventListener('change', () => {
+            state.baseParams.paletteMode = paletteSelect.value;
+            const selectedOption = paletteSelect.options[paletteSelect.selectedIndex];
+            paletteLabel.textContent = selectedOption ? selectedOption.textContent : paletteSelect.value;
+            currentVisualizer.setPaletteMode?.(paletteSelect.value);
+            currentVisualizer.updateParameter?.('paletteMode', paletteSelect.value);
+        });
+
+        function syncControlAvailability() {
+            const moireSupported = typeof currentVisualizer?.setMoireGlitch === 'function';
+            moireToggle.disabled = !moireSupported;
+            moireIntensityInput.disabled = !moireSupported;
+            glitchInput.disabled = !moireSupported;
+        }
+
+        function applyBaseParameters() {
+            if (!currentVisualizer) return;
+            currentVisualizer.updateParameter?.('geometry', state.geometryIndex);
+            Object.entries(state.baseParams).forEach(([key, value]) => {
+                if (key === 'paletteMode') {
+                    currentVisualizer.setPaletteMode?.(value);
+                    currentVisualizer.updateParameter?.('paletteMode', value);
+                } else if (key === 'moireIntensity') {
+                    currentVisualizer.setMoireIntensity?.(value);
+                    currentVisualizer.updateParameter?.('moireIntensity', value);
+                } else if (key === 'glitchAmount') {
+                    currentVisualizer.setGlitchAmount?.(value);
+                    currentVisualizer.updateParameter?.('glitchAmount', value);
+                } else if (key === 'moireGlitch') {
+                    currentVisualizer.setMoireGlitch?.(value);
+                    currentVisualizer.updateParameter?.('moireGlitch', value);
                 } else {
-                    t.classList.remove('active');
-                    contents[i].classList.remove('active');
+                    currentVisualizer.updateParameter?.(key, value);
                 }
             });
-        };
+        }
 
-        // Toggle reactivity
-        window.toggleReactivity = function(type) {
-            reactivity.enabled[type] = !reactivity.enabled[type];
-            const btn = document.getElementById('toggle-' + type);
-            btn.classList.toggle('active');
-        };
+        function setGeometry(index) {
+            state.geometryIndex = index;
+            currentVisualizer?.updateParameter?.('geometry', index);
+            updateGeometryButtons();
+        }
 
-        // Geometry - pass index directly
-        window.setGeometry = function(geoIndex) {
-            currentGeometry = geoIndex;
-            const name = GeometryLibrary.getGeometryName(geoIndex);
-            console.log(`🔷 Setting geometry to ${name} (index ${geoIndex})`);
-            visualizer.updateParameter('geometry', geoIndex);
-            console.log(`✅ Geometry set to ${geoIndex}`);
-        };
-
-        // Visualizer
-        window.setVisualizer = function(type) {
-            if (visualizer.destroy) visualizer.destroy();
-
-            if (type === 'quantum') {
-                visualizer = new QuantumHolographicVisualizer('canvas', 'content', 1.0, 0);
-            } else if (type === 'faceted') {
-                visualizer = new IntegratedHolographicVisualizer('canvas', 'content', 1.0, 0);
-            } else if (type === 'holographic') {
-                visualizer = new HolographicVisualizer('canvas', 'content', 1.0, 0);
+        function setVisualizer(key) {
+            if (!visualizerFactories[key]) return;
+            if (currentVisualizer?.destroy) {
+                currentVisualizer.destroy();
             }
+            state.visualizerKey = key;
+            currentVisualizer = visualizerFactories[key]();
+            window.visualizer = currentVisualizer;
+            shaderChoreographer = new ShaderChoreographer(currentVisualizer);
+            engine.visualizers = [currentVisualizer];
+            populatePaletteOptions();
+            syncControlAvailability();
+            applyBaseParameters();
+            resizeCanvas();
+            updateVisualizerButtons();
+        }
 
-            window.visualizer = visualizer; // Update global reference
+        function toggleDrawer() {
+            drawer.classList.toggle('minimized');
+        }
 
-            // Restore all parameters
-            visualizer.updateParameter('geometry', currentGeometry);
-            Object.keys(baseParams).forEach(k => {
-                visualizer.updateParameter(k, baseParams[k]);
+        function switchTab(index) {
+            tabs.forEach((tab, idx) => {
+                const isActive = idx === index;
+                tab.classList.toggle('active', isActive);
+                tabContents[idx].classList.toggle('active', isActive);
             });
+        }
 
-            console.log('🎨 Visualizer switched to:', type);
-        };
+        function toggleReactivity(type) {
+            state.reactivity.enabled[type] = !state.reactivity.enabled[type];
+            const btn = document.getElementById(`toggle-${type}`);
+            if (btn) {
+                btn.classList.toggle('active', state.reactivity.enabled[type]);
+            }
+        }
 
-        // Audio file
-        document.getElementById('audioFile').onchange = async (e) => {
-            const file = e.target.files[0];
+        window.toggleDrawer = toggleDrawer;
+        window.switchTab = switchTab;
+        window.toggleReactivity = toggleReactivity;
+        window.setGeometry = setGeometry;
+        window.setVisualizer = setVisualizer;
+
+        populatePaletteOptions();
+        syncControlAvailability();
+        applyBaseParameters();
+        updateGeometryButtons();
+        updateVisualizerButtons();
+
+        fileInput.addEventListener('change', async (event) => {
+            const file = event.target.files?.[0];
             if (!file) return;
 
-            try {
-                document.getElementById('fileName').textContent = `Loading ${file.name}...`;
-
-                if (audioElement) {
-                    audioElement.pause();
-                    audioElement.src = '';
-                    if (audioElement.parentNode) {
-                        audioElement.parentNode.removeChild(audioElement);
-                    }
+            if (audioElement) {
+                audioElement.pause();
+                if (audioElement.parentNode) {
+                    audioElement.parentNode.removeChild(audioElement);
                 }
+            }
+            if (audioObjectUrl) {
+                URL.revokeObjectURL(audioObjectUrl);
+                audioObjectUrl = null;
+            }
 
-                const url = URL.createObjectURL(file);
+            try {
+                audioObjectUrl = URL.createObjectURL(file);
                 audioElement = new Audio();
-                audioElement.src = url;
-                audioElement.volume = 1.0;
+                audioElement.src = audioObjectUrl;
                 audioElement.preload = 'auto';
                 audioElement.crossOrigin = 'anonymous';
                 audioElement.style.display = 'none';
                 document.body.appendChild(audioElement);
 
-                await new Promise((resolve, reject) => {
-                    audioElement.addEventListener('loadeddata', resolve, { once: true });
-                    audioElement.addEventListener('error', reject, { once: true });
-                    setTimeout(() => resolve(), 3000);
-                });
+                if (!audioContext) {
+                    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                } else if (audioContext.state === 'suspended') {
+                    await audioContext.resume();
+                }
 
-                audioContext = new (window.AudioContext || window.webkitAudioContext)();
                 audioAnalyzer = new AudioAnalyzer(audioContext);
-
                 const source = audioContext.createMediaElementSource(audioElement);
                 source.connect(audioAnalyzer.analyser);
                 audioAnalyzer.analyser.connect(audioContext.destination);
+                engine.audioAnalyzer = audioAnalyzer;
 
-                document.getElementById('fileName').textContent = file.name;
-                console.log('✅ Audio loaded:', file.name);
-            } catch (err) {
-                console.error('❌ Audio error:', err);
-                document.getElementById('fileName').textContent = 'Error: ' + err.message;
+                fileNameLabel.textContent = file.name;
+                statusText.textContent = 'READY';
+                statusDot.className = 'status-dot mock';
+
+                audioElement.addEventListener('ended', () => {
+                    statusText.textContent = 'FINISHED';
+                    statusDot.className = 'status-dot mock';
+                });
+                audioElement.addEventListener('play', () => {
+                    statusText.textContent = 'REAL AUDIO';
+                    statusDot.className = 'status-dot real';
+                });
+                audioElement.addEventListener('pause', () => {
+                    statusText.textContent = 'PAUSED';
+                    statusDot.className = 'status-dot mock';
+                });
+            } catch (error) {
+                console.error('Audio load error', error);
+                fileNameLabel.textContent = `Error: ${error.message}`;
             }
-        };
+        });
 
-        // Play
-        document.getElementById('playBtn').onclick = async () => {
+        playBtn.addEventListener('click', async () => {
             if (!audioElement) {
                 alert('Load audio file first');
                 return;
             }
-
             try {
                 if (audioContext && audioContext.state === 'suspended') {
                     await audioContext.resume();
                 }
                 await audioElement.play();
-                console.log('✅ Playing');
-            } catch (err) {
-                console.error('❌ Play error:', err);
-                alert('Playback failed: ' + err.message);
+            } catch (error) {
+                console.error('Play error', error);
+                alert(`Playback failed: ${error.message}`);
             }
-        };
+        });
 
-        // Pause
-        document.getElementById('pauseBtn').onclick = () => {
-            if (audioElement) {
-                audioElement.pause();
-                console.log('⏸️ Paused');
-            }
-        };
+        pauseBtn.addEventListener('click', () => {
+            audioElement?.pause();
+        });
 
-        // Render loop
-        let lastTime = Date.now();
-        let frameCount = 0;
-        let logCounter = 0;
+        let lastFrameTime = performance.now();
+        let fpsAccumulator = 0;
+        let fpsSamples = 0;
 
         function render() {
-            const now = Date.now();
-            const dt = now - lastTime;
-            lastTime = now;
+            const now = performance.now();
+            const delta = now - lastFrameTime;
+            lastFrameTime = now;
 
-            // FPS
-            frameCount++;
-            if (frameCount >= 60) {
-                document.getElementById('fps').textContent = '60 FPS';
-                frameCount = 0;
+            fpsAccumulator += delta;
+            fpsSamples += 1;
+            if (fpsAccumulator >= 500) {
+                const fps = Math.max(1, Math.round((fpsSamples / fpsAccumulator) * 1000));
+                fpsLabel.textContent = `${fps} FPS`;
+                fpsAccumulator = 0;
+                fpsSamples = 0;
             }
 
-            // Get audio data - ALWAYS (like ultimate-controls.html)
-            let audioData;
-            const audioPlaying = audioAnalyzer && audioElement && !audioElement.paused;
+            const audioActive = audioAnalyzer && audioElement && !audioElement.paused;
+            const rawAudio = audioActive ? audioAnalyzer.analyze() : engine.getMockAudioData();
+            const enrichedAudio = engine.normalizeAudioData ? engine.normalizeAudioData(rawAudio) : rawAudio;
 
-            if (audioPlaying) {
-                audioData = audioAnalyzer.analyze();
-                document.getElementById('statusDot').className = 'status-dot real';
-                document.getElementById('statusText').textContent = 'REAL AUDIO';
-
-                logCounter++;
-                if (logCounter >= 60) {
-                    console.log('🎵 REAL:', audioData.bands);
-                    logCounter = 0;
-                }
-            } else {
-                // No real audio - use empty data
-                audioData = {
-                    bands: {
-                        subBass: 0, bass: 0, lowMid: 0, mid: 0,
-                        highMid: 0, high: 0, ultraHigh: 0
-                    },
-                    rms: 0
-                };
-                document.getElementById('statusDot').className = 'status-dot mock';
-                document.getElementById('statusText').textContent = 'MOCK AUDIO';
+            if (!audioActive) {
+                statusText.textContent = 'MOCK AUDIO';
+                statusDot.className = 'status-dot mock';
             }
 
-            // Update bars - AudioAnalyzer returns bands as objects with .value property
-            const bands = audioData.bands || {};
-            const bandKeys = ['subBass', 'bass', 'lowMid', 'mid', 'highMid', 'high', 'air'];
-            const barIds = ['bar-sub', 'bar-bass', 'bar-low', 'bar-mid', 'bar-hmid', 'bar-high', 'bar-ultra'];
-
-            barIds.forEach((id, i) => {
+            bandIds.forEach((id, index) => {
                 const bar = document.getElementById(id);
-                const bandData = bands[bandKeys[i]];
-                const val = bandData?.value || 0;  // CRITICAL: bands are objects with .value
-                if (bar) bar.style.height = (val * 100) + '%';
+                if (!bar) return;
+                const value = enrichedAudio.bandDetails?.[bandKeys[index]]?.value
+                    ?? enrichedAudio.bands?.[bandKeys[index]]
+                    ?? 0;
+                bar.style.height = `${Math.max(0, Math.min(1, value)) * 100}%`;
             });
 
-            // Strength - sum all band values
-            const bandValues = Object.values(bands).map(b => b?.value || 0);
-            const avgReactivity = bandValues.reduce((a, b) => a + b, 0) / bandValues.length;
-            document.getElementById('reactivityBar').style.width = (avgReactivity * 100) + '%';
+            const bandValues = bandKeys.map((key) => {
+                const val = enrichedAudio.bandDetails?.[key]?.value ?? enrichedAudio.bands?.[key] ?? 0;
+                return Math.max(0, val);
+            });
+            const avgReactivity = bandValues.reduce((sum, val) => sum + val, 0) / bandValues.length;
+            reactivityBar.style.width = `${Math.max(0, Math.min(1, avgReactivity)) * 100}%`;
 
-            // APPLY PARAMETERS - bands are OBJECTS with .value property!
-            if (audioPlaying) {
-                // Audio is playing - apply base + modulation
-                const mult = reactivity.amount;
-                const b = audioData.bands || {};
+            const bass = enrichedAudio.bands?.bass ?? 0;
+            const mid = enrichedAudio.bands?.mid ?? 0;
+            const lowMid = enrichedAudio.bands?.lowMid ?? 0;
+            const high = enrichedAudio.bands?.high ?? 0;
+            const rms = enrichedAudio.rms ?? 0;
 
-                // CRITICAL FIX: Extract .value from band objects
-                const bassVal = b.bass?.value || 0;
-                const midVal = b.mid?.value || 0;
-                const lowMidVal = b.lowMid?.value || 0;
-                const highVal = b.high?.value || 0;
-                const rmsVal = audioData.rms || 0;
+            const base = state.baseParams;
+            const mult = state.reactivity.amount;
 
-                // Log once per second
-                if (frameCount % 60 === 0) {
-                    console.log(`🎵 AUDIO: bass=${bassVal.toFixed(2)} mid=${midVal.toFixed(2)} high=${highVal.toFixed(2)} mult=${mult}`);
-                }
+            const geometryDensity = audioActive && state.reactivity.enabled.density
+                ? Math.min(80, base.gridDensity + bass * 40 * mult)
+                : base.gridDensity;
+            const morph = audioActive && state.reactivity.enabled.morph
+                ? Math.min(3, base.morphFactor + mid * 1.5 * mult)
+                : base.morphFactor;
+            const chaos = audioActive && state.reactivity.enabled.chaos
+                ? Math.min(1.5, base.chaos + rms * 0.6 * mult)
+                : base.chaos;
+            const hueShift = audioActive && state.reactivity.enabled.color
+                ? (base.hue + high * 120 * mult) % 360
+                : base.hue;
+            const saturationShift = audioActive && state.reactivity.enabled.color
+                ? Math.min(1.0, base.saturation + mid * 0.3 * mult)
+                : base.saturation;
+            const speedShift = audioActive
+                ? Math.min(3.0, base.speed + (bass + rms) * 0.8 * mult)
+                : base.speed;
+            const rotX = base.rot4dXW + (audioActive && state.reactivity.enabled.rotation ? lowMid * 0.5 * mult : 0);
+            const rotY = base.rot4dYW + (audioActive && state.reactivity.enabled.rotation ? mid * 0.6 * mult : 0);
+            const rotZ = base.rot4dZW + (audioActive && state.reactivity.enabled.rotation ? high * 0.8 * mult : 0);
 
-                // Apply ALL parameters with modulation
-                if (reactivity.enabled.density) {
-                    const modded = Math.min(80, baseParams.gridDensity + bassVal * 40 * mult);
-                    visualizer.updateParameter('gridDensity', modded);
-                } else {
-                    visualizer.updateParameter('gridDensity', baseParams.gridDensity);
-                }
+            currentVisualizer.updateParameter?.('gridDensity', geometryDensity);
+            currentVisualizer.updateParameter?.('morphFactor', morph);
+            currentVisualizer.updateParameter?.('chaos', chaos);
+            currentVisualizer.updateParameter?.('hue', hueShift);
+            currentVisualizer.updateParameter?.('saturation', saturationShift);
+            currentVisualizer.updateParameter?.('speed', speedShift);
+            currentVisualizer.updateParameter?.('intensity', base.intensity);
+            currentVisualizer.updateParameter?.('dimension', base.dimension);
+            currentVisualizer.updateParameter?.('rot4dXW', rotX);
+            currentVisualizer.updateParameter?.('rot4dYW', rotY);
+            currentVisualizer.updateParameter?.('rot4dZW', rotZ);
 
-                if (reactivity.enabled.morph) {
-                    visualizer.updateParameter('morphFactor', Math.min(3.0, baseParams.morphFactor + midVal * 1.5 * mult));
-                } else {
-                    visualizer.updateParameter('morphFactor', baseParams.morphFactor);
-                }
-
-                if (reactivity.enabled.color) {
-                    visualizer.updateParameter('hue', (baseParams.hue + highVal * 120 * mult) % 360);
-                    visualizer.updateParameter('saturation', Math.min(1.0, baseParams.saturation + midVal * 0.3 * mult));
-                } else {
-                    visualizer.updateParameter('hue', baseParams.hue);
-                    visualizer.updateParameter('saturation', baseParams.saturation);
-                }
-
-                if (reactivity.enabled.chaos) {
-                    visualizer.updateParameter('chaos', Math.min(1.0, baseParams.chaos + rmsVal * 0.6 * mult));
-                } else {
-                    visualizer.updateParameter('chaos', baseParams.chaos);
-                }
-
-                visualizer.updateParameter('speed', Math.min(3.0, baseParams.speed + ((bassVal + rmsVal) * 0.8 * mult)));
-                visualizer.updateParameter('intensity', baseParams.intensity);
-                visualizer.updateParameter('dimension', baseParams.dimension);
-
-                // Apply 4D rotations with audio modulation if enabled
-                if (reactivity.enabled.rotation) {
-                    visualizer.updateParameter('rot4dXW', baseParams.rot4dXW + lowMidVal * 0.5 * mult);
-                    visualizer.updateParameter('rot4dYW', baseParams.rot4dYW + midVal * 0.6 * mult);
-                    visualizer.updateParameter('rot4dZW', baseParams.rot4dZW + highVal * 0.8 * mult);
-                } else {
-                    visualizer.updateParameter('rot4dXW', baseParams.rot4dXW);
-                    visualizer.updateParameter('rot4dYW', baseParams.rot4dYW);
-                    visualizer.updateParameter('rot4dZW', baseParams.rot4dZW);
-                }
-            } else {
-                // NO audio playing - still need to apply base params every frame
-                // This makes sliders work even without audio
-                visualizer.updateParameter('gridDensity', baseParams.gridDensity);
-                visualizer.updateParameter('morphFactor', baseParams.morphFactor);
-                visualizer.updateParameter('hue', baseParams.hue);
-                visualizer.updateParameter('saturation', baseParams.saturation);
-                visualizer.updateParameter('chaos', baseParams.chaos);
-                visualizer.updateParameter('speed', baseParams.speed);
-                visualizer.updateParameter('intensity', baseParams.intensity);
-                visualizer.updateParameter('dimension', baseParams.dimension);
-                visualizer.updateParameter('rot4dXW', baseParams.rot4dXW);
-                visualizer.updateParameter('rot4dYW', baseParams.rot4dYW);
-                visualizer.updateParameter('rot4dZW', baseParams.rot4dZW);
+            if (currentVisualizer.setAudioChoreography) {
+                currentVisualizer.setAudioChoreography(enrichedAudio);
             }
 
-            // Render
-            if (visualizer.render) {
-                visualizer.render();
+            const rhythm = enrichedAudio.rhythmPhases || {};
+            shaderChoreographer?.update(
+                enrichedAudio,
+                rhythm.beatPhase || 0,
+                engine.currentBeat || 0,
+                engine.currentMeasure || 0,
+                now
+            );
+
+            const rotations = rotationChoreographer.update(
+                enrichedAudio,
+                now * 0.001,
+                engine.currentBeat || 0,
+                delta
+            );
+            if (rotations) {
+                currentVisualizer.updateParameter?.('rot4dXW', rotX + (rotations.rot4dXW || 0));
+                currentVisualizer.updateParameter?.('rot4dYW', rotY + (rotations.rot4dYW || 0));
+                currentVisualizer.updateParameter?.('rot4dZW', rotZ + (rotations.rot4dZW || 0));
             }
+
+            currentVisualizer.render?.();
 
             requestAnimationFrame(render);
         }
 
-        // Initialize - set base params AND geometry
-        visualizer.updateParameter('geometry', currentGeometry);
-        Object.keys(baseParams).forEach(key => {
-            visualizer.updateParameter(key, baseParams[key]);
-        });
-
-        render();
-        console.log('🌌 VIB34D Mobile Smart initialized');
-        console.log('📱 Tap handle to open/close drawer');
-        console.log('🎵 Load audio and play to see reactivity');
-    </script>
+        requestAnimationFrame(render);
+    </script></script>
 </body>
 </html>
