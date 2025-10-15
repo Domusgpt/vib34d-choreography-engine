@@ -8,6 +8,15 @@ Unlike simple audio reactivity that just modulates a few parameters, this system
 
 ---
 
+## 🎚️ Visualizer Control Bus
+
+The new `VisualizerControlBus` routes every parameter change, gesture, and audio modulation through a shared channel system.
+
+- **Channel Smoothing** – Each parameter defines its own smoothing curve, range, and audio mappings for hyper-musical motion.
+- **Macro Capture** – Record live gestures as macros, then loop or blend them into performances without reprogramming.
+- **Modulation Stack** – Pointer gestures, onsets, and choreography cues stack as additive modulations so user baselines stay intact.
+- **Shared Access** – Quantum, Holographic, and Polychora systems now tap the same control surface to keep colour, geometry, and lighting choreographed together.
+
 ## 🌟 Key Features
 
 ### 1. **7-Band Frequency Analysis**
