@@ -1,1060 +1,810 @@
-/**
- * Polychora System - 5-Layer Glassmorphic 4D Polytope Renderer
- * 
- * Features:
- * - 5 layered canvases (background, shadow, content, highlight, accent)
- * - Real 4D polytope mathematics with proper distance functions
- * - Glassmorphic line-based rendering with core/outline system
- * - Layer-specific scaling and translucency based on polytope geometry
- * - Unique color magnetism and glass effects
- */
+const DEFAULT_PRIMARY = [0.35, 0.45, 0.95];
+const DEFAULT_SECONDARY = [0.82, 0.32, 0.92];
+const DEFAULT_ACCENT = [1.0, 0.88, 0.65];
+const DEFAULT_SHADOW = [0.08, 0.04, 0.12];
 
-/**
- * PolychoraVisualizer - Individual layer renderer for 4D polytopes
- * Renders glassmorphic line-based effects with WebGL
- */
-class PolychoraVisualizer {
-    constructor(canvasId, role, config) {
-        this.canvasId = canvasId;
-        this.role = role;
-        this.config = config;
-        this.canvas = null;
-        this.gl = null;
-        this.program = null;
-        this.time = 0;
-        this.vertexBuffer = null;
-    }
-    
-    initialize() {
-        this.canvas = document.getElementById(this.canvasId);
-        if (!this.canvas) {
-            console.error(`❌ Canvas ${this.canvasId} not found`);
-            return false;
-        }
-        
-        // Try WebGL 2.0 first, then fall back to WebGL 1.0
-        this.gl = this.canvas.getContext('webgl2') || this.canvas.getContext('webgl');
-        if (!this.gl) {
-            console.error(`❌ WebGL not supported for ${this.canvasId}`);
-            return false;
-        }
-        
-        console.log(`🎮 WebGL context created for ${this.canvasId}: ${this.gl instanceof WebGL2RenderingContext ? 'WebGL2' : 'WebGL1'}`);
-        
-        // Create glassmorphic 4D polytope shader
-        if (!this.createPolychoraShader()) {
-            console.error(`❌ Failed to create shader for ${this.canvasId}`);
-            return false;
-        }
-        
-        this.setupCanvasSize();
-        
-        // Enable blending for glassmorphic effects
-        this.gl.enable(this.gl.BLEND);
-        this.gl.blendFunc(this.gl.SRC_ALPHA, this.gl.ONE_MINUS_SRC_ALPHA);
-        
-        return true;
-    }
-    
-    setupCanvasSize() {
-        // Force parent to be visible for measurement
-        const container = document.getElementById('polychoraLayers');
-        const tempDisplay = container ? container.style.display : null;
-        
-        if (container && tempDisplay === 'none') {
-            container.style.display = 'block';
-        }
-        
-        const rect = this.canvas.parentElement.getBoundingClientRect();
-        
-        // Restore original display state
-        if (container && tempDisplay === 'none') {
-            container.style.display = tempDisplay;
-        }
-        
-        // Use measured dimensions or fallbacks
-        this.canvas.width = rect.width > 0 ? rect.width : window.innerWidth - 300;
-        this.canvas.height = rect.height > 0 ? rect.height : window.innerHeight - 50;
-        
-        this.gl.viewport(0, 0, this.canvas.width, this.canvas.height);
-        console.log(`🎮 Canvas ${this.canvasId} WebGL viewport: ${this.canvas.width}x${this.canvas.height}`);
-    }
-    
-    createPolychoraShader() {
-        const vertexShader = `
-            attribute vec2 a_position;
-            void main() {
-                gl_Position = vec4(a_position, 0.0, 1.0);
-            }
-        `;
-        
-        const fragmentShader = `
-            precision highp float;
-            uniform float u_time;
-            uniform vec2 u_resolution;
-            uniform float u_polytope;
-            
-            // COMPLETE 6D 4D rotation uniforms
-            uniform float u_rot4dXW;
-            uniform float u_rot4dYW;
-            uniform float u_rot4dZW;
-            uniform float u_rot4dXY;
-            uniform float u_rot4dXZ;
-            uniform float u_rot4dYZ;
-            
-            uniform float u_dimension;
-            uniform float u_hue;
-            uniform vec3 u_layerColor;
-            uniform float u_layerScale;
-            uniform float u_layerOpacity;
-            uniform float u_lineWidth;
-            uniform float u_blur;
-            
-            // ADVANCED: Glass effect uniforms
-            uniform float u_refractionIndex;
-            uniform float u_chromaticAberration;
-            uniform float u_noiseAmplitude;
-            uniform float u_flowDirection;
-            uniform float u_faceTransparency;
-            uniform float u_edgeThickness;
-            uniform float u_projectionDistance;
-            
-            // COMPLETE 4D rotation matrices - All 6 possible rotations
-            mat4 rotateXW(float angle) {
-                float c = cos(angle);
-                float s = sin(angle);
-                return mat4(
-                    c, 0, 0, -s,
-                    0, 1, 0, 0,
-                    0, 0, 1, 0,
-                    s, 0, 0, c
-                );
-            }
-            
-            mat4 rotateYW(float angle) {
-                float c = cos(angle);
-                float s = sin(angle);
-                return mat4(
-                    1, 0, 0, 0,
-                    0, c, 0, -s,
-                    0, 0, 1, 0,
-                    0, s, 0, c
-                );
-            }
-            
-            mat4 rotateZW(float angle) {
-                float c = cos(angle);
-                float s = sin(angle);
-                return mat4(
-                    1, 0, 0, 0,
-                    0, 1, 0, 0,
-                    0, 0, c, -s,
-                    0, 0, s, c
-                );
-            }
-            
-            // NEW: Missing 4D rotations for complete 6D rotational freedom
-            mat4 rotateXY(float angle) {
-                float c = cos(angle);
-                float s = sin(angle);
-                return mat4(
-                    c, -s, 0, 0,
-                    s, c, 0, 0,
-                    0, 0, 1, 0,
-                    0, 0, 0, 1
-                );
-            }
-            
-            mat4 rotateXZ(float angle) {
-                float c = cos(angle);
-                float s = sin(angle);
-                return mat4(
-                    c, 0, -s, 0,
-                    0, 1, 0, 0,
-                    s, 0, c, 0,
-                    0, 0, 0, 1
-                );
-            }
-            
-            mat4 rotateYZ(float angle) {
-                float c = cos(angle);
-                float s = sin(angle);
-                return mat4(
-                    1, 0, 0, 0,
-                    0, c, -s, 0,
-                    0, s, c, 0,
-                    0, 0, 0, 1
-                );
-            }
-            
-            // 4D polytope distance functions
-            float polytope4D(vec4 p, float type) {
-                if (type < 0.5) {
-                    // 5-Cell (4-Simplex)
-                    vec4 q = abs(p) - 0.8;
-                    float d1 = length(max(q, 0.0)) + min(max(max(max(q.x, q.y), q.z), q.w), 0.0);
-                    vec4 r = p - vec4(0.5, 0.5, 0.5, 0.5);
-                    float d2 = length(r) - 0.3;
-                    return min(d1, d2);
-                } else if (type < 1.5) {
-                    // Tesseract (8-Cell)
-                    vec4 q = abs(p) - 1.0;
-                    float outside = length(max(q, 0.0));
-                    float inside = max(max(max(q.x, q.y), q.z), q.w);
-                    return outside + min(inside, 0.0);
-                } else if (type < 2.5) {
-                    // 16-Cell (4-Orthoplex)
-                    return abs(p.x) + abs(p.y) + abs(p.z) + abs(p.w) - 1.5;
-                } else if (type < 3.5) {
-                    // 24-Cell
-                    vec4 q = abs(p);
-                    float d = max(max(q.x + q.y, q.z + q.w), max(q.x + q.z, q.y + q.w)) - 1.2;
-                    return d;
-                } else if (type < 4.5) {
-                    // 600-Cell
-                    float phi = (1.0 + sqrt(5.0)) / 2.0;
-                    vec4 q = abs(p);
-                    float d = length(q) - 1.0;
-                    float r = max(max(q.x, q.y/phi), max(q.z*phi, q.w)) - 0.8;
-                    return min(d, r);
-                } else {
-                    // 120-Cell
-                    vec4 q = abs(p);
-                    float d = max(max(max(q.x, q.y), max(q.z, q.w)), length(q.xy) + length(q.zw)) - 1.1;
-                    return d;
-                }
-            }
-            
-            // Perlin noise function for surface effects
-            float noise(vec4 p) {
-                return fract(sin(dot(p, vec4(127.1, 311.7, 269.5, 183.3))) * 43758.5);
-            }
-            
-            // Advanced 4D rotation application - Complete 6D freedom
-            vec4 apply6DRotation(vec4 pos) {
-                // Apply all 6 possible 4D rotations in mathematically correct order
-                pos = rotateXY(u_rot4dXY + u_time * 0.08) * pos;
-                pos = rotateXZ(u_rot4dXZ + u_time * 0.09) * pos;
-                pos = rotateYZ(u_rot4dYZ + u_time * 0.07) * pos;
-                pos = rotateXW(u_rot4dXW + u_time * 0.10) * pos;
-                pos = rotateYW(u_rot4dYW + u_time * 0.11) * pos;
-                pos = rotateZW(u_rot4dZW + u_time * 0.12) * pos;
-                return pos;
-            }
-            
-            // Cinema-quality glass effects
-            vec3 calculateGlassEffects(vec2 uv, float dist, vec3 baseColor) {
-                vec3 color = baseColor;
-                
-                // Chromatic aberration effect
-                if (u_chromaticAberration > 0.0) {
-                    vec2 offset = normalize(uv) * u_chromaticAberration * 0.01;
-                    color.r *= 1.0 + sin(dist * 10.0 + u_time) * u_chromaticAberration;
-                    color.g *= 1.0 + sin(dist * 10.0 + u_time + 2.09) * u_chromaticAberration;
-                    color.b *= 1.0 + sin(dist * 10.0 + u_time + 4.18) * u_chromaticAberration;
-                }
-                
-                // Refraction distortion
-                if (u_refractionIndex > 1.0) {
-                    vec2 refract_uv = uv * (1.0 + (u_refractionIndex - 1.0) * 0.1 * sin(dist * 20.0));
-                    float refraction_intensity = (u_refractionIndex - 1.0) * 0.3;
-                    color = mix(color, color * 1.2, refraction_intensity);
-                }
-                
-                return color;
-            }
-            
-            void main() {
-                vec2 uv = (gl_FragCoord.xy - 0.5 * u_resolution.xy) / min(u_resolution.x, u_resolution.y);
-                uv *= u_layerScale;
-                
-                // Create 4D point with enhanced projection distance
-                vec4 pos = vec4(uv, 
-                    sin(u_time * 0.3) * 0.5, 
-                    cos(u_time * 0.2) * 0.5 * u_projectionDistance * 0.1
-                );
-                
-                // Apply complete 6D 4D rotation
-                pos = apply6DRotation(pos);
-                
-                // Get polytope distance
-                float dist = polytope4D(pos, u_polytope);
-                
-                // Enhanced glassmorphic line rendering
-                float edgeCore = u_edgeThickness * 0.01;
-                float faceAlpha = u_faceTransparency;
-                
-                // Multi-layer line effect for cinema quality
-                float lineCore = smoothstep(0.0, edgeCore, abs(dist));
-                float lineOutline = smoothstep(0.0, edgeCore * 1.5, abs(dist + 0.05));
-                float lineFine = smoothstep(0.0, edgeCore * 0.5, abs(dist));
-                
-                // Combine multiple line effects
-                float alpha = (1.0 - lineCore) * 0.6 + (1.0 - lineOutline) * 0.3 + (1.0 - lineFine) * 0.1;
-                alpha *= u_layerOpacity;
-                
-                // Add face transparency effect
-                if (abs(dist) > edgeCore * 2.0) {
-                    alpha *= faceAlpha;
-                }
-                
-                // Apply procedural surface noise
-                if (u_noiseAmplitude > 0.0) {
-                    float noise_val = noise(pos * 10.0 + u_time * 0.1);
-                    alpha *= 1.0 + (noise_val - 0.5) * u_noiseAmplitude;
-                }
-                
-                // Apply blur with flow direction
-                vec2 flow = vec2(cos(u_flowDirection * 3.14159 / 180.0), sin(u_flowDirection * 3.14159 / 180.0));
-                float blur_dist = length(uv - flow * u_time * 0.1);
-                alpha *= exp(-blur_dist * u_blur * 0.5);
-                
-                // Base color from layer configuration and hue
-                vec3 color = u_layerColor;
-                color = mix(color, vec3(
-                    sin(u_hue/360.0*6.28), 
-                    cos(u_hue/360.0*6.28), 
-                    0.8
-                ), 0.4);
-                
-                // Apply cinema-quality glass effects
-                color = calculateGlassEffects(uv, dist, color);
-                
-                // Add subtle iridescence based on viewing angle
-                float iridescence = sin(length(uv) * 10.0 + u_time) * 0.1;
-                color += iridescence * vec3(0.3, 0.5, 0.7);
-                
-                gl_FragColor = vec4(color, alpha);
-            }
-        `;
-        
-        this.program = this.createShaderProgram(vertexShader, fragmentShader);
-        return this.program !== null;
-    }
-    
-    createShaderProgram(vertexSource, fragmentSource) {
-        const vertexShader = this.compileShader(this.gl.VERTEX_SHADER, vertexSource);
-        const fragmentShader = this.compileShader(this.gl.FRAGMENT_SHADER, fragmentSource);
-        
-        if (!vertexShader || !fragmentShader) return null;
-        
-        const program = this.gl.createProgram();
-        this.gl.attachShader(program, vertexShader);
-        this.gl.attachShader(program, fragmentShader);
-        this.gl.linkProgram(program);
-        
-        if (!this.gl.getProgramParameter(program, this.gl.LINK_STATUS)) {
-            console.error('Shader program link error:', this.gl.getProgramInfoLog(program));
-            return null;
-        }
-        
-        // Create quad vertices
-        const vertices = new Float32Array([
-            -1, -1,  1, -1,  -1,  1,
-            -1,  1,  1, -1,   1,  1
-        ]);
-        
-        this.vertexBuffer = this.gl.createBuffer();
-        this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.vertexBuffer);
-        this.gl.bufferData(this.gl.ARRAY_BUFFER, vertices, this.gl.STATIC_DRAW);
-        
-        return program;
-    }
-    
-    compileShader(type, source) {
-        const shader = this.gl.createShader(type);
-        this.gl.shaderSource(shader, source);
-        this.gl.compileShader(shader);
-        
-        if (!this.gl.getShaderParameter(shader, this.gl.COMPILE_STATUS)) {
-            console.error('Shader compile error:', this.gl.getShaderInfoLog(shader));
-            return null;
-        }
-        
-        return shader;
-    }
-    
-    render(parameters = {}) {
-        if (!this.gl || !this.program || !this.vertexBuffer) return;
-        
-        this.time += 0.016;
-        
-        this.gl.useProgram(this.program);
-        this.gl.enable(this.gl.BLEND);
-        this.gl.blendFunc(this.gl.SRC_ALPHA, this.gl.ONE_MINUS_SRC_ALPHA);
-        
-        // Clear with transparent background
-        this.gl.clearColor(0.0, 0.0, 0.0, 0.0);
-        this.gl.clear(this.gl.COLOR_BUFFER_BIT);
-        
-        // 🎵 POLYCHORA AUDIO REACTIVITY - 4D audio-reactive polytopes
-        let rot4dXW = parameters.rot4dXW || 0;
-        let rot4dYW = parameters.rot4dYW || 0;
-        let rot4dZW = parameters.rot4dZW || 0;
-        let dimension = parameters.dimension || 3.8;
-        let hue = parameters.hue || 280;
-        
-        if (window.audioEnabled && window.audioReactive) {
-            // Polychora audio mapping: Bass drives 4D rotation, Mid affects cross-section, High affects glow
-            rot4dXW += window.audioReactive.bass * 3.0;        // Bass rotates through XW plane
-            rot4dYW += window.audioReactive.mid * 2.5;         // Mid rotates through YW plane  
-            rot4dZW += window.audioReactive.high * 2.0;        // High rotates through ZW plane
-            dimension += window.audioReactive.energy * 0.5;    // Energy affects 4D cross-section depth
-            hue += window.audioReactive.bass * 60;             // Bass affects polytope color
-        }
-        
-        // Set uniforms with audio-reactive 4D rotation and advanced glass effects
-        const uniforms = {
-            u_time: this.time,
-            u_resolution: [this.canvas.width, this.canvas.height],
-            u_polytope: parameters.polytope !== undefined ? parameters.polytope : 0,
-            
-            // AUDIO-REACTIVE 4D rotations
-            u_rot4dXW: rot4dXW,
-            u_rot4dYW: rot4dYW,
-            u_rot4dZW: rot4dZW,
-            u_rot4dXY: parameters.rot4dXY || 0,
-            u_rot4dXZ: parameters.rot4dXZ || 0,
-            u_rot4dYZ: parameters.rot4dYZ || 0,
-            
-            u_dimension: Math.min(4, dimension),
-            u_hue: hue % 360,
-            u_layerColor: this.config.color,
-            u_layerScale: this.config.scale * (parameters.layerScale || 1.0),
-            u_layerOpacity: this.config.opacity * (parameters.translucency || 1.0),
-            u_lineWidth: this.config.lineWidth * (parameters.lineThickness || 1.0),
-            u_blur: this.config.blur * (parameters.glassBlur || 1.0),
-            
-            // ADVANCED: Glass effects
-            u_refractionIndex: parameters.refractionIndex || 1.5,
-            u_chromaticAberration: parameters.chromaticAberration || 0.1,
-            u_noiseAmplitude: parameters.noiseAmplitude || 0.3,
-            u_flowDirection: parameters.flowDirection || 180,
-            u_faceTransparency: parameters.faceTransparency || 0.7,
-            u_edgeThickness: parameters.edgeThickness || 2.0,
-            u_projectionDistance: parameters.projectionDistance || 5.0
-        };
-        
-        // Safely set uniforms with error checking
-        Object.entries(uniforms).forEach(([name, value]) => {
-            const location = this.gl.getUniformLocation(this.program, name);
-            if (location !== null) {
-                try {
-                    if (Array.isArray(value)) {
-                        if (value.length === 2) this.gl.uniform2fv(location, new Float32Array(value));
-                        else if (value.length === 3) this.gl.uniform3fv(location, new Float32Array(value));
-                    } else {
-                        this.gl.uniform1f(location, value);
-                    }
-                } catch (error) {
-                    console.warn(`Failed to set uniform ${name}:`, error);
-                }
-            }
-        });
-        
-        // Draw quad
-        const positionLocation = this.gl.getAttribLocation(this.program, 'a_position');
-        if (positionLocation !== -1) {
-            this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.vertexBuffer);
-            this.gl.enableVertexAttribArray(positionLocation);
-            this.gl.vertexAttribPointer(positionLocation, 2, this.gl.FLOAT, false, 0, 0);
-            
-            this.gl.drawArrays(this.gl.TRIANGLES, 0, 6);
-        }
-    }
-    
-    /**
-     * Update 4D mouse interaction - maps to 4D space
-     */
-    update4DMouse(x, y, intensity) {
-        // Store mouse state for shader uniforms
-        this.mouseState = {
-            x: x,
-            y: y, 
-            intensity: intensity,
-            time: Date.now()
-        };
-        console.log(`🔮 ${this.canvasId}: 4D mouse update ${x.toFixed(2)}, ${y.toFixed(2)}, intensity: ${intensity.toFixed(2)}`);
-    }
-    
-    /**
-     * Trigger 4D click interaction
-     */
-    trigger4DClick(intensity) {
-        this.clickState = {
-            intensity: intensity,
-            time: Date.now()
-        };
-        console.log(`🔮 ${this.canvasId}: 4D click intensity: ${intensity.toFixed(2)}`);
-    }
-    
-    /**
-     * Update audio reactivity for 4D visualization
-     */
-    // Audio reactivity now handled directly in render() loop
-    
-    /**
-     * Update cross-section navigation (4D scroll)
-     */
-    updateCrossSection(velocity) {
-        this.crossSectionState = {
-            velocity: velocity,
-            position: (this.crossSectionState?.position || 0) + velocity * 0.01,
-            time: Date.now()
-        };
-        console.log(`🔮 ${this.canvasId}: Cross-section velocity: ${velocity}, position: ${this.crossSectionState.position.toFixed(3)}`);
-    }
-    
-    /**
-     * Update parameters from system
-     */
-    updateParameters(newParams) {
-        this.cachedParameters = { ...newParams };
-        console.log(`🔮 ${this.canvasId}: Parameters updated`);
-    }
+const FRAGMENT_SHADER_SOURCE = `
+precision highp float;
+
+uniform vec2 u_resolution;
+uniform float u_time;
+uniform vec3 u_colorPrimary;
+uniform vec3 u_colorSecondary;
+uniform vec3 u_colorAccent;
+uniform vec3 u_colorShadow;
+uniform vec4 u_audioLevels;      // bass, mid, high, energy
+uniform vec4 u_audioDynamics;    // onset, swing, chaos, motion
+uniform vec4 u_audioRhythm;      // beatPhase, measurePhase, accent, ribbon
+uniform vec4 u_colorDynamics;    // saturation, orbit, accentLuma, downbeat
+uniform float u_dimensionLift;
+uniform float u_latticeDensity;
+uniform float u_latticeWarp;
+uniform float u_glowStrength;
+uniform float u_lineThickness;
+uniform vec2 u_pointer;
+uniform vec3 u_rotPrimary;       // xw, yw, zw
+uniform vec3 u_rotSecondary;     // xy, xz, yz
+uniform float u_cameraOrbit;
+uniform float u_cameraElevation;
+uniform float u_cameraDolly;
+uniform float u_cameraRoll;
+uniform float u_exposure;
+uniform float u_shutter;
+uniform float u_bloom;
+uniform float u_keyLight;
+uniform float u_rimLight;
+uniform float u_ambientLight;
+uniform float u_vignette;
+
+mat2 rotate2d(float angle) {
+    float c = cos(angle);
+    float s = sin(angle);
+    return mat2(c, -s, s, c);
 }
 
-// Import 4D physics engine
-import { Polychora4DPhysics } from './Polychora4DPhysics.js';
+vec4 rotateXY(vec4 p, float angle) {
+    mat2 r = rotate2d(angle);
+    vec2 plane = r * vec2(p.x, p.y);
+    return vec4(plane.x, plane.y, p.z, p.w);
+}
 
-export class PolychoraSystem {
-    constructor() {
-        this.canvasContainer = null;
-        this.visualizers = [];
-        this.isActive = false;
-        this.animationId = null;
-        
-        // Initialize 4D physics engine
-        this.physics = new Polychora4DPhysics();
-        this.physicsEnabled = false;
-        this.physicsBodies = [];
-        
-        // 6 Real 4D Polytopes
-        this.polytopes = [
-            { name: '5-Cell', description: '4-Simplex with 5 tetrahedral cells' },
-            { name: 'Tesseract', description: '8-Cell hypercube with 8 cubic cells' },
-            { name: '16-Cell', description: '4-Orthoplex with 16 tetrahedral cells' },
-            { name: '24-Cell', description: 'Unique 4D polytope with 24 octahedral cells' },
-            { name: '600-Cell', description: 'Icosahedral symmetry with 600 tetrahedral cells' },
-            { name: '120-Cell', description: 'Largest regular 4D polytope with 120 dodecahedral cells' }
-        ];
-        
-        // Polychora-specific parameters
-        this.parameters = {
-            polytope: 0,        // Current polytope (0-5)
-            lineThickness: 2.5, // Core line thickness
-            coreSize: 1.2,      // Inner core size
-            outlineWidth: 1.8,  // Outline width
-            glassBlur: 3.0,     // Glassmorphic blur amount
-            colorMagnetism: 0.7,// Color attraction between layers
-            layerScale: 1.0,    // Overall layer scaling
-            translucency: 0.8,  // Overall translucency
-            
-            // COMPLETE 6D 4D Math parameters - Full rotational control
-            rot4dXW: 0.0,       // X-W plane rotation (existing)
-            rot4dYW: 0.0,       // Y-W plane rotation (existing)
-            rot4dZW: 0.0,       // Z-W plane rotation (existing)
-            rot4dXY: 0.0,       // X-Y plane rotation (NEW)
-            rot4dXZ: 0.0,       // X-Z plane rotation (NEW)
-            rot4dYZ: 0.0,       // Y-Z plane rotation (NEW)
-            
-            dimension: 3.8,
-            speed: 1.2,
-            hue: 280,           // Purple/magenta base
-            
-            // ADVANCED: Glass effects (NEW)
-            refractionIndex: 1.5,      // 0.5-2.0 Glass refraction
-            chromaticAberration: 0.1,  // 0-0.5 RGB color separation
-            noiseAmplitude: 0.3,       // 0-1 Procedural surface noise
-            flowDirection: 180,        // 0-360° Energy flow orientation
-            
-            // ADVANCED: Polytope-specific controls (NEW)
-            faceTransparency: 0.7,     // 0-1 Face vs edge visibility
-            edgeThickness: 2.0,        // 0.1-3.0 Variable edge rendering
-            projectionDistance: 5.0,   // 1-10 4D→3D projection depth
-            
-            // 4D PHYSICS PARAMETERS (NEW)
-            physicsEnabled: false,     // Enable/disable physics simulation
-            gravity4D: -2.5,          // 4D gravity strength (W-axis)
-            mass: 1.0,                // Polytope mass
-            elasticity: 0.8,          // Collision bounce (0-1)
-            friction: 0.1,            // Surface friction
-            brownianMotion: 0.1,      // Thermal motion amount
-            flocking: false,          // Enable flocking behavior
-            territorial: 2.0,         // Territorial radius
-            magneticField: 0.0,       // Magnetic field strength
-            fluidFlow: 0.5,          // Fluid current strength
+vec4 rotateXZ(vec4 p, float angle) {
+    mat2 r = rotate2d(angle);
+    vec2 plane = r * vec2(p.x, p.z);
+    return vec4(plane.x, p.y, plane.y, p.w);
+}
+
+vec4 rotateYZ(vec4 p, float angle) {
+    mat2 r = rotate2d(angle);
+    vec2 plane = r * vec2(p.y, p.z);
+    return vec4(p.x, plane.x, plane.y, p.w);
+}
+
+vec4 rotateXW(vec4 p, float angle) {
+    mat2 r = rotate2d(angle);
+    vec2 plane = r * vec2(p.x, p.w);
+    return vec4(plane.x, p.y, p.z, plane.y);
+}
+
+vec4 rotateYW(vec4 p, float angle) {
+    mat2 r = rotate2d(angle);
+    vec2 plane = r * vec2(p.y, p.w);
+    return vec4(p.x, plane.x, p.z, plane.y);
+}
+
+vec4 rotateZW(vec4 p, float angle) {
+    mat2 r = rotate2d(angle);
+    vec2 plane = r * vec2(p.z, p.w);
+    return vec4(p.x, p.y, plane.x, plane.y);
+}
+
+float hyperLattice(vec4 p, float density, float warp, float chaos, float saturation) {
+    vec4 q = p;
+    q = rotateXY(q, warp * 0.27);
+    q = rotateXZ(q, warp * 0.19);
+    q = rotateYZ(q, chaos * 0.33);
+    q = rotateXW(q, warp * 0.21 + chaos * 0.35);
+    q = rotateYW(q, chaos * 0.17 - warp * 0.14);
+    q = rotateZW(q, warp * 0.11 + chaos * 0.22);
+
+    vec4 s = sin(q * density);
+    vec4 c = cos(q * (density * (0.65 + saturation * 0.45)));
+
+    float lattice = dot(s, s) * 0.25 + dot(c, c) * 0.25;
+    float shells = 0.5 + 0.5 * sin(length(q) * density * 0.38 + chaos * 5.0);
+    float interference = sin(q.x * density * 0.6 + q.y * density * 0.7 + q.z * density * 0.8 + q.w * density * 0.9);
+
+    float mixFactor = 0.35 + saturation * 0.25;
+    float combined = mix(lattice, shells, mixFactor);
+    combined = mix(combined, abs(interference), 0.28 + chaos * 0.22);
+
+    return clamp(combined, 0.0, 1.2);
+}
+
+void main() {
+    vec2 uv = (gl_FragCoord.xy / u_resolution.xy) * 2.0 - 1.0;
+    uv.x *= u_resolution.x / max(u_resolution.y, 1.0);
+
+    float orbitAngle = u_cameraOrbit;
+    mat2 orbitMat = mat2(cos(orbitAngle), -sin(orbitAngle), sin(orbitAngle), cos(orbitAngle));
+    uv = orbitMat * uv;
+
+    float rollAngle = u_cameraRoll;
+    mat2 rollMat = mat2(cos(rollAngle), -sin(rollAngle), sin(rollAngle), cos(rollAngle));
+    uv = rollMat * uv;
+
+    float zoomFactor = exp(-u_cameraDolly);
+    uv *= zoomFactor;
+
+    float elevation = u_cameraElevation;
+    uv.y += sin(elevation) * (0.3 + abs(u_cameraDolly) * 0.22);
+    uv.x += sin(elevation * 0.55) * 0.12;
+
+    float time = u_time;
+    float beat = u_audioRhythm.x;
+    float measure = u_audioRhythm.y;
+    float accent = u_audioRhythm.z;
+    float ribbon = u_audioRhythm.w;
+
+    float saturation = u_colorDynamics.x;
+    float orbit = u_colorDynamics.y;
+    float accentLuma = u_colorDynamics.z;
+    float downbeat = u_colorDynamics.w;
+
+    float onset = u_audioDynamics.x;
+    float swing = u_audioDynamics.y;
+    float chaos = u_audioDynamics.z;
+    float motion = u_audioDynamics.w;
+
+    vec2 pointer = (u_pointer - 0.5) * 2.0;
+
+    float pointerOrbit = atan(pointer.y, pointer.x);
+    float pointerMag = length(pointer);
+
+    vec2 scaledUV = uv * (1.0 + u_dimensionLift * 0.3 + pointerMag * 0.2);
+    scaledUV += pointer * (0.25 + u_audioLevels.y * 0.1);
+
+    vec4 point = vec4(
+        scaledUV,
+        sin(time * 0.31 + uv.x * 2.7 + orbit * 6.28318 + pointerOrbit * 0.8),
+        cos(time * 0.27 + uv.y * 2.3 + orbit * 3.14159 + pointerMag * 0.6)
+    );
+
+    point = rotateXY(point, u_rotSecondary.x + time * 0.17 + beat * 6.28318 * 0.25);
+    point = rotateXZ(point, u_rotSecondary.y + time * 0.13 + motion * 2.4);
+    point = rotateYZ(point, u_rotSecondary.z + time * -0.11 + swing * 1.7);
+    point = rotateXW(point, u_rotPrimary.x + motion * 1.2 + onset * 2.0);
+    point = rotateYW(point, u_rotPrimary.y + measure * 6.28318 * 0.35);
+    point = rotateZW(point, u_rotPrimary.z + chaos * 2.2 + ribbon * 3.1);
+
+    float warp = u_latticeWarp + orbit * 0.6 + motion * 0.5 + swing * 0.35;
+    float lattice = hyperLattice(
+        point,
+        u_latticeDensity * (1.0 + u_audioLevels.x * 0.4 + u_audioLevels.w * 0.25),
+        warp,
+        chaos,
+        saturation
+    );
+
+    float layer1 = abs(sin(lattice * 6.28318 + time * 0.55 + ribbon * 3.14159));
+    float layer2 = abs(cos(lattice * 4.28318 + time * 0.32 + onset * 2.4));
+    float layer3 = abs(sin(lattice * 8.28318 + time * 0.17 + pointerMag * 1.7));
+
+    float layerMix = mix(layer1, layer2, 0.5 + 0.5 * sin(time * 0.18 + orbit * 6.28318));
+    layerMix = mix(layerMix, layer3, 0.38 + chaos * 0.25 + pointerMag * 0.2);
+
+    float grid = smoothstep(1.0 - u_lineThickness, 1.0, layerMix);
+    float glow = pow(layerMix, 4.0 + u_audioLevels.z * 2.7 + chaos * 1.9) * u_glowStrength;
+
+    float paletteBlend = clamp(0.45 + saturation * 0.35 + motion * 0.2 + pointerMag * 0.18, 0.0, 1.0);
+    vec3 paletteColor = mix(u_colorPrimary, u_colorSecondary, clamp(layerMix + orbit * 0.4 + beat * 0.2, 0.0, 1.0));
+    vec3 baseColor = mix(u_colorShadow, paletteColor, paletteBlend);
+    vec3 accentColor = mix(baseColor, u_colorAccent, clamp(accent * 0.7 + onset * 0.6 + downbeat * 0.5 + accentLuma * 0.35, 0.0, 1.0));
+
+    vec3 finalColor = mix(baseColor, accentColor, grid);
+    vec3 glowColor = mix(u_colorShadow, u_colorAccent, clamp(0.3 + accentLuma * 0.6 + pointerMag * 0.25, 0.0, 1.0));
+    finalColor += glow * glowColor;
+
+    float vignette = mix(1.0, smoothstep(1.3, 0.25, length(uv) * (1.0 + u_cameraDolly * 0.3)), clamp(u_vignette, 0.0, 1.0));
+    finalColor = mix(u_colorShadow, finalColor, vignette);
+
+    vec3 filmColor = finalColor;
+    float exposure = max(0.1, u_exposure);
+    vec3 toneMapped = vec3(1.0) - exp(-filmColor * exposure);
+    float shutter = clamp(u_shutter, 0.2, 3.0);
+    toneMapped = pow(clamp(toneMapped, 0.0, 7.0), vec3(1.0 / shutter));
+    vec3 bloom = pow(clamp(filmColor, 0.0, 12.0), vec3(1.2)) * clamp(u_bloom, 0.0, 3.0);
+    toneMapped += bloom;
+
+    float rim = clamp(u_rimLight, 0.0, 1.5) * pow(clamp(layerMix, 0.0, 1.0), 2.0);
+    toneMapped += rim * vec3(0.7, 0.85, 1.1);
+
+    float key = clamp(u_keyLight, 0.0, 2.0);
+    toneMapped *= (0.68 + key * 0.55);
+
+    float ambient = clamp(u_ambientLight, 0.0, 1.0);
+    toneMapped = mix(vec3(ambient), toneMapped, 0.9);
+
+    gl_FragColor = vec4(toneMapped, 1.0);
+}
+`;
+
+const VERTEX_SHADER_SOURCE = `
+attribute vec2 a_position;
+void main() {
+    gl_Position = vec4(a_position, 0.0, 1.0);
+}
+`;
+
+function hexToRgb(hex) {
+    if (typeof hex !== 'string') {
+        return null;
+    }
+
+    const normalized = hex.trim().replace('#', '');
+    if (normalized.length !== 6 && normalized.length !== 3) {
+        return null;
+    }
+
+    const expanded = normalized.length === 3
+        ? normalized.split('').map((c) => c + c).join('')
+        : normalized;
+
+    const intVal = parseInt(expanded, 16);
+    if (Number.isNaN(intVal)) {
+        return null;
+    }
+
+    return [
+        ((intVal >> 16) & 255) / 255,
+        ((intVal >> 8) & 255) / 255,
+        (intVal & 255) / 255
+    ];
+}
+
+function normalizeColor(colorValue) {
+    if (!colorValue) {
+        return null;
+    }
+
+    if (Array.isArray(colorValue)) {
+        if (colorValue.length >= 3) {
+            return [
+                Math.max(0, Math.min(1, colorValue[0])),
+                Math.max(0, Math.min(1, colorValue[1])),
+                Math.max(0, Math.min(1, colorValue[2]))
+            ];
+        }
+        return null;
+    }
+
+    if (typeof colorValue === 'string') {
+        return hexToRgb(colorValue);
+    }
+
+    if (typeof colorValue === 'object') {
+        if (typeof colorValue.r === 'number' && typeof colorValue.g === 'number' && typeof colorValue.b === 'number') {
+            const max = Object.prototype.hasOwnProperty.call(colorValue, 'max') ? colorValue.max : 255;
+            const divisor = max === 1 ? 1 : 255;
+            return [colorValue.r / divisor, colorValue.g / divisor, colorValue.b / divisor];
+        }
+
+        if (Array.isArray(colorValue.rgb) && colorValue.rgb.length >= 3) {
+            return colorValue.rgb.slice(0, 3).map((c) => c / 255);
+        }
+
+        if (typeof colorValue.h === 'number' && typeof colorValue.s === 'number' && typeof colorValue.l === 'number') {
+            const h = colorValue.h % 360 / 360;
+            const s = Math.max(0, Math.min(1, colorValue.s));
+            const l = Math.max(0, Math.min(1, colorValue.l));
+
+            if (s === 0) {
+                return [l, l, l];
+            }
+
+            const hueToRgb = (p, q, t) => {
+                let tn = t;
+                if (tn < 0) tn += 1;
+                if (tn > 1) tn -= 1;
+                if (tn < 1 / 6) return p + (q - p) * 6 * tn;
+                if (tn < 1 / 2) return q;
+                if (tn < 2 / 3) return p + (q - p) * (2 / 3 - tn) * 6;
+                return p;
+            };
+
+            const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+            const p = 2 * l - q;
+
+            return [
+                hueToRgb(p, q, h + 1 / 3),
+                hueToRgb(p, q, h),
+                hueToRgb(p, q, h - 1 / 3)
+            ];
+        }
+    }
+
+    return null;
+}
+
+export class PolychoraVisualizer {
+    constructor(canvas, options = {}) {
+        this.canvas = canvas;
+        this.options = options;
+
+        this.gl = null;
+        this.program = null;
+        this.quadBuffer = null;
+        this.attributeLocations = {};
+        this.uniformLocations = {};
+
+        this.startTime = null;
+        this.lastPointerUpdate = 0;
+
+        this.pointer = { x: 0.5, y: 0.5, intensity: 0 };
+
+        this.cameraLighting = {
+            orbit: 0,
+            elevation: 0.3,
+            dolly: -0.3,
+            roll: 0,
+            exposure: 1.4,
+            shutter: 0.55,
+            bloom: 0.45,
+            keyLight: 0.7,
+            rimLight: 0.55,
+            ambientLight: 0.2,
+            vignette: 0.35
         };
-        
-        // Layer-specific configurations for glassmorphic effects
-        this.layerConfigs = {
-            background: { 
-                scale: 1.5, 
-                opacity: 0.25, 
-                lineWidth: 3.0,
-                color: [0.6, 0.3, 0.9], // Purple
-                blur: 4.0
-            },
-            shadow: { 
-                scale: 1.2, 
-                opacity: 0.4, 
-                lineWidth: 2.5,
-                color: [0.3, 0.3, 0.6], // Dark blue
-                blur: 2.0
-            },
-            content: { 
-                scale: 1.0, 
-                opacity: 0.85, 
-                lineWidth: 2.0,
-                color: [0.0, 0.8, 1.0], // Cyan
-                blur: 0.5
-            },
-            highlight: { 
-                scale: 0.8, 
-                opacity: 0.7, 
-                lineWidth: 1.5,
-                color: [1.0, 0.4, 0.8], // Pink
-                blur: 1.5
-            },
-            accent: { 
-                scale: 0.6, 
-                opacity: 0.4, 
-                lineWidth: 1.0,
-                color: [1.0, 1.0, 0.6], // Yellow
-                blur: 3.0
-            }
+
+        this.parameterState = {
+            latticeDensity: 14.5,
+            latticeWarp: 0.2,
+            glowStrength: 1.25,
+            lineThickness: 0.35,
+            dimension: 3.8
         };
-    }
-    
-    /**
-     * Initialize the 5-layer Polychora system
-     */
-    initialize() {
-        console.log('🔮 Initializing Polychora System');
-        
-        this.canvasContainer = document.getElementById('polychoraLayers');
-        if (!this.canvasContainer) {
-            console.error('❌ Polychora canvas container not found');
-            return false;
-        }
-        
-        // Ensure all canvas elements exist and are properly sized
-        this.setupCanvasElements();
-        
-        // Create visualizers for each layer
-        const layers = ['background', 'shadow', 'content', 'highlight', 'accent'];
-        let successfullyInitialized = 0;
-        
-        layers.forEach(role => {
-            const canvasId = `polychora-${role}-canvas`;
-            const canvas = document.getElementById(canvasId);
-            
-            if (!canvas) {
-                console.error(`❌ Canvas ${canvasId} not found in DOM`);
-                return;
-            }
-            
-            try {
-                const visualizer = new PolychoraVisualizer(canvasId, role, this.layerConfigs[role]);
-                
-                if (visualizer.initialize()) {
-                    this.visualizers.push(visualizer);
-                    successfullyInitialized++;
-                    console.log(`✅ Polychora ${role} layer initialized`);
-                } else {
-                    console.error(`❌ Failed to initialize Polychora ${role} layer`);
-                }
-            } catch (error) {
-                console.error(`❌ Error creating Polychora ${role} visualizer:`, error);
-            }
-        });
-        
-        if (successfullyInitialized === 0) {
-            console.error('❌ No Polychora visualizers initialized successfully');
-            return false;
-        }
-        
-        console.log(`✅ Polychora System initialized with ${successfullyInitialized}/${layers.length} layers`);
-        return true;
-    }
-    
-    /**
-     * Setup canvas elements with proper dimensions
-     */
-    setupCanvasElements() {
-        const layers = ['background', 'shadow', 'content', 'highlight', 'accent'];
-        
-        layers.forEach(role => {
-            const canvasId = `polychora-${role}-canvas`;
-            const canvas = document.getElementById(canvasId);
-            
-            if (canvas) {
-                // Force canvas to be visible for measurement or use fallback dimensions
-                const tempDisplay = this.canvasContainer.style.display;
-                this.canvasContainer.style.display = 'block';
-                
-                const containerRect = this.canvasContainer.getBoundingClientRect();
-                
-                // Restore original display state
-                this.canvasContainer.style.display = tempDisplay;
-                
-                // Use container dimensions or intelligent fallbacks
-                canvas.width = containerRect.width > 0 ? containerRect.width : window.innerWidth - 300;
-                canvas.height = containerRect.height > 0 ? containerRect.height : window.innerHeight - 50;
-                canvas.style.width = '100%';
-                canvas.style.height = '100%';
-                
-                console.log(`📐 Canvas ${canvasId} sized to ${canvas.width}x${canvas.height}`);
-            }
-        });
-    }
-    
-    /**
-     * Start the Polychora system
-     */
-    start() {
-        if (this.isActive) return;
-        
-        console.log('🔮 Starting Polychora System');
-        this.isActive = true;
-        this.canvasContainer.style.display = 'block';
-        
-        // ✅ CRITICAL: Resize canvases after container becomes visible
-        this.resizeAllCanvases();
-        
-        this.startRenderLoop();
-    }
-    
-    /**
-     * Resize all canvases after container becomes visible
-     */
-    resizeAllCanvases() {
-        this.setupCanvasElements();
-        this.visualizers.forEach(visualizer => {
-            visualizer.setupCanvasSize();
-        });
-        console.log('🔮 All Polychora canvases resized after becoming visible');
-    }
-    
-    startRenderLoop() {
-        const render = () => {
-            if (!this.isActive) return;
-            
-            // MVEP-STYLE AUDIO PROCESSING: Process audio directly in render loop
-            // This eliminates conflicts with holographic system and ensures proper audio reactivity
-            // Audio reactivity now handled directly in visualizer render loops
-            
-            // Step physics simulation if enabled
-            if (this.parameters.physicsEnabled && this.physicsEnabled) {
-                this.physics.step();
-                this.updatePhysicsVisuals();
-            }
-            
-            this.visualizers.forEach(visualizer => {
-                visualizer.render(this.parameters);
-            });
-            
-            this.animationId = requestAnimationFrame(render);
+
+        this.rotation = {
+            xw: 0,
+            yw: 0,
+            zw: 0,
+            xy: 0,
+            xz: 0,
+            yz: 0
         };
-        render();
-    }
-    
-    /**
-     * Enable/disable 4D physics simulation
-     */
-    enablePhysics() {
-        this.physicsEnabled = true;
-        this.parameters.physicsEnabled = true;
-        this.physics.enable();
-        
-        // Create physics bodies for polytopes
-        this.createPhysicsBodies();
-        
-        console.log('🔮 Polychora physics simulation enabled');
-    }
-    
-    disablePhysics() {
-        this.physicsEnabled = false;
-        this.parameters.physicsEnabled = false;
-        this.physics.disable();
-        this.physics.clearAllBodies();
-        this.physicsBodies = [];
-        
-        console.log('🔮 Polychora physics simulation disabled');
-    }
-    
-    /**
-     * Create physics bodies for visualization
-     */
-    createPhysicsBodies() {
-        // Clear existing bodies
-        this.physics.clearAllBodies();
-        this.physicsBodies = [];
-        
-        // Create physics bodies for each polytope type
-        for (let i = 0; i < this.polytopes.length; i++) {
-            const body = this.physics.createRigidBody(i, 
-                [
-                    (Math.random() - 0.5) * 4, // X
-                    (Math.random() - 0.5) * 4, // Y  
-                    (Math.random() - 0.5) * 4, // Z
-                    (Math.random() - 0.5) * 2  // W
-                ], 
-                {
-                    mass: this.parameters.mass,
-                    elasticity: this.parameters.elasticity,
-                    friction: this.parameters.friction,
-                    brownianMotion: this.parameters.brownianMotion,
-                    flocking: this.parameters.flocking,
-                    territorial: this.parameters.territorial,
-                    magnetic: this.parameters.magneticField
-                }
-            );
-            
-            this.physicsBodies.push(body);
-        }
-        
-        // Set physics world properties
-        this.physics.setGravity([0, 0, 0, this.parameters.gravity4D]);
-        this.physics.setMagneticField([0, 0, this.parameters.magneticField, 0]);
-        this.physics.setFluidFlow([this.parameters.fluidFlow, 0, 0, 0]);
-    }
-    
-    /**
-     * Update visual parameters based on physics simulation
-     */
-    updatePhysicsVisuals() {
-        const physicsFeedback = this.physics.getPhysicsFeedback();
-        
-        if (physicsFeedback.length > 0) {
-            // Use physics feedback to modulate visual parameters
-            const avgFeedback = this.calculateAveragePhysicsFeedback(physicsFeedback);
-            
-            // Modulate parameters based on physics
-            this.parameters.hue += avgFeedback.velocityIntensity * 5;
-            this.parameters.chromaticAberration = Math.max(0.1, 
-                this.parameters.chromaticAberration + avgFeedback.impactIntensity * 0.3);
-            this.parameters.noiseAmplitude = Math.max(0.1,
-                this.parameters.noiseAmplitude + avgFeedback.accelerationGlow * 0.5);
-            
-            // Update rotation based on physics body rotations
-            const primaryBody = physicsFeedback[this.parameters.polytope] || physicsFeedback[0];
-            if (primaryBody) {
-                this.parameters.rot4dXY = primaryBody.rotation[0];
-                this.parameters.rot4dXZ = primaryBody.rotation[1];
-                this.parameters.rot4dYZ = primaryBody.rotation[2];
-                this.parameters.rot4dXW = primaryBody.rotation[3];
-                this.parameters.rot4dYW = primaryBody.rotation[4];
-                this.parameters.rot4dZW = primaryBody.rotation[5];
-            }
-        }
-    }
-    
-    /**
-     * Calculate average physics feedback for visual modulation
-     */
-    calculateAveragePhysicsFeedback(feedbackArray) {
-        const avg = {
-            velocityIntensity: 0,
-            impactIntensity: 0,
-            accelerationGlow: 0
+
+        this.colorState = {
+            primary: DEFAULT_PRIMARY.slice(),
+            secondary: DEFAULT_SECONDARY.slice(),
+            accent: DEFAULT_ACCENT.slice(),
+            shadow: DEFAULT_SHADOW.slice(),
+            paletteKey: 'default'
         };
-        
-        if (feedbackArray.length === 0) return avg;
-        
-        feedbackArray.forEach(fb => {
-            avg.velocityIntensity += fb.feedback.velocityIntensity;
-            avg.impactIntensity += fb.feedback.impactIntensity;
-            avg.accelerationGlow += fb.feedback.accelerationGlow;
-        });
-        
-        const count = feedbackArray.length;
-        avg.velocityIntensity /= count;
-        avg.impactIntensity /= count;
-        avg.accelerationGlow /= count;
-        
-        return avg;
+
+        this.audioTarget = {
+            bass: 0,
+            mid: 0,
+            high: 0,
+            energy: 0,
+            onset: 0,
+            swing: 0,
+            chaos: 0,
+            motion: 0,
+            beatPhase: 0,
+            measurePhase: 0,
+            accent: 0,
+            ribbon: 0.5,
+            saturationPulse: 0.6,
+            orbit: 0,
+            accentLuma: 0.2,
+            downbeat: 0,
+            dimension: 0,
+            intensityExponent: 1.0
+        };
+
+        this.audioSmooth = { ...this.audioTarget };
     }
-    
-    /**
-     * Add interactive forces to physics simulation
-     */
-    addInteractiveForce(position4D, force4D) {
-        if (!this.physicsEnabled) return;
-        
-        // Find closest physics body and apply force
-        let closestBody = null;
-        let closestDistance = Infinity;
-        
-        this.physicsBodies.forEach(body => {
-            const distance = this.physics.distance4D(body.position, position4D);
-            if (distance < closestDistance) {
-                closestDistance = distance;
-                closestBody = body;
-            }
-        });
-        
-        if (closestBody && closestDistance < 2.0) {
-            this.physics.addForce(closestBody, force4D);
+
+    async initialize() {
+        if (!this.canvas) {
+            throw new Error('PolychoraVisualizer requires a canvas element');
+        }
+
+        const contextOptions = {
+            alpha: true,
+            depth: false,
+            stencil: false,
+            antialias: false,
+            preserveDrawingBuffer: false,
+            powerPreference: 'high-performance'
+        };
+
+        const gl = this.canvas.getContext('webgl2', contextOptions) ||
+                   this.canvas.getContext('webgl', contextOptions);
+
+        if (!gl) {
+            throw new Error('WebGL not supported for Polychora visualizer');
+        }
+
+        this.gl = gl;
+
+        this.program = this.createProgram(
+            VERTEX_SHADER_SOURCE,
+            FRAGMENT_SHADER_SOURCE
+        );
+
+        this.attributeLocations.position = gl.getAttribLocation(this.program, 'a_position');
+        this.uniformLocations = {
+            resolution: gl.getUniformLocation(this.program, 'u_resolution'),
+            time: gl.getUniformLocation(this.program, 'u_time'),
+            colorPrimary: gl.getUniformLocation(this.program, 'u_colorPrimary'),
+            colorSecondary: gl.getUniformLocation(this.program, 'u_colorSecondary'),
+            colorAccent: gl.getUniformLocation(this.program, 'u_colorAccent'),
+            colorShadow: gl.getUniformLocation(this.program, 'u_colorShadow'),
+            audioLevels: gl.getUniformLocation(this.program, 'u_audioLevels'),
+            audioDynamics: gl.getUniformLocation(this.program, 'u_audioDynamics'),
+            audioRhythm: gl.getUniformLocation(this.program, 'u_audioRhythm'),
+            colorDynamics: gl.getUniformLocation(this.program, 'u_colorDynamics'),
+            dimensionLift: gl.getUniformLocation(this.program, 'u_dimensionLift'),
+            latticeDensity: gl.getUniformLocation(this.program, 'u_latticeDensity'),
+            latticeWarp: gl.getUniformLocation(this.program, 'u_latticeWarp'),
+            glowStrength: gl.getUniformLocation(this.program, 'u_glowStrength'),
+            lineThickness: gl.getUniformLocation(this.program, 'u_lineThickness'),
+            pointer: gl.getUniformLocation(this.program, 'u_pointer'),
+            rotPrimary: gl.getUniformLocation(this.program, 'u_rotPrimary'),
+            rotSecondary: gl.getUniformLocation(this.program, 'u_rotSecondary'),
+            cameraOrbit: gl.getUniformLocation(this.program, 'u_cameraOrbit'),
+            cameraElevation: gl.getUniformLocation(this.program, 'u_cameraElevation'),
+            cameraDolly: gl.getUniformLocation(this.program, 'u_cameraDolly'),
+            cameraRoll: gl.getUniformLocation(this.program, 'u_cameraRoll'),
+            exposure: gl.getUniformLocation(this.program, 'u_exposure'),
+            shutter: gl.getUniformLocation(this.program, 'u_shutter'),
+            bloom: gl.getUniformLocation(this.program, 'u_bloom'),
+            keyLight: gl.getUniformLocation(this.program, 'u_keyLight'),
+            rimLight: gl.getUniformLocation(this.program, 'u_rimLight'),
+            ambientLight: gl.getUniformLocation(this.program, 'u_ambientLight'),
+            vignette: gl.getUniformLocation(this.program, 'u_vignette')
+        };
+
+        this.quadBuffer = gl.createBuffer();
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.quadBuffer);
+        gl.bufferData(
+            gl.ARRAY_BUFFER,
+            new Float32Array([
+                -1, -1,
+                 1, -1,
+                -1,  1,
+                 1,  1
+            ]),
+            gl.STATIC_DRAW
+        );
+
+        gl.disable(gl.DEPTH_TEST);
+        gl.enable(gl.BLEND);
+        gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+
+        this.startTime = performance.now();
+    }
+
+    createProgram(vertexSource, fragmentSource) {
+        const gl = this.gl;
+        const vertexShader = this.compileShader(gl.VERTEX_SHADER, vertexSource);
+        const fragmentShader = this.compileShader(gl.FRAGMENT_SHADER, fragmentSource);
+
+        const program = gl.createProgram();
+        gl.attachShader(program, vertexShader);
+        gl.attachShader(program, fragmentShader);
+        gl.linkProgram(program);
+
+        if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+            const info = gl.getProgramInfoLog(program);
+            gl.deleteShader(vertexShader);
+            gl.deleteShader(fragmentShader);
+            gl.deleteProgram(program);
+            throw new Error(`Failed to link Polychora shader program: ${info}`);
+        }
+
+        gl.deleteShader(vertexShader);
+        gl.deleteShader(fragmentShader);
+
+        return program;
+    }
+
+    compileShader(type, source) {
+        const gl = this.gl;
+        const shader = gl.createShader(type);
+        gl.shaderSource(shader, source);
+        gl.compileShader(shader);
+
+        if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+            const info = gl.getShaderInfoLog(shader);
+            gl.deleteShader(shader);
+            throw new Error(`Failed to compile Polychora shader: ${info}`);
+        }
+
+        return shader;
+    }
+
+    handleResize(width, height) {
+        if (!this.gl) return;
+        this.gl.viewport(0, 0, width, height);
+    }
+
+    setParameters(params = {}) {
+        if (typeof params.latticeDensity === 'number') {
+            this.parameterState.latticeDensity = params.latticeDensity;
+        } else if (typeof params.gridDensity === 'number') {
+            this.parameterState.latticeDensity = params.gridDensity;
+        }
+
+        if (typeof params.latticeWarp === 'number') {
+            this.parameterState.latticeWarp = params.latticeWarp;
+        } else if (typeof params.morphFactor === 'number') {
+            this.parameterState.latticeWarp = params.morphFactor * 0.6;
+        }
+
+        if (typeof params.glowStrength === 'number') {
+            this.parameterState.glowStrength = params.glowStrength;
+        } else if (typeof params.intensity === 'number') {
+            this.parameterState.glowStrength = 0.9 + params.intensity * 0.8;
+        }
+
+        if (typeof params.lineThickness === 'number') {
+            this.parameterState.lineThickness = params.lineThickness;
+        } else if (typeof params.edgeThickness === 'number') {
+            this.parameterState.lineThickness = params.edgeThickness;
+        }
+
+        if (typeof params.dimension === 'number') {
+            this.parameterState.dimension = params.dimension;
         }
     }
-    
-    /**
-     * Reset physics simulation
-     */
-    resetPhysics() {
-        if (this.physicsEnabled) {
-            this.createPhysicsBodies();
-            console.log('🔮 Polychora physics simulation reset');
+
+    updateParameter(name, value) {
+        this.setParameters({ [name]: value });
+    }
+
+    setColor(color) {
+        if (!color) return;
+
+        const primary = normalizeColor(color.primary || color.base || color.main || color);
+        const secondary = normalizeColor(color.secondary || color.alt || color.complementary);
+        const accent = normalizeColor(color.accent || color.highlight || color.emphasis);
+        const shadow = normalizeColor(color.shadow || color.shadowTone || color.depth || color.dark);
+
+        if (primary) {
+            this.colorState.primary = primary;
+        }
+        if (secondary) {
+            this.colorState.secondary = secondary;
+        }
+        if (accent) {
+            this.colorState.accent = accent;
+        }
+        if (shadow) {
+            this.colorState.shadow = shadow;
+        }
+
+        if (color.paletteKey) {
+            this.colorState.paletteKey = color.paletteKey;
+        }
+
+        if (!secondary && primary) {
+            this.colorState.secondary = [
+                Math.min(1, primary[0] * 0.8 + 0.1),
+                Math.min(1, primary[1] * 0.6 + 0.25),
+                Math.min(1, primary[2] * 0.9 + 0.05)
+            ];
+        }
+
+        if (!accent) {
+            const base = this.colorState.primary;
+            this.colorState.accent = [
+                Math.min(1, base[0] * 0.6 + 0.4),
+                Math.min(1, base[1] * 0.8 + 0.2),
+                Math.min(1, base[2] * 0.5 + 0.5)
+            ];
+        }
+
+        if (!shadow) {
+            const base = this.colorState.secondary;
+            this.colorState.shadow = [
+                Math.max(0, base[0] * 0.35),
+                Math.max(0, base[1] * 0.32),
+                Math.max(0, base[2] * 0.4)
+            ];
         }
     }
-    
-    /**
-     * Stop the Polychora system
-     */
-    stop() {
-        if (!this.isActive) return;
-        
-        console.log('🔮 Stopping Polychora System');
-        this.isActive = false;
-        this.canvasContainer.style.display = 'none';
-        
-        if (this.animationId) {
-            cancelAnimationFrame(this.animationId);
-            this.animationId = null;
-        }
+
+    setMousePosition(x, y) {
+        this.pointer.x = x;
+        this.pointer.y = y;
+        this.pointer.intensity = 1;
+        this.lastPointerUpdate = performance.now();
     }
-    
-    /**
-     * Update system parameters
-     */
-    updateParameters(newParams) {
-        Object.assign(this.parameters, newParams);
-        console.log('🔮 Updated Polychora parameters:', newParams);
+
+    setPointer(x, y) {
+        this.setMousePosition(x, y);
     }
-    
-    /**
-     * Set current polytope
-     */
-    setPolytope(polytopeIndex) {
-        if (polytopeIndex < 0 || polytopeIndex >= this.polytopes.length) {
-            console.warn('⚠️ Invalid polytope index:', polytopeIndex);
+
+    triggerClick() {
+        this.pointer.intensity = 1.5;
+    }
+
+    updateClickIntensity(deltaTime) {
+        const decay = deltaTime ? Math.exp(-deltaTime * 4.2) : 0.92;
+        this.pointer.intensity *= decay;
+    }
+
+    setAudioChoreography(audioData = {}) {
+        const bands = audioData.bands || {};
+        const details = audioData.bandDetails || {};
+
+        const readBand = (name) => {
+            if (typeof bands[name] === 'number') return bands[name];
+            if (typeof bands[name]?.value === 'number') return bands[name].value;
+            if (typeof details[name]?.value === 'number') return details[name].value;
+            return 0;
+        };
+
+        const bass = Math.max(readBand('bass'), readBand('subBass') * 0.85);
+        const mid = 0.6 * readBand('mid') + 0.4 * readBand('lowMid');
+        const high = 0.5 * readBand('high') + 0.35 * readBand('highMid') + 0.15 * readBand('air');
+
+        const rhythm = audioData.rhythmPhases || {};
+        const dynamics = audioData.extremeDynamics || {};
+        const colorMeta = audioData.colorChoreography || {};
+        const onsetEvent = audioData.onsetEvent || {};
+
+        const target = {
+            bass,
+            mid,
+            high,
+            energy: audioData.rms || 0,
+            onset: typeof audioData.onset === 'number' ? audioData.onset : (onsetEvent.strength || 0),
+            swing: dynamics.swingEnergy || 0,
+            chaos: dynamics.chaosSurge || 0,
+            motion: dynamics.motionVelocity || 0,
+            beatPhase: rhythm.beatPhase || 0,
+            measurePhase: rhythm.measurePhase || 0,
+            accent: rhythm.accentPulse || 0,
+            ribbon: colorMeta.ribbon ?? 0.5,
+            saturationPulse: colorMeta.saturationPulse ?? 0.6,
+            orbit: colorMeta.orbit ?? 0,
+            accentLuma: colorMeta.accentLuma ?? 0.2,
+            downbeat: colorMeta.downbeatColor ?? 0,
+            dimension: dynamics.dimensionLift || 0,
+            intensityExponent: dynamics.intensityExponent || 1.0
+        };
+
+        Object.assign(this.audioTarget, target);
+    }
+
+    setCameraLighting(state = {}) {
+        if (!state || typeof state !== 'object') {
             return;
         }
-        
-        this.parameters.polytope = polytopeIndex;
-        const polytope = this.polytopes[polytopeIndex];
-        
-        console.log(`🔮 Set polytope to ${polytope.name}: ${polytope.description}`);
-        return polytope;
+
+        this.cameraLighting = {
+            ...this.cameraLighting,
+            ...state
+        };
     }
-    
-    /**
-     * Update parameters from UI - CRITICAL MISSING METHOD
-     */
-    updateParameters(newParams) {
-        // Map standard VIB34D parameters to Polychora parameters
-        if (newParams.rot4dXW !== undefined) this.parameters.rot4dXW = newParams.rot4dXW;
-        if (newParams.rot4dYW !== undefined) this.parameters.rot4dYW = newParams.rot4dYW;
-        if (newParams.rot4dZW !== undefined) this.parameters.rot4dZW = newParams.rot4dZW;
-        if (newParams.hue !== undefined) this.parameters.hue = newParams.hue;
-        
-        // Map grid density to Polychora line thickness (missing connection!)
-        if (newParams.gridDensity !== undefined) {
-            this.parameters.lineThickness = newParams.gridDensity * 0.01; // Scale 5-100 to 0.05-1.0
+
+    set4DRotation(rotation = {}) {
+        this.rotation = {
+            xw: rotation.xw ?? this.rotation.xw,
+            yw: rotation.yw ?? this.rotation.yw,
+            zw: rotation.zw ?? this.rotation.zw,
+            xy: rotation.xy ?? this.rotation.xy,
+            xz: rotation.xz ?? this.rotation.xz,
+            yz: rotation.yz ?? this.rotation.yz
+        };
+    }
+
+    getTime() {
+        if (!this.startTime) return 0;
+        return (performance.now() - this.startTime) / 1000;
+    }
+
+    render() {
+        if (!this.gl || !this.program) {
+            return;
         }
-        
-        // Map geometry to polytope selection
-        if (newParams.geometry !== undefined) {
-            this.parameters.polytope = Math.min(newParams.geometry, this.polytopes.length - 1);
+
+        const gl = this.gl;
+        gl.useProgram(this.program);
+
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.quadBuffer);
+        gl.enableVertexAttribArray(this.attributeLocations.position);
+        gl.vertexAttribPointer(this.attributeLocations.position, 2, gl.FLOAT, false, 0, 0);
+
+        const now = performance.now();
+        const elapsed = ((now - this.startTime) || 0) / 1000;
+
+        // Audio smoothing
+        const smoothing = 0.78;
+        Object.keys(this.audioTarget).forEach((key) => {
+            const target = this.audioTarget[key];
+            const current = this.audioSmooth[key] ?? 0;
+            this.audioSmooth[key] = current + (target - current) * (1 - smoothing);
+        });
+
+        const pointerCooldown = Math.max(0, (now - this.lastPointerUpdate) / 1000);
+        if (pointerCooldown > 0.05) {
+            this.pointer.intensity *= 0.94;
         }
-        
-        // Map speed to flow direction intensity
-        if (newParams.speed !== undefined) {
-            this.parameters.flowDirection = newParams.speed;
-        }
-        
-        // Map intensity to projection distance
-        if (newParams.intensity !== undefined) {
-            this.parameters.projectionDistance = 1.0 + (newParams.intensity * 4.0); // Scale 0-1 to 1-5
-        }
-        
-        // Update all visualizers with new parameters
-        this.visualizers.forEach(visualizer => {
-            if (visualizer.updateParameters) {
-                visualizer.updateParameters(this.parameters);
-            }
-        });
-        
-        console.log('🔮 Polychora parameters updated:', this.parameters);
-    }
-    
-    /**
-     * Update 4D mouse interaction - standardized method name
-     */
-    updateInteraction(x, y, intensity = 0.5) {
-        // Apply 4D mouse projection to all visualizers
-        this.visualizers.forEach(visualizer => {
-            if (visualizer.update4DMouse) {
-                visualizer.update4DMouse(x, y, intensity);
-            }
-        });
-        console.log(`🔮 Polychora 4D interaction: ${x.toFixed(2)}, ${y.toFixed(2)}, intensity: ${intensity.toFixed(2)}`);
-    }
-    
-    /**
-     * Trigger 4D click interaction
-     */
-    triggerClick(intensity = 1.0) {
-        this.visualizers.forEach(visualizer => {
-            if (visualizer.trigger4DClick) {
-                visualizer.trigger4DClick(intensity);
-            }
-        });
-        console.log(`🔮 Polychora 4D click: intensity ${intensity.toFixed(2)}`);
-    }
-    
-    /**
-     * Update 4D audio reactivity
-     */
-    // Audio reactivity handled directly in visualizer render loops
-    
-    /**
-     * Update 4D scroll interaction (cross-section navigation)
-     */
-    updateScroll(velocity) {
-        this.visualizers.forEach(visualizer => {
-            if (visualizer.updateCrossSection) {
-                visualizer.updateCrossSection(velocity);
-            }
-        });
-    }
-    
-    /**
-     * Get current polytope information
-     */
-    getCurrentPolytope() {
-        return this.polytopes[this.parameters.polytope];
-    }
-    
-    /**
-     * Get all polytope names for UI
-     */
-    getPolytopeNames() {
-        return this.polytopes.map(p => p.name);
-    }
-    
-    /**
-     * Destroy system and clean up resources
-     */
-    destroy() {
-        this.stop();
-        this.visualizers.forEach(visualizer => {
-            if (visualizer.destroy) {
-                visualizer.destroy();
-            }
-        });
-        this.visualizers = [];
-        console.log('🔮 Polychora System destroyed');
+
+        const width = this.canvas.width;
+        const height = this.canvas.height;
+        gl.viewport(0, 0, width, height);
+
+        gl.uniform2f(this.uniformLocations.resolution, width, height);
+        gl.uniform1f(this.uniformLocations.time, elapsed);
+
+        const p = this.colorState.primary;
+        const s = this.colorState.secondary;
+        const a = this.colorState.accent;
+        const sh = this.colorState.shadow;
+
+        gl.uniform3f(this.uniformLocations.colorPrimary, p[0], p[1], p[2]);
+        gl.uniform3f(this.uniformLocations.colorSecondary, s[0], s[1], s[2]);
+        gl.uniform3f(this.uniformLocations.colorAccent, a[0], a[1], a[2]);
+        gl.uniform3f(this.uniformLocations.colorShadow, sh[0], sh[1], sh[2]);
+
+        gl.uniform4f(
+            this.uniformLocations.audioLevels,
+            this.audioSmooth.bass,
+            this.audioSmooth.mid,
+            this.audioSmooth.high,
+            this.audioSmooth.energy
+        );
+
+        gl.uniform4f(
+            this.uniformLocations.audioDynamics,
+            this.audioSmooth.onset,
+            this.audioSmooth.swing,
+            this.audioSmooth.chaos,
+            this.audioSmooth.motion
+        );
+
+        gl.uniform4f(
+            this.uniformLocations.audioRhythm,
+            this.audioSmooth.beatPhase,
+            this.audioSmooth.measurePhase,
+            this.audioSmooth.accent,
+            this.audioSmooth.ribbon
+        );
+
+        gl.uniform4f(
+            this.uniformLocations.colorDynamics,
+            this.audioSmooth.saturationPulse,
+            this.audioSmooth.orbit,
+            this.audioSmooth.accentLuma,
+            this.audioSmooth.downbeat
+        );
+
+        const dimensionLift = this.parameterState.dimension + this.audioSmooth.dimension * 0.9;
+        gl.uniform1f(this.uniformLocations.dimensionLift, dimensionLift);
+        gl.uniform1f(this.uniformLocations.latticeDensity, this.parameterState.latticeDensity);
+        gl.uniform1f(this.uniformLocations.latticeWarp, this.parameterState.latticeWarp);
+
+        const glow = this.parameterState.glowStrength * (0.85 + this.audioSmooth.intensityExponent * 0.35);
+        gl.uniform1f(this.uniformLocations.glowStrength, glow);
+
+        const dynamicLine = this.parameterState.lineThickness * (0.75 + this.audioSmooth.energy * 0.4 + this.audioSmooth.onset * 0.25);
+        gl.uniform1f(this.uniformLocations.lineThickness, dynamicLine);
+
+        const pointerX = this.pointer.x;
+        const pointerY = this.pointer.y;
+        gl.uniform2f(this.uniformLocations.pointer, pointerX, pointerY);
+
+        gl.uniform3f(
+            this.uniformLocations.rotPrimary,
+            this.rotation.xw,
+            this.rotation.yw,
+            this.rotation.zw
+        );
+        gl.uniform3f(
+            this.uniformLocations.rotSecondary,
+            this.rotation.xy,
+            this.rotation.xz,
+            this.rotation.yz
+        );
+
+        const camera = this.cameraLighting || {};
+        gl.uniform1f(this.uniformLocations.cameraOrbit, camera.orbit || 0);
+        gl.uniform1f(this.uniformLocations.cameraElevation, camera.elevation || 0);
+        gl.uniform1f(this.uniformLocations.cameraDolly, camera.dolly || 0);
+        gl.uniform1f(this.uniformLocations.cameraRoll, camera.roll || 0);
+        gl.uniform1f(this.uniformLocations.exposure, Math.max(0.1, camera.exposure || 0));
+        gl.uniform1f(this.uniformLocations.shutter, Math.max(0.2, camera.shutter || 0.5));
+        gl.uniform1f(this.uniformLocations.bloom, Math.max(0, camera.bloom || 0));
+        gl.uniform1f(this.uniformLocations.keyLight, Math.max(0, camera.keyLight || 0));
+        gl.uniform1f(this.uniformLocations.rimLight, Math.max(0, camera.rimLight || 0));
+        gl.uniform1f(this.uniformLocations.ambientLight, Math.max(0, camera.ambientLight || 0));
+        gl.uniform1f(this.uniformLocations.vignette, Math.max(0, camera.vignette || 0));
+
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
     }
 }
