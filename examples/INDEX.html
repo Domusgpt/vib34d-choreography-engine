@@ -3,525 +3,76 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VIB34D Choreography Engine - Demo Index</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            background: linear-gradient(135deg, #000 0%, #001a1a 50%, #000 100%);
-            color: #0ff;
-            font-family: 'Courier New', monospace;
-            padding: 40px 20px;
-            min-height: 100vh;
-        }
-
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-        }
-
-        h1 {
-            font-size: 3em;
-            text-align: center;
-            color: #0ff;
-            text-shadow:
-                0 0 20px #0ff,
-                0 0 40px #0ff,
-                0 0 60px #0ff;
-            margin-bottom: 20px;
-            animation: pulse 3s infinite;
-        }
-
-        @keyframes pulse {
-            0%, 100% { opacity: 1; text-shadow: 0 0 20px #0ff, 0 0 40px #0ff, 0 0 60px #0ff; }
-            50% { opacity: 0.8; text-shadow: 0 0 10px #0ff, 0 0 20px #0ff, 0 0 30px #0ff; }
-        }
-
-        .subtitle {
-            text-align: center;
-            color: #0f0;
-            font-size: 1.2em;
-            margin-bottom: 50px;
-            text-shadow: 0 0 10px #0f0;
-        }
-
-        .version-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
-            gap: 30px;
-            margin-bottom: 50px;
-        }
-
-        .version-card {
-            background: rgba(0, 40, 40, 0.8);
-            border: 2px solid #0ff;
-            border-radius: 10px;
-            padding: 25px;
-            transition: all 0.3s;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .version-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(0, 255, 255, 0.2), transparent);
-            transition: left 0.5s;
-        }
-
-        .version-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 30px rgba(0, 255, 255, 0.5);
-            border-color: #0f0;
-        }
-
-        .version-card:hover::before {
-            left: 100%;
-        }
-
-        .version-card.primary {
-            border: 3px solid #f0f;
-            background: rgba(80, 0, 80, 0.8);
-        }
-
-        .version-card.primary .version-title {
-            color: #f0f;
-            text-shadow: 0 0 15px #f0f;
-        }
-
-        .version-title {
-            font-size: 1.5em;
-            color: #0ff;
-            margin-bottom: 15px;
-            text-shadow: 0 0 10px #0ff;
-        }
-
-        .version-badge {
-            display: inline-block;
-            background: #0f0;
-            color: #000;
-            padding: 5px 10px;
-            border-radius: 5px;
-            font-size: 0.7em;
-            font-weight: bold;
-            margin-bottom: 10px;
-            text-transform: uppercase;
-        }
-
-        .version-badge.primary {
-            background: #f0f;
-            animation: badge-pulse 2s infinite;
-        }
-
-        @keyframes badge-pulse {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.05); }
-        }
-
-        .version-description {
-            color: #0f0;
-            line-height: 1.6;
-            margin-bottom: 15px;
-            font-size: 0.95em;
-        }
-
-        .version-features {
-            list-style: none;
-            margin: 15px 0;
-        }
-
-        .version-features li {
-            color: #0ff;
-            padding: 5px 0;
-            font-size: 0.9em;
-        }
-
-        .version-features li::before {
-            content: '⚡ ';
-            color: #ff0;
-        }
-
-        .version-link {
-            display: inline-block;
-            background: #0f0;
-            color: #000;
-            text-decoration: none;
-            padding: 12px 25px;
-            border-radius: 5px;
-            font-weight: bold;
-            margin-top: 15px;
-            transition: all 0.3s;
-            text-transform: uppercase;
-        }
-
-        .version-link:hover {
-            background: #0ff;
-            box-shadow: 0 0 20px #0ff;
-            transform: scale(1.05);
-        }
-
-        .version-card.primary .version-link {
-            background: #f0f;
-        }
-
-        .version-card.primary .version-link:hover {
-            background: #ff0;
-            box-shadow: 0 0 20px #ff0;
-        }
-
-        .status-section {
-            background: rgba(0, 60, 0, 0.8);
-            border: 2px solid #0f0;
-            border-radius: 10px;
-            padding: 25px;
-            margin-bottom: 50px;
-        }
-
-        .status-section h2 {
-            color: #0f0;
-            font-size: 1.8em;
-            margin-bottom: 20px;
-            text-shadow: 0 0 10px #0f0;
-        }
-
-        .status-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 20px;
-        }
-
-        .status-item {
-            background: rgba(0, 0, 0, 0.5);
-            padding: 15px;
-            border-left: 4px solid #0f0;
-        }
-
-        .status-item .label {
-            color: #0ff;
-            font-weight: bold;
-            margin-bottom: 8px;
-        }
-
-        .status-item .value {
-            color: #0f0;
-            font-size: 1.2em;
-        }
-
-        .tech-stack {
-            background: rgba(0, 40, 60, 0.8);
-            border: 2px solid #0ff;
-            border-radius: 10px;
-            padding: 25px;
-            margin-bottom: 50px;
-        }
-
-        .tech-stack h2 {
-            color: #0ff;
-            font-size: 1.8em;
-            margin-bottom: 20px;
-            text-shadow: 0 0 10px #0ff;
-        }
-
-        .tech-tags {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-        }
-
-        .tech-tag {
-            background: rgba(0, 255, 255, 0.2);
-            border: 1px solid #0ff;
-            color: #0ff;
-            padding: 8px 15px;
-            border-radius: 20px;
-            font-size: 0.9em;
-            transition: all 0.3s;
-        }
-
-        .tech-tag:hover {
-            background: rgba(0, 255, 255, 0.4);
-            transform: scale(1.05);
-        }
-
-        .signature {
-            text-align: center;
-            margin-top: 60px;
-            padding: 30px;
-            background: rgba(0, 0, 0, 0.7);
-            border: 2px solid #0f0;
-            border-radius: 10px;
-        }
-
-        .signature h3 {
-            color: #0ff;
-            font-size: 1.5em;
-            margin-bottom: 15px;
-            text-shadow: 0 0 10px #0ff;
-        }
-
-        .signature p {
-            color: #0f0;
-            margin: 10px 0;
-            font-size: 1.1em;
-        }
-
-        .signature a {
-            color: #0ff;
-            text-decoration: none;
-            border-bottom: 2px solid #0ff;
-            transition: all 0.3s;
-        }
-
-        .signature a:hover {
-            color: #ff0;
-            border-bottom-color: #ff0;
-            text-shadow: 0 0 10px #ff0;
-        }
-
-        .signature .quote {
-            font-style: italic;
-            color: #f0f;
-            margin: 20px 0;
-            font-size: 1.2em;
-            text-shadow: 0 0 10px #f0f;
-        }
-
-        .copyright {
-            color: #0ff;
-            margin-top: 20px;
-            font-size: 0.9em;
-        }
-    </style>
+    <title>VIB34D Choreography Engine · Demo Atlas</title>
+    <link rel="stylesheet" href="./assets/demo-atlas.css">
 </head>
-<body>
-    <div class="container">
-        <h1>🌌 VIB34D Choreography Engine</h1>
-        <div class="subtitle">Audio-Reactive 4D Geometric Visualization System</div>
+<body data-base-href="./">
+<div class="frame">
+    <header>
+        <h1>VIB34D Demo Atlas</h1>
+        <p>Every active HTML entry point for the choreography engine, curated with status, capabilities, and recommended use.</p>
+        <p>Use the live search or category selector to jump directly into the scenario you need to verify.</p>
 
-        <div class="status-section">
-            <h2>📊 System Status</h2>
-            <div class="status-grid">
-                <div class="status-item">
-                    <div class="label">Production Status</div>
-                    <div class="value">✅ READY</div>
-                </div>
-                <div class="status-item">
-                    <div class="label">Total Demos</div>
-                    <div class="value">8 Versions</div>
-                </div>
-                <div class="status-item">
-                    <div class="label">Visualizer Systems</div>
-                    <div class="value">3 Engines</div>
-                </div>
-                <div class="status-item">
-                    <div class="label">Parameters</div>
-                    <div class="value">12 Controls</div>
-                </div>
-                <div class="status-item">
-                    <div class="label">Geometry Types</div>
-                    <div class="value">8 Shapes</div>
-                </div>
-                <div class="status-item">
-                    <div class="label">Performance</div>
-                    <div class="value">60fps WebGL</div>
-                </div>
+        <div class="status-grid">
+            <div class="status">
+                <span>Total Demos</span>
+                <strong data-stat="demo-count">0</strong>
+            </div>
+            <div class="status">
+                <span>Visualizer Systems</span>
+                <strong data-stat="system-count">0</strong>
+            </div>
+            <div class="status">
+                <span>Audio Reactivity Modes</span>
+                <strong data-stat="reactivity-count">0</strong>
+            </div>
+            <div class="status">
+                <span>Macro / Control Scenarios</span>
+                <strong data-stat="macro-count">0</strong>
             </div>
         </div>
+    </header>
 
-        <h2 style="color: #0ff; font-size: 2em; margin-bottom: 30px; text-align: center; text-shadow: 0 0 10px #0ff;">
-            🎨 Demo Versions
-        </h2>
+    <section class="filters">
+        <label>
+            <span style="display:none">Search</span>
+            <input type="search" id="search" placeholder="Search demos, tags, or notes…" autocomplete="off">
+        </label>
+        <label>
+            <span style="display:none">Category</span>
+            <select id="category-filter">
+                <option value="all">All Categories</option>
+            </select>
+        </label>
+    </section>
 
-        <div class="version-grid">
-            <!-- PRIMARY VERSION - FINAL ULTIMATE -->
-            <div class="version-card primary">
-                <span class="version-badge primary">⭐ PRIMARY DEMO</span>
-                <h3 class="version-title">Final Ultimate</h3>
-                <p class="version-description">
-                    Complete production demo with REAL audio reactivity, collapsible UI, mobile-responsive design, and ALL 12 visual parameter controls. Status indicators show MOCK vs REAL audio state.
-                </p>
-                <ul class="version-features">
-                    <li>✅ Collapsible organized sections</li>
-                    <li>✅ Perfect scrolling (mobile + desktop)</li>
-                    <li>✅ REAL audio reactivity with status indicator</li>
-                    <li>✅ ALL 12 visual parameter sliders</li>
-                    <li>✅ 7-band audio visualization (SUB/BASS/LOW/MID/H-MID/HIGH/ULTRA)</li>
-                    <li>✅ Reactivity strength indicator</li>
-                    <li>✅ 8 geometry types + 3 visualizer systems</li>
-                    <li>✅ Reactivity toggles + amount slider</li>
-                    <li>✅ Mobile-first responsive design</li>
-                    <li>✅ Console logs proving real audio</li>
-                </ul>
-                <a href="final-ultimate.html" class="version-link">Launch Final Ultimate →</a>
-            </div>
+    <table class="quick-table" aria-label="Quick index of demos">
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Title</th>
+                <th>Category</th>
+                <th>Status</th>
+                <th>Highlights</th>
+                <th>Link</th>
+            </tr>
+        </thead>
+        <tbody id="quick-index"></tbody>
+    </table>
 
-            <!-- ULTIMATE REACTIVE -->
-            <div class="version-card">
-                <span class="version-badge">Enhanced</span>
-                <h3 class="version-title">Ultimate Reactive</h3>
-                <p class="version-description">
-                    Enhanced version with improved UI and audio reactivity. Collapsible sections, all visual controls, and choreography engine integration.
-                </p>
-                <ul class="version-features">
-                    <li>Collapsible UI sections</li>
-                    <li>ALL 12 visual parameter sliders</li>
-                    <li>Audio reactivity layer</li>
-                    <li>8 geometry types</li>
-                    <li>3 visualizer systems</li>
-                    <li>Choreography sequences</li>
-                </ul>
-                <a href="ultimate-reactive.html" class="version-link">Launch Ultimate Reactive →</a>
-            </div>
+    <h2 class="section-title">Curated Collections</h2>
+    <div id="category-sections"></div>
 
-            <!-- ULTIMATE CONTROLS -->
-            <div class="version-card">
-                <span class="version-badge">Complete</span>
-                <h3 class="version-title">Ultimate Controls</h3>
-                <p class="version-description">
-                    Complete production-ready demo with features, parameters, and controls.
-                    Full choreography engine, 8 geometry types, 11+ parameter controls.
-                </p>
-                <ul class="version-features">
-                    <li>All 11+ parameters with sliders</li>
-                    <li>8 geometry type buttons</li>
-                    <li>Color controls (hue/saturation)</li>
-                    <li>Audio level visualization</li>
-                    <li>3 visualizer systems</li>
-                    <li>8 rotation patterns</li>
-                    <li>5 bass drop sequences</li>
-                    <li>Threshold controls</li>
-                </ul>
-                <a href="ultimate-controls.html" class="version-link">Launch Ultimate Controls →</a>
-            </div>
+    <footer>
+        <div><strong>Tip:</strong> Load <a href="properly-reactive.html">properly-reactive.html</a> to validate audio input, groove harness, and analyzer telemetry before jumping into cinematic canvases.</div>
+        <div>The atlas updates the counts above automatically from the dataset below – no more stale totals when we add or retire demos.</div>
+        <div>This repository's root (<code>/index.html</code>) now serves the same atlas directly for GitHub Pages while keeping quick access to the Ultimate controls showcase.</div>
+    </footer>
+</div>
 
-            <!-- ENHANCED VISUALIZERS -->
-            <div class="version-card">
-                <span class="version-badge">Enhanced</span>
-                <h3 class="version-title">Enhanced Visualizers</h3>
-                <p class="version-description">
-                    Production demo with threshold controls and bulletproof audio playback.
-                    Real VIB34D visualizers with onset/bass detection tuning.
-                </p>
-                <ul class="version-features">
-                    <li>Onset threshold control</li>
-                    <li>Bass threshold control</li>
-                    <li>Bulletproof audio system</li>
-                    <li>All 3 visualizer systems</li>
-                    <li>Live event logging</li>
-                </ul>
-                <a href="enhanced-visualizers.html" class="version-link">Launch Enhanced →</a>
-            </div>
-
-            <!-- REAL VISUALIZERS -->
-            <div class="version-card">
-                <span class="version-badge">Core Demo</span>
-                <h3 class="version-title">Real Visualizers</h3>
-                <p class="version-description">
-                    Original production demo using actual Quantum, Faceted, and Holographic visualizer systems.
-                    Full choreography engine integration.
-                </p>
-                <ul class="version-features">
-                    <li>3 actual visualizer systems</li>
-                    <li>Rotation choreography</li>
-                    <li>Shader choreography</li>
-                    <li>Sequence triggers</li>
-                    <li>Beat synchronization</li>
-                </ul>
-                <a href="real-visualizers.html" class="version-link">Launch Core Demo →</a>
-            </div>
-
-            <!-- DEBUG VISUALIZER -->
-            <div class="version-card">
-                <span class="version-badge">Technical</span>
-                <h3 class="version-title">Debug Visualizer</h3>
-                <p class="version-description">
-                    Technical diagnostic tool showing WebGL context, shader compilation,
-                    buffer status, and real-time rendering statistics.
-                </p>
-                <ul class="version-features">
-                    <li>WebGL context inspector</li>
-                    <li>Shader program status</li>
-                    <li>Buffer diagnostics</li>
-                    <li>Performance metrics</li>
-                    <li>Error reporting</li>
-                </ul>
-                <a href="debug-visualizer.html" class="version-link">Launch Debug Tool →</a>
-            </div>
-
-            <!-- TEST AUDIO -->
-            <div class="version-card">
-                <span class="version-badge">Diagnostic</span>
-                <h3 class="version-title">Audio Test</h3>
-                <p class="version-description">
-                    Audio system diagnostic tool for troubleshooting playback issues.
-                    Detailed logging and retry mechanisms.
-                </p>
-                <ul class="version-features">
-                    <li>Audio context testing</li>
-                    <li>Playback diagnostics</li>
-                    <li>Error logging</li>
-                    <li>Retry mechanisms</li>
-                    <li>State monitoring</li>
-                </ul>
-                <a href="test-audio.html" class="version-link">Launch Audio Test →</a>
-            </div>
-
-            <!-- BASIC CHOREOGRAPHY -->
-            <div class="version-card">
-                <span class="version-badge">Legacy</span>
-                <h3 class="version-title">Basic Choreography</h3>
-                <p class="version-description">
-                    Original demo version showing basic choreography concepts.
-                    Educational reference for system architecture.
-                </p>
-                <ul class="version-features">
-                    <li>Basic demo visualizer</li>
-                    <li>Simple choreography</li>
-                    <li>Educational reference</li>
-                    <li>Architecture demonstration</li>
-                </ul>
-                <a href="basic-choreography.html" class="version-link">View Legacy Demo →</a>
-            </div>
-        </div>
-
-        <div class="tech-stack">
-            <h2>🔧 Technology Stack</h2>
-            <div class="tech-tags">
-                <span class="tech-tag">WebGL 2.0</span>
-                <span class="tech-tag">Web Audio API</span>
-                <span class="tech-tag">4D Mathematics</span>
-                <span class="tech-tag">Shader Programming</span>
-                <span class="tech-tag">Real-Time Audio Analysis</span>
-                <span class="tech-tag">FFT Processing</span>
-                <span class="tech-tag">Onset Detection</span>
-                <span class="tech-tag">Beat Synchronization</span>
-                <span class="tech-tag">Timeline Choreography</span>
-                <span class="tech-tag">Easing Functions</span>
-                <span class="tech-tag">ES6 Modules</span>
-                <span class="tech-tag">GitHub Pages</span>
-                <span class="tech-tag">4D Rotation Matrices</span>
-                <span class="tech-tag">Hyperdimensional Projection</span>
-                <span class="tech-tag">Polytopal Geometry</span>
-                <span class="tech-tag">Fractal Systems</span>
-            </div>
-        </div>
-
-        <div class="signature">
-            <h3>🌟 A Paul Phillips Manifestation</h3>
-            <p>Send Love, Hate, or Opportunity to: <a href="mailto:Paul@clearseassolutions.com">Paul@clearseassolutions.com</a></p>
-            <p>Join The Exoditical Moral Architecture Movement today: <a href="https://parserator.com" target="_blank">Parserator.com</a></p>
-            <div class="quote">"The Revolution Will Not be in a Structured Format"</div>
-            <div class="copyright">© 2025 Paul Phillips - Clear Seas Solutions LLC</div>
-            <div class="copyright">All Rights Reserved - Proprietary Technology</div>
-        </div>
-    </div>
+<script type="module">
+    import { initDemoAtlas } from './assets/demo-atlas.js';
+    initDemoAtlas();
+</script>
 </body>
 </html>

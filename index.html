@@ -3,54 +3,76 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="refresh" content="0; url=./examples/INDEX.html">
-    <title>VIB34D Choreography Engine</title>
-    <style>
-        body {
-            background: #000;
-            color: #0f0;
-            font-family: 'Courier New', monospace;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-        }
-        .loading {
-            text-align: center;
-        }
-        h1 {
-            color: #0ff;
-            text-shadow: 0 0 20px #0ff;
-            animation: pulse 2s infinite;
-        }
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
-        }
-        a {
-            color: #0f0;
-            text-decoration: none;
-            border: 2px solid #0f0;
-            padding: 10px 20px;
-            display: inline-block;
-            margin-top: 20px;
-            transition: all 0.3s;
-        }
-        a:hover {
-            background: #0f0;
-            color: #000;
-            box-shadow: 0 0 20px #0f0;
-        }
-    </style>
+    <title>VIB34D Choreography Engine · Demo Atlas</title>
+    <link rel="stylesheet" href="./examples/assets/demo-atlas.css">
 </head>
-<body>
-    <div class="loading">
-        <h1>🌌 VIB34D Choreography Engine</h1>
-        <p>Redirecting to demo...</p>
-        <p>If not redirected, click below:</p>
-        <a href="./examples/INDEX.html">📑 VIEW ALL DEMOS</a>
-        <a href="./examples/ultimate-controls.html" style="margin-left: 10px;">🔧 ULTIMATE</a>
-    </div>
+<body data-base-href="./examples/">
+<div class="frame">
+    <header>
+        <h1>VIB34D Demo Atlas</h1>
+        <p>Every active HTML entry point for the choreography engine, curated with status, capabilities, and recommended use.</p>
+        <p>This root page is GitHub Pages ready and mirrors the <code>examples/INDEX.html</code> atlas so the live site always reflects the branch.</p>
+
+        <div class="status-grid">
+            <div class="status">
+                <span>Total Demos</span>
+                <strong data-stat="demo-count">0</strong>
+            </div>
+            <div class="status">
+                <span>Visualizer Systems</span>
+                <strong data-stat="system-count">0</strong>
+            </div>
+            <div class="status">
+                <span>Audio Reactivity Modes</span>
+                <strong data-stat="reactivity-count">0</strong>
+            </div>
+            <div class="status">
+                <span>Macro / Control Scenarios</span>
+                <strong data-stat="macro-count">0</strong>
+            </div>
+        </div>
+    </header>
+
+    <section class="filters">
+        <label>
+            <span style="display:none">Search</span>
+            <input type="search" id="search" placeholder="Search demos, tags, or notes…" autocomplete="off">
+        </label>
+        <label>
+            <span style="display:none">Category</span>
+            <select id="category-filter">
+                <option value="all">All Categories</option>
+            </select>
+        </label>
+    </section>
+
+    <table class="quick-table" aria-label="Quick index of demos">
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Title</th>
+                <th>Category</th>
+                <th>Status</th>
+                <th>Highlights</th>
+                <th>Link</th>
+            </tr>
+        </thead>
+        <tbody id="quick-index"></tbody>
+    </table>
+
+    <h2 class="section-title">Curated Collections</h2>
+    <div id="category-sections"></div>
+
+    <footer>
+        <div><strong>Tip:</strong> Load <a href="./examples/properly-reactive.html">properly-reactive.html</a> to validate audio input, groove harness, and analyzer telemetry before jumping into cinematic canvases.</div>
+        <div>The atlas updates the counts above automatically from the dataset below – no more stale totals when we add or retire demos.</div>
+        <div>Need the legacy control surface immediately? Launch <a href="./examples/ultimate-controls.html">Ultimate Controls</a> straight from here.</div>
+    </footer>
+</div>
+
+<script type="module">
+    import { initDemoAtlas } from './examples/assets/demo-atlas.js';
+    initDemoAtlas();
+</script>
 </body>
 </html>
