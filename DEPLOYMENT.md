@@ -1,111 +1,70 @@
 # 🚀 Deployment Information
 
-## Live Demo
+## GitHub Pages automation
 
-**GitHub Pages URL**: https://domusgpt.github.io/vib34d-choreography-engine/
+GitHub Pages is deployed directly from this repository by `.github/workflows/pages.yml`. The workflow
+runs on every push to `main`, on pull requests targeting `main`, and on manual dispatch so the live
+site and preview environments always match the branch being reviewed.
 
-The site automatically redirects to the working demo at:
-https://domusgpt.github.io/vib34d-choreography-engine/examples/real-visualizers.html
+**Key capabilities**
 
-## Repository
+- ✅ **Branch-aware previews** – pull requests receive temporary preview URLs so reviewers can audit
+  choreography, macros, and shader changes without cloning the branch.
+- ✅ **Root deployment** – successful builds publish to
+  `https://domusgpt.github.io/vib34d-choreography-engine/` with the repository root (including
+  `/examples`) intact, guaranteeing that the Demo Atlas and every HTML entry point behave exactly as
+  they do during local development.
+- ✅ **Automated verification** – the workflow installs dependencies with `npm ci`, executes the Jest
+  suite, builds via Vite for regression coverage, and then stages the static artifact that GitHub Pages
+  serves.
 
-**GitHub Repo**: https://github.com/Domusgpt/vib34d-choreography-engine
+The root `index.html` continues to redirect visitors to the Demo Atlas at `/examples/INDEX.html`.
 
-## What's Deployed
+## Triggering a deployment
 
-✅ **ChoreographyEngine** - Complete timeline-based sequence system
-✅ **ShaderChoreographer** - GPU-level parameter control
-✅ **RotationChoreographer** - 8 rotation patterns
-✅ **Sequence Library** - 5 bass drop presets
-✅ **Working Demo** - Interactive 4D visualization
-✅ **Full Documentation** - Getting started + roadmap
+1. Push to `main`, open a pull request into `main`, or run the workflow manually from **Actions →
+   Deploy static site to GitHub Pages**.
+2. Wait for the workflow to finish. The summary will include either the permanent production URL (for
+   pushes) or a temporary preview URL (for pull requests).
+3. Open the Demo Atlas and spot-check key canvases such as `final-ultimate.html`,
+   `properly-reactive.html`, and diagnostic harnesses to confirm audio reactivity and visuals are
+   rendering.
 
-## Demo Features
+## Fallback manual publish
 
-When you visit the live demo, you can:
-
-1. **Start/Stop** - Control the choreography engine
-2. **Switch Rotation Patterns** - Try 8 different patterns:
-   - `smooth` - Continuous rotation
-   - `hyperspace_spiral` - Multi-plane spirals
-   - `beat_locked` - Quantized to beats
-   - `bass_momentum` - Accumulates from bass
-   - `spectral_orbit` - Frequency-based
-   - `energy_sweep` - Energy-driven
-   - `chaos_spin` - Unpredictable
-   - `onset_snap` - Sudden changes
-
-3. **Trigger Sequences** - Manually launch choreography:
-   - `bass_drop_cascade` - Anticipation → Impact → Release
-   - `bass_drop_explosion` - Explosive chaos
-   - `bass_drop_freeze` - Freeze then release
-   - `bass_drop_spiral` - Spiraling descent
-   - `bass_drop_pulse` - Rhythmic pulsing
-
-4. **Watch Live Logs** - See beat detection, sequences, and onsets in real-time
-
-## Technical Details
-
-- **Framework**: Pure JavaScript ES6 modules
-- **Graphics**: HTML5 Canvas 2D (demo uses simplified visualization)
-- **Audio**: Mock audio data (no actual audio input in demo)
-- **Performance**: 60fps on modern browsers
-- **Compatibility**: Chrome, Firefox, Safari, Edge
-
-## Local Development
+If GitHub Actions is unavailable (for example, in a fork), you can still deploy manually by pushing the
+static assets to a `gh-pages` branch and selecting it as the Pages source:
 
 ```bash
-# Clone repository
+git checkout -b gh-pages
+rm -rf node_modules .gitignore
+git add .
+git commit -m "Publish site"
+git push origin gh-pages --force
+```
+
+Then choose **Settings → Pages → Source → GitHub Actions** (recommended) or **Branch → gh-pages / root**.
+
+## Local smoke testing
+
+```bash
 git clone https://github.com/Domusgpt/vib34d-choreography-engine.git
 cd vib34d-choreography-engine
 
-# Serve locally
-npx serve
-# or
-python3 -m http.server 8080
+# Match the workflow checks
+npm ci
+npm run test
+npm run build
 
-# Open http://localhost:8080/examples/basic-choreography.html
+# Serve the repository to mirror Pages
+npx http-server .
+# Open http://localhost:8080/examples/INDEX.html
 ```
 
-## Integration with Real Visualizers
+## Live production URL
 
-The demo uses a simplified 2D visualization. To integrate with real VIB34D visualizers:
+- **Primary root**: https://domusgpt.github.io/vib34d-choreography-engine/
+- **Demo Atlas**: https://domusgpt.github.io/vib34d-choreography-engine/examples/INDEX.html
 
-```javascript
-import { ChoreographyEngine } from './src/core/ChoreographyEngine.js';
-import { QuantumVisualizer } from './your-visualizers/QuantumVisualizer.js';
-
-const quantumViz = new QuantumVisualizer('canvas1', 'content', 1.0, 0);
-
-const engine = new ChoreographyEngine({
-    visualizers: [quantumViz],
-    audioAnalyzer: yourAudioAnalyzer,
-    bpm: 128
-});
-
-await engine.loadSequenceLibrary('./src/sequences/presets/bass-drops.json');
-engine.start();
-```
-
-## Deployment History
-
-- **2025-10-11**: Initial deployment
-  - ChoreographyEngine v1.0
-  - 8 rotation patterns
-  - 5 preset sequences
-  - Working demo
-
-## Status
-
-🟢 **LIVE** - GitHub Pages deployment successful
-
-Build time: ~34 seconds
-Last deploy: 2025-10-11 20:23 UTC
-
----
-
-**A Paul Phillips Manifestation**
-Send Love, Hate, or Opportunity: Paul@clearseassolutions.com
-Join The Exoditical Moral Architecture Movement: Parserator.com
-
-© 2025 Paul Phillips - Clear Seas Solutions LLC
+Each HTML entry point under `/examples` remains reachable at the same relative path once the workflow
+completes.
