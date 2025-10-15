@@ -30,6 +30,7 @@ Then open `http://localhost:8080/examples/basic-choreography.html`
 ```javascript
 import { ChoreographyEngine } from './src/core/ChoreographyEngine.js';
 import { RotationChoreographer } from './src/choreographers/RotationChoreographer.js';
+import { AudioAnalyzer } from './src/audio/AudioAnalyzer.js';
 
 // Create your visualizer (must have updateParameter method)
 const visualizer = {
@@ -39,10 +40,19 @@ const visualizer = {
     }
 };
 
+// Hook up real audio (file, microphone, etc.)
+const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+const audioElement = document.querySelector('audio');
+const sourceNode = audioContext.createMediaElementSource(audioElement);
+const audioAnalyzer = new AudioAnalyzer(audioContext, { fftSize: 2048 });
+
+sourceNode.connect(audioAnalyzer.analyser);
+audioAnalyzer.analyser.connect(audioContext.destination);
+
 // Initialize choreography engine
 const engine = new ChoreographyEngine({
     visualizers: [visualizer],
-    audioAnalyzer: yourAudioAnalyzer,  // or null for mock data
+    audioAnalyzer,
     bpm: 128
 });
 
@@ -133,22 +143,40 @@ rotationChoreographer.setPattern('hyperspace_spiral');
 
 ## 📊 Audio Data Format
 
-Your audio analyzer should provide:
+The built-in analyzer (and any custom analyzer) should provide:
 
 ```javascript
 {
-    bands: {
-        bass: 0.0-1.0,
-        mid: 0.0-1.0,
-        high: 0.0-1.0
+    bands: {                 // Normalized energy per band (0-1)
+        subBass: 0.34,
+        bass: 0.51,
+        lowMid: 0.22,
+        mid: 0.40,
+        highMid: 0.28,
+        high: 0.18,
+        air: 0.09,
+        ultraHigh: 0.09      // Auto-filled from "air" when absent
     },
-    rms: 0.0-1.0,              // Overall energy
-    onset: 0.0-1.0,            // Onset detection
-    spectralCentroid: number,  // Hz (optional)
-    spectralRolloff: number,   // Hz (optional)
-    bpm: number                // Detected BPM (optional)
+    bandDetails: {           // Optional metadata for UI / analysis tools
+        bass: { low: 60, high: 250, value: 0.51 },
+        mid: { low: 500, high: 2000, value: 0.40 },
+        // ...remaining bands
+    },
+    rms: 0.0-1.0,            // Overall loudness
+    onset: 0.0-1.0,          // Onset strength this frame
+    onsetEvent: {            // Detailed onset event information
+        detected: true|false,
+        strength: 0.0-1.0,
+        time: Date.now()
+    },
+    spectralCentroid: 0.0-1.0,
+    spectralRolloff: 0.0-1.0,
+    spectralFlux: 0.0-1.0,
+    bpm: number              // Optional BPM estimate
 }
 ```
+
+> **Tip:** When no audio is available, the engine automatically provides a silent frame with all values set to 0 so visualizers can handle the transition gracefully.
 
 ## 🎨 Parameter Names
 
