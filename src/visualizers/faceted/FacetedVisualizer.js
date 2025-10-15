@@ -712,3 +712,6 @@ void main() {
         }
     }
 }
+
+// Preserve the historic FacetedVisualizer name for legacy demos that still import it directly.
+export { IntegratedHolographicVisualizer as FacetedVisualizer };

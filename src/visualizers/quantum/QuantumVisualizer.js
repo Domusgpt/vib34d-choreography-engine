@@ -67,8 +67,65 @@ export class QuantumHolographicVisualizer {
             rot4dYW: 0.0,
             rot4dZW: 0.0
         };
+
+        this.audioChoreo = {
+            bass: 0,
+            mid: 0,
+            high: 0,
+            energy: 0,
+            onset: 0,
+            swing: 0,
+            triplet: 0,
+            beatPhase: 0,
+            measurePhase: 0,
+            colorOrbit: 0,
+            colorBeat: 0,
+            saturationPulse: 0,
+            dimensionShift: 0,
+            intensityExponent: 1,
+            chaos: 0,
+            velocity: 0
+        };
+
+        this.cameraLighting = {
+            orbit: 0,
+            elevation: 0.32,
+            dolly: -0.2,
+            roll: 0,
+            exposure: 1.2,
+            shutter: 0.6,
+            bloom: 0.35,
+            keyLight: 0.6,
+            rimLight: 0.4,
+            ambientLight: 0.25,
+            vignette: 0.25,
+            parallax: 0.0,
+            focus: 0.8,
+            focusSpread: 0.65,
+            chromaticAberration: 0.12,
+            lightTemperature: 0.5,
+            shadowContrast: 0.45,
+            fogDensity: 0.1,
+            godrayIntensity: 0.2,
+            filmGrain: 0.18,
+            lensDistortion: 0.06,
+            frameBlend: 0.28,
+            lightWrap: 0.32,
+            colorBleed: 0.26
+        };
         
         this.init();
+    }
+
+    setCameraLighting(state = {}) {
+        if (!state || typeof state !== 'object') {
+            return;
+        }
+
+        this.cameraLighting = {
+            ...this.cameraLighting,
+            ...state
+        };
     }
     
     /**
@@ -254,6 +311,46 @@ uniform float u_rot4dZW;
 uniform float u_mouseIntensity;
 uniform float u_clickIntensity;
 uniform float u_roleIntensity;
+uniform float u_audioBass;
+uniform float u_audioMid;
+uniform float u_audioHigh;
+uniform float u_audioEnergy;
+uniform float u_audioOnset;
+uniform float u_audioSwing;
+uniform float u_audioTriplet;
+uniform float u_audioBeatPhase;
+uniform float u_audioMeasurePhase;
+uniform float u_audioColorOrbit;
+uniform float u_audioColorBeat;
+uniform float u_audioSaturationPulse;
+uniform float u_audioDimensionShift;
+uniform float u_universeModifier;
+uniform float u_audioChaos;
+uniform float u_audioVelocity;
+uniform float u_cameraOrbit;
+uniform float u_cameraElevation;
+uniform float u_cameraDolly;
+uniform float u_cameraRoll;
+uniform float u_exposure;
+uniform float u_shutter;
+uniform float u_bloom;
+uniform float u_keyLight;
+uniform float u_rimLight;
+uniform float u_ambientLight;
+uniform float u_vignette;
+uniform float u_cameraParallax;
+uniform float u_focusDistance;
+uniform float u_focusSpread;
+uniform float u_chromaticAberration;
+uniform float u_lightTemperature;
+uniform float u_shadowContrast;
+uniform float u_fogDensity;
+uniform float u_godrayIntensity;
+uniform float u_filmGrain;
+uniform float u_lensDistortion;
+uniform float u_frameBlend;
+uniform float u_lightWrap;
+uniform float u_colorBleed;
 
 // 4D rotation matrices
 mat4 rotateXW(float theta) {
@@ -274,6 +371,12 @@ mat4 rotateZW(float theta) {
     return mat4(1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, c, -s, 0.0, 0.0, s, c);
 }
 
+float fastTanh(float x) {
+    float clamped = clamp(x, -10.0, 10.0);
+    float e2x = exp(2.0 * clamped);
+    return (e2x - 1.0) / (e2x + 1.0);
+}
+
 vec3 project4Dto3D(vec4 p) {
     float w = 2.5 / (2.5 + p.w);
     return vec3(p.x * w, p.y * w, p.z * w);
@@ -281,42 +384,92 @@ vec3 project4Dto3D(vec4 p) {
 
 // Complex 3D Lattice Functions - Superior Quantum Shaders
 float tetrahedronLattice(vec3 p, float gridSize) {
-    vec3 q = fract(p * gridSize) - 0.5;
+    float swing = 0.5 + 0.5 * fastTanh(u_audioSwing);
+    float dynamicGrid = gridSize * (0.9 + u_audioBass * 0.7 + swing * 0.4);
+    vec3 q = fract(p * dynamicGrid) - 0.5;
+
+    vec3 harmonicShift = vec3(
+        sin(q.y * 6.0 + u_time * 0.001 + u_audioColorOrbit * 6.28318),
+        sin(q.z * 6.0 + u_time * 0.0012 + u_audioBeatPhase * 6.28318),
+        sin(q.x * 6.0 + u_time * 0.0008 + u_audioTriplet * 3.14159)
+    ) * (0.05 + u_audioChaos * 0.08);
+
+    q += harmonicShift;
+
     float d1 = length(q);
     float d2 = length(q - vec3(0.4, 0.0, 0.0));
     float d3 = length(q - vec3(0.0, 0.4, 0.0));
     float d4 = length(q - vec3(0.0, 0.0, 0.4));
-    float vertices = 1.0 - smoothstep(0.0, 0.04, min(min(d1, d2), min(d3, d4)));
+    float vertices = 1.0 - smoothstep(0.0, 0.04 + u_audioMid * 0.02, min(min(d1, d2), min(d3, d4)));
+
+    float edgeWidth = 0.02 + u_audioEnergy * 0.02;
     float edges = 0.0;
-    edges = max(edges, 1.0 - smoothstep(0.0, 0.02, abs(length(q.xy) - 0.2)));
-    edges = max(edges, 1.0 - smoothstep(0.0, 0.02, abs(length(q.yz) - 0.2)));
-    edges = max(edges, 1.0 - smoothstep(0.0, 0.02, abs(length(q.xz) - 0.2)));
-    return max(vertices, edges * 0.5);
+    edges = max(edges, 1.0 - smoothstep(0.0, edgeWidth, abs(length(q.xy) - (0.2 + u_audioBass * 0.1))));
+    edges = max(edges, 1.0 - smoothstep(0.0, edgeWidth, abs(length(q.yz) - (0.2 + u_audioMid * 0.08))));
+    edges = max(edges, 1.0 - smoothstep(0.0, edgeWidth, abs(length(q.xz) - (0.2 + u_audioHigh * 0.06))));
+
+    float interference = sin(d1 * 25.0 + u_time * 0.003 + u_audioColorOrbit * 6.28318) *
+                         sin(d2 * 22.0 + u_time * 0.0025 + u_audioTriplet * 6.28318) *
+                         (0.05 + u_audioChaos * 0.3);
+
+    float volume = exp(-length(q) * (3.0 + u_audioEnergy * 2.0)) * (0.15 + u_audioOnset * 0.25);
+
+    float base = max(vertices, edges * (0.5 + u_audioEnergy * 0.4));
+    return max(0.0, base + interference + volume);
 }
 
 float hypercubeLattice(vec3 p, float gridSize) {
-    vec3 grid = fract(p * gridSize);
+    float chaosPulse = 0.5 + 0.5 * sin(u_audioBeatPhase * 6.28318 + u_audioTriplet * 3.14159);
+    float dynamicGrid = gridSize * (1.0 + u_audioBass * 0.5 + u_audioEnergy * 0.3 + chaosPulse * 0.2);
+    vec3 grid = fract(p * dynamicGrid);
     vec3 edges = min(grid, 1.0 - grid);
     float minEdge = min(min(edges.x, edges.y), edges.z);
-    float lattice = 1.0 - smoothstep(0.0, 0.03, minEdge);
-    
+    float lattice = 1.0 - smoothstep(0.0, 0.03 + u_audioChaos * 0.015, minEdge);
+
     vec3 centers = abs(grid - 0.5);
     float maxCenter = max(max(centers.x, centers.y), centers.z);
-    float vertices = 1.0 - smoothstep(0.45, 0.5, maxCenter);
-    
-    return max(lattice * 0.7, vertices);
+    float vertices = 1.0 - smoothstep(0.45 - u_audioMid * 0.05, 0.5 + u_audioHigh * 0.05, maxCenter);
+
+    float crossPulse = sin((grid.x + grid.y + grid.z) * 18.0 + u_time * 0.002 + u_audioColorOrbit * 6.28318) * (0.05 + u_audioChaos * 0.2);
+
+    return max(lattice * (0.7 + u_audioEnergy * 0.3), vertices + crossPulse);
 }
 
 float sphereLattice(vec3 p, float gridSize) {
     vec3 cell = fract(p * gridSize) - 0.5;
-    float sphere = 1.0 - smoothstep(0.15, 0.25, length(cell));
-    
-    float rings = 0.0;
-    float ringRadius = length(cell.xy);
-    rings = max(rings, 1.0 - smoothstep(0.0, 0.02, abs(ringRadius - 0.3)));
-    rings = max(rings, 1.0 - smoothstep(0.0, 0.02, abs(ringRadius - 0.2)));
-    
-    return max(sphere, rings * 0.6);
+    float radius3D = length(cell);
+    float densityFactor = max(0.1, gridSize * (0.7 + u_audioBass * 0.6));
+    float dynamicShellWidth = max(0.01, 0.08 * (1.0 + u_audioMid * 1.5));
+    float phase = radius3D * densityFactor * 6.28318 - u_time * u_speed * 0.8 + u_audioHigh * 3.0 + u_audioColorOrbit * 4.0;
+    float shells3D = 0.5 + 0.5 * sin(phase + u_audioTriplet * 1.5);
+    shells3D = smoothstep(1.0 - dynamicShellWidth, 1.0, shells3D);
+
+    float dim_factor = smoothstep(3.0, 4.5, u_dimension + u_audioDimensionShift);
+    float finalLattice = shells3D;
+
+    if (dim_factor > 0.01) {
+        float swingInfluence = 0.5 + 0.5 * sin(u_audioBeatPhase * 6.28318);
+        float w_coord = cos(radius3D * 2.5 - u_time * 0.55 + u_audioOnset * 3.5) *
+                        sin(cell.x * 1.0 + cell.y * 1.3 - cell.z * 0.7 + u_time * 0.2 + u_audioSwing * 1.5) *
+                        dim_factor * (0.45 + u_morphFactor * 0.5 + u_audioMid * 0.5 * swingInfluence);
+
+        vec4 p4d = vec4(cell, w_coord);
+        float baseSpeed = u_speed * 0.85 + u_audioVelocity * 0.4;
+        float time_rot1 = u_time * 0.38 * baseSpeed + u_audioHigh * 0.2 + u_audioColorBeat * 2.0;
+        float time_rot2 = u_time * 0.31 * baseSpeed + u_morphFactor * 0.6 + u_audioSwing * 0.5;
+        float time_rot3 = u_time * -0.24 * baseSpeed + u_audioBass * 0.25 + u_audioTriplet * 0.3;
+        p4d = rotateXW(u_rot4dXW + time_rot1 * 1.05) * rotateYW(u_rot4dYW + time_rot2) * rotateZW(u_rot4dZW + time_rot3 * 0.95) * p4d;
+
+        vec3 projectedP = project4Dto3D(p4d);
+        float radius4D_proj = length(projectedP);
+        float phase4D = radius4D_proj * densityFactor * 6.28318 - u_time * u_speed * 0.8 + u_audioHigh * 3.0 + u_audioColorOrbit * 6.0;
+        float shells4D_proj = 0.5 + 0.5 * sin(phase4D);
+        shells4D_proj = smoothstep(1.0 - dynamicShellWidth, 1.0, shells4D_proj);
+        float morphBlend = smoothstep(0.0, 1.0, u_morphFactor + u_audioDimensionShift * 0.5);
+        finalLattice = mix(shells3D, shells4D_proj, morphBlend);
+    }
+
+    return max(0.0, finalLattice);
 }
 
 float torusLattice(vec3 p, float gridSize) {
@@ -381,18 +534,22 @@ float waveLattice(vec3 p, float gridSize) {
 
 float crystalLattice(vec3 p, float gridSize) {
     vec3 cell = fract(p * gridSize) - 0.5;
-    
+
     // Octahedral crystal structure
     float crystal = max(max(abs(cell.x) + abs(cell.y), abs(cell.y) + abs(cell.z)), abs(cell.x) + abs(cell.z));
     crystal = 1.0 - smoothstep(0.3, 0.4, crystal);
-    
+
     // Add crystalline faces
     float faces = 0.0;
     faces = max(faces, 1.0 - smoothstep(0.0, 0.02, abs(abs(cell.x) - 0.35)));
     faces = max(faces, 1.0 - smoothstep(0.0, 0.02, abs(abs(cell.y) - 0.35)));
     faces = max(faces, 1.0 - smoothstep(0.0, 0.02, abs(abs(cell.z) - 0.35)));
-    
+
     return max(crystal, faces * 0.5);
+}
+
+float applyUniverseDynamics(float lattice) {
+    return pow(max(0.0, lattice), max(0.1, u_universeModifier));
 }
 
 // Enhanced geometry function with holographic effects
@@ -400,33 +557,33 @@ float geometryFunction(vec4 p) {
     int geomType = int(u_geometry);
     vec3 p3d = project4Dto3D(p);
     float gridSize = u_gridDensity * 0.08;
-    
+
     if (geomType == 0) {
-        return tetrahedronLattice(p3d, gridSize) * u_morphFactor;
+        return applyUniverseDynamics(tetrahedronLattice(p3d, gridSize)) * u_morphFactor;
     }
     else if (geomType == 1) {
-        return hypercubeLattice(p3d, gridSize) * u_morphFactor;
+        return applyUniverseDynamics(hypercubeLattice(p3d, gridSize)) * u_morphFactor;
     }
     else if (geomType == 2) {
-        return sphereLattice(p3d, gridSize) * u_morphFactor;
+        return applyUniverseDynamics(sphereLattice(p3d, gridSize)) * u_morphFactor;
     }
     else if (geomType == 3) {
-        return torusLattice(p3d, gridSize) * u_morphFactor;
+        return applyUniverseDynamics(torusLattice(p3d, gridSize)) * u_morphFactor;
     }
     else if (geomType == 4) {
-        return kleinLattice(p3d, gridSize) * u_morphFactor;
+        return applyUniverseDynamics(kleinLattice(p3d, gridSize)) * u_morphFactor;
     }
     else if (geomType == 5) {
-        return fractalLattice(p3d, gridSize) * u_morphFactor;
+        return applyUniverseDynamics(fractalLattice(p3d, gridSize)) * u_morphFactor;
     }
     else if (geomType == 6) {
-        return waveLattice(p3d, gridSize) * u_morphFactor;
+        return applyUniverseDynamics(waveLattice(p3d, gridSize)) * u_morphFactor;
     }
     else if (geomType == 7) {
-        return crystalLattice(p3d, gridSize) * u_morphFactor;
+        return applyUniverseDynamics(crystalLattice(p3d, gridSize)) * u_morphFactor;
     }
     else {
-        return hypercubeLattice(p3d, gridSize) * u_morphFactor;
+        return applyUniverseDynamics(hypercubeLattice(p3d, gridSize)) * u_morphFactor;
     }
 }
 
@@ -435,41 +592,54 @@ float geometryFunction(vec4 p) {
 
 // Layer-specific color palettes with extreme juxtapositions
 vec3 getLayerColorPalette(int layerIndex, float t) {
+    float orbitShift = u_audioColorOrbit * 6.28318;
+    float rhythmDrift = sin(u_audioBeatPhase * 6.28318 + float(layerIndex) * 1.3) * 0.2;
+    float measureDrift = sin(u_audioMeasurePhase * 6.28318 + float(layerIndex) * 0.7) * 0.15;
+    float saturationPulse = clamp(u_audioSaturationPulse, 0.0, 1.0);
+    float energyFlash = clamp(u_audioEnergy + u_audioOnset * 0.6, 0.0, 1.5);
+    t += orbitShift + rhythmDrift + measureDrift;
+
+    vec3 palette;
     if (layerIndex == 0) {
         // BACKGROUND LAYER: Deep space colors - purple/black/deep blue
         vec3 color1 = vec3(0.05, 0.0, 0.2);   // Deep purple
         vec3 color2 = vec3(0.0, 0.0, 0.1);    // Near black
         vec3 color3 = vec3(0.0, 0.05, 0.3);   // Deep blue
-        return mix(mix(color1, color2, sin(t * 3.0) * 0.5 + 0.5), color3, cos(t * 2.0) * 0.5 + 0.5);
+        palette = mix(mix(color1, color2, sin(t * 3.0) * 0.5 + 0.5), color3, cos(t * 2.0) * 0.5 + 0.5);
     }
     else if (layerIndex == 1) {
         // SHADOW LAYER: Toxic greens and sickly yellows - high contrast
         vec3 color1 = vec3(0.0, 1.0, 0.0);    // Pure toxic green
         vec3 color2 = vec3(0.8, 1.0, 0.0);    // Sickly yellow-green
         vec3 color3 = vec3(0.0, 0.8, 0.3);    // Forest green
-        return mix(mix(color1, color2, sin(t * 7.0) * 0.5 + 0.5), color3, cos(t * 5.0) * 0.5 + 0.5);
+        palette = mix(mix(color1, color2, sin(t * 7.0) * 0.5 + 0.5), color3, cos(t * 5.0) * 0.5 + 0.5);
     }
     else if (layerIndex == 2) {
         // CONTENT LAYER: Blazing hot colors - red/orange/white hot
         vec3 color1 = vec3(1.0, 0.0, 0.0);    // Pure red
         vec3 color2 = vec3(1.0, 0.5, 0.0);    // Blazing orange
         vec3 color3 = vec3(1.0, 1.0, 1.0);    // White hot
-        return mix(mix(color1, color2, sin(t * 11.0) * 0.5 + 0.5), color3, cos(t * 8.0) * 0.5 + 0.5);
+        palette = mix(mix(color1, color2, sin(t * 11.0) * 0.5 + 0.5), color3, cos(t * 8.0) * 0.5 + 0.5);
     }
     else if (layerIndex == 3) {
         // HIGHLIGHT LAYER: Electric blues and cyans - crackling energy
         vec3 color1 = vec3(0.0, 1.0, 1.0);    // Electric cyan
         vec3 color2 = vec3(0.0, 0.5, 1.0);    // Electric blue
         vec3 color3 = vec3(0.5, 1.0, 1.0);    // Bright cyan
-        return mix(mix(color1, color2, sin(t * 13.0) * 0.5 + 0.5), color3, cos(t * 9.0) * 0.5 + 0.5);
+        palette = mix(mix(color1, color2, sin(t * 13.0) * 0.5 + 0.5), color3, cos(t * 9.0) * 0.5 + 0.5);
     }
     else {
         // ACCENT LAYER: Violent magentas and purples - chaotic
         vec3 color1 = vec3(1.0, 0.0, 1.0);    // Pure magenta
         vec3 color2 = vec3(0.8, 0.0, 1.0);    // Violet
         vec3 color3 = vec3(1.0, 0.3, 1.0);    // Hot pink
-        return mix(mix(color1, color2, sin(t * 17.0) * 0.5 + 0.5), color3, cos(t * 12.0) * 0.5 + 0.5);
+        palette = mix(mix(color1, color2, sin(t * 17.0) * 0.5 + 0.5), color3, cos(t * 12.0) * 0.5 + 0.5);
     }
+
+    palette = mix(palette, vec3(1.0), u_audioColorBeat * 0.25);
+    palette *= 0.7 + energyFlash * 0.3;
+    palette = mix(vec3(0.0), palette, 0.4 + saturationPulse * 0.6);
+    return palette;
 }
 
 // Extreme RGB separation and distortion for each layer
@@ -520,11 +690,36 @@ vec3 extremeRGBSeparation(vec3 baseColor, vec2 uv, float intensity, int layerInd
 
 void main() {
     vec2 uv = (gl_FragCoord.xy - u_resolution.xy * 0.5) / min(u_resolution.x, u_resolution.y);
+
+    float orbitAngle = u_cameraOrbit;
+    float cosOrbit = cos(orbitAngle);
+    float sinOrbit = sin(orbitAngle);
+    mat2 orbitMat = mat2(cosOrbit, -sinOrbit, sinOrbit, cosOrbit);
+    uv = orbitMat * uv;
+
+    float rollAngle = u_cameraRoll;
+    float cosRoll = cos(rollAngle);
+    float sinRoll = sin(rollAngle);
+    mat2 rollMat = mat2(cosRoll, -sinRoll, sinRoll, cosRoll);
+
+    float zoomFactor = exp(-u_cameraDolly);
+    uv *= zoomFactor;
+    uv = rollMat * uv;
+
+    float elevation = u_cameraElevation;
+    uv.y += sin(elevation) * (0.4 + abs(u_cameraDolly) * 0.25);
+    uv.x += sin(elevation * 0.6) * 0.15;
     
     // Enhanced 4D position with holographic depth
     float timeSpeed = u_time * 0.0001 * u_speed;
     vec4 pos = vec4(uv * 3.0, sin(timeSpeed * 3.0), cos(timeSpeed * 2.0));
     pos.xy += (u_mouse - 0.5) * u_mouseIntensity * 2.0;
+    pos.xy += vec2(
+        sin(u_audioBeatPhase * 6.28318 + uv.y * 4.0) * (0.5 * u_audioSwing),
+        cos(u_audioBeatPhase * 6.28318 + uv.x * 4.0) * (0.5 * u_audioSwing)
+    );
+    pos.z += sin(u_audioTriplet * 3.14159 + timeSpeed * 4.0) * u_audioDimensionShift * 0.5;
+    pos.w += cos(u_audioTriplet * 3.14159 + timeSpeed * 3.5) * u_audioDimensionShift * 0.5;
     
     // Apply 4D rotations
     pos = rotateXW(u_rot4dXW) * pos;
@@ -536,15 +731,18 @@ void main() {
     
     // Enhanced chaos with holographic effects
     float noise = sin(pos.x * 7.0) * cos(pos.y * 11.0) * sin(pos.z * 13.0);
-    value += noise * u_chaos;
+    value += noise * (u_chaos + u_audioChaos * 0.8);
     
     // Enhanced intensity calculation with holographic glow
     float geometryIntensity = 1.0 - clamp(abs(value * 0.8), 0.0, 1.0);
-    geometryIntensity = pow(geometryIntensity, 1.5); // More dramatic falloff
+    geometryIntensity = pow(geometryIntensity, 1.2 + u_audioDimensionShift * 0.6); // Dynamic dimension shaping
     geometryIntensity += u_clickIntensity * 0.3;
+    geometryIntensity += u_audioEnergy * 0.2;
     
     // Holographic shimmer effect
-    float shimmer = sin(uv.x * 20.0 + timeSpeed * 5.0) * cos(uv.y * 15.0 + timeSpeed * 3.0) * 0.1;
+    float shimmer = sin(uv.x * 20.0 + timeSpeed * 5.0 + u_audioColorOrbit * 6.28318) *
+                    cos(uv.y * 15.0 + timeSpeed * 3.0 + u_audioBeatPhase * 6.28318) *
+                    (0.1 + u_audioVelocity * 0.2);
     geometryIntensity += shimmer * geometryIntensity;
     
     // Apply user intensity control
@@ -568,6 +766,7 @@ void main() {
     
     // Apply geometry-based intensity modulation per layer
     vec3 extremeBaseColor;
+    float rhythmAccent = 0.6 + 0.4 * sin(u_audioBeatPhase * 6.28318 + float(layerIndex) * 0.8);
     if (layerIndex == 0) {
         // Background: Subtle, fills empty space
         extremeBaseColor = layerColor * (0.3 + geometryIntensity * 0.4);
@@ -575,23 +774,27 @@ void main() {
     else if (layerIndex == 1) {
         // Shadow: Aggressive, high contrast where geometry is weak
         float shadowIntensity = pow(1.0 - geometryIntensity, 2.0); // Inverted for shadows
-        extremeBaseColor = layerColor * (shadowIntensity * 0.8 + 0.1);
+        extremeBaseColor = layerColor * (shadowIntensity * 0.8 + 0.1 + u_audioChaos * 0.2);
     }
     else if (layerIndex == 2) {
         // Content: Dominant, follows geometry strongly
-        extremeBaseColor = layerColor * (geometryIntensity * 1.2 + 0.2);
+        extremeBaseColor = layerColor * (geometryIntensity * 1.2 + 0.2 + u_audioEnergy * 0.4);
     }
     else if (layerIndex == 3) {
         // Highlight: Electric, peaks only
         float peakIntensity = pow(geometryIntensity, 3.0); // Cubic for sharp peaks
-        extremeBaseColor = layerColor * (peakIntensity * 1.5 + 0.1);
+        extremeBaseColor = layerColor * (peakIntensity * 1.5 + 0.1 + u_audioOnset * 0.5);
     }
     else {
         // Accent: Chaotic, random bursts
-        float randomBurst = sin(value * 50.0 + timeSpeed * 10.0) * 0.5 + 0.5;
-        extremeBaseColor = layerColor * (randomBurst * geometryIntensity * 2.0 + 0.05);
+        float randomBurst = sin(value * 50.0 + timeSpeed * 10.0 + u_audioColorOrbit * 12.0) * 0.5 + 0.5;
+        extremeBaseColor = layerColor * (randomBurst * (geometryIntensity + u_audioChaos * 0.6) * 1.5 + 0.05);
     }
-    
+
+    extremeBaseColor *= rhythmAccent;
+    extremeBaseColor = mix(extremeBaseColor, vec3(1.0), u_audioColorBeat * 0.2);
+    extremeBaseColor *= (0.8 + u_audioEnergy * 0.4);
+
     // Apply extreme RGB separation per layer
     vec3 extremeColor = extremeRGBSeparation(extremeBaseColor, uv, finalIntensity, layerIndex);
     
@@ -618,21 +821,24 @@ void main() {
     }
     else if (layerIndex == 1) {
         // Shadow: Dark with toxic highlights
-        finalColor = extremeColor * 0.8;
+        finalColor = extremeColor * (0.8 + u_audioChaos * 0.2);
     }
     else if (layerIndex == 2) {
         // Content: Blazing with white-hot particles
-        finalColor = extremeColor + extremeParticles * vec3(1.0, 1.0, 1.0);
+        finalColor = extremeColor + extremeParticles * vec3(1.0 + u_audioOnset * 0.3, 1.0, 1.0);
     }
     else if (layerIndex == 3) {
         // Highlight: Electric with cyan particles
-        finalColor = extremeColor + extremeParticles * vec3(0.0, 1.0, 1.0);
+        finalColor = extremeColor + extremeParticles * vec3(0.0, 1.0 + u_audioOnset * 0.4, 1.0 + u_audioEnergy * 0.3);
     }
     else {
         // Accent: Chaotic magenta madness
-        finalColor = extremeColor * (1.0 + sin(timeSpeed * 20.0) * 0.3);
+        finalColor = extremeColor * (1.0 + sin(timeSpeed * 20.0 + u_audioColorOrbit * 12.0) * (0.3 + u_audioChaos * 0.3));
     }
-    
+
+    finalColor = mix(finalColor, vec3(1.0), u_audioColorBeat * 0.1);
+    finalColor += layerColor * u_audioOnset * 0.15;
+
     // Layer-specific alpha intensity with extreme contrast
     float layerAlpha;
     if (layerIndex == 0) layerAlpha = 0.6;        // Background: Medium
@@ -640,8 +846,95 @@ void main() {
     else if (layerIndex == 2) layerAlpha = 1.0;   // Content: Full intensity
     else if (layerIndex == 3) layerAlpha = 0.8;   // Highlight: High
     else layerAlpha = 0.3;                        // Accent: Subtle bursts
-    
-    gl_FragColor = vec4(finalColor, finalIntensity * layerAlpha);
+
+    layerAlpha *= clamp(0.8 + u_audioEnergy * 0.3 + u_audioOnset * 0.2, 0.4, 1.6);
+
+    vec3 filmColor = finalColor;
+    float exposure = max(0.1, u_exposure);
+    vec3 toneMapped = vec3(1.0) - exp(-filmColor * exposure);
+    float shutter = clamp(u_shutter, 0.2, 3.0);
+    toneMapped = pow(clamp(toneMapped, 0.0, 8.0), vec3(1.0 / shutter));
+    vec3 bloom = pow(clamp(filmColor, 0.0, 12.0), vec3(1.25)) * clamp(u_bloom, 0.0, 3.0);
+    toneMapped += bloom;
+
+    float rimBoost = clamp(u_rimLight, 0.0, 1.5) * pow(clamp(geometryIntensity, 0.0, 1.0), 1.4);
+    toneMapped += rimBoost * vec3(0.6, 0.85, 1.0);
+
+    float keyFactor = clamp(u_keyLight, 0.0, 2.0);
+    toneMapped *= (0.65 + keyFactor * 0.6);
+
+    float ambient = clamp(u_ambientLight, 0.0, 1.0);
+    toneMapped = mix(vec3(ambient), toneMapped, 0.85 + ambient * 0.1);
+
+    float vignette = mix(1.0, smoothstep(1.35, 0.2, length(uv) * (1.0 + u_cameraDolly * 0.4)), clamp(u_vignette, 0.0, 1.0));
+    toneMapped *= vignette;
+
+    float parallaxWarp = clamp(u_cameraParallax, -1.2, 1.2);
+    vec2 parallaxUv = uv + uv * parallaxWarp * 0.12;
+    float distortion = clamp(u_lensDistortion, -0.6, 0.9);
+    float radiusSq = dot(parallaxUv, parallaxUv);
+    parallaxUv *= 1.0 + distortion * radiusSq;
+    float focusSpread = max(0.05, u_focusSpread);
+    float focusDistance = clamp(u_focusDistance, 0.0, 3.0);
+    float focusFalloff = exp(-pow(length(parallaxUv) - focusDistance, 2.0) * (2.2 + focusSpread * 2.5));
+    float fogFactor = exp(-pow(length(parallaxUv), 2.0) * (0.8 + clamp(u_fogDensity, 0.0, 1.6) * 1.6));
+    float shadowMix = clamp(0.55 + clamp(u_shadowContrast, 0.0, 2.0) * 0.35, 0.0, 1.0);
+
+    vec3 fogColor = mix(vec3(0.12, 0.16, 0.22), vec3(0.28, 0.3, 0.32), clamp(u_lightTemperature, 0.0, 1.2));
+    toneMapped = mix(fogColor, toneMapped, clamp(fogFactor + focusFalloff * 0.35, 0.0, 1.0));
+
+    vec3 coolGrade = vec3(0.72, 0.9, 1.1);
+    vec3 warmGrade = vec3(1.08, 0.92, 0.78);
+    toneMapped *= mix(coolGrade, warmGrade, clamp(u_lightTemperature, 0.0, 1.4));
+
+    vec3 luminanceVec = vec3(0.299, 0.587, 0.114);
+    float luminance = dot(toneMapped, luminanceVec);
+    toneMapped = mix(vec3(luminance * (0.8 + shadowMix * 0.5)), toneMapped, shadowMix);
+
+    float wrapStrength = clamp(u_lightWrap, 0.0, 1.6);
+    vec3 wrapped = mix(
+        toneMapped,
+        vec3(luminance),
+        clamp(wrapStrength * (0.35 + focusFalloff * 0.45), 0.0, 0.85)
+    );
+    toneMapped = mix(toneMapped, wrapped, clamp(wrapStrength, 0.0, 1.0));
+
+    float aberration = clamp(u_chromaticAberration, 0.0, 1.2);
+    toneMapped.r *= 1.0 + sin(parallaxUv.y * 9.0 + timeSpeed * 2.2) * aberration * 0.12;
+    toneMapped.b *= 1.0 - sin(parallaxUv.x * 7.0 - timeSpeed * 1.7) * aberration * 0.12;
+
+    float godrayAngle = atan(parallaxUv.y, parallaxUv.x);
+    float godrayWave = max(0.0, sin(godrayAngle * 6.0 + timeSpeed * 3.5));
+    float godrayDistance = exp(-length(parallaxUv) * (1.4 - parallaxWarp * 0.6));
+    float godray = godrayWave * godrayDistance * focusFalloff;
+    toneMapped += vec3(0.32, 0.4, 0.55) * godray * clamp(u_godrayIntensity, 0.0, 2.0);
+
+    toneMapped += vec3(0.18, 0.1, 0.24) * parallaxWarp * (0.5 + focusFalloff * 0.5);
+
+    float frameBlend = clamp(u_frameBlend, 0.0, 1.2);
+    float streak = sin(timeSpeed * 32.0 + radiusSq * 80.0) * 0.5 + 0.5;
+    vec3 motionTint = mix(vec3(0.75, 0.6, 0.82), vec3(1.2, 0.9, 0.7), clamp(u_lightTemperature, 0.0, 1.2));
+    toneMapped = mix(
+        toneMapped,
+        toneMapped * mix(vec3(1.0), motionTint, clamp(streak, 0.0, 1.0)),
+        clamp(frameBlend * 0.35, 0.0, 0.8)
+    );
+
+    float bleed = clamp(u_colorBleed, 0.0, 1.6);
+    vec3 bleedColor = vec3(
+        toneMapped.r + toneMapped.g * 0.14,
+        toneMapped.g + toneMapped.b * 0.14,
+        toneMapped.b + toneMapped.r * 0.14
+    );
+    toneMapped = mix(toneMapped, bleedColor, clamp(bleed * 0.32, 0.0, 0.6));
+
+    float filmGrain = clamp(u_filmGrain, 0.0, 1.8);
+    float grain = fract(sin(dot(parallaxUv * 120.0, vec2(12.9898, 78.233)) + timeSpeed * 130.0) * 43758.5453);
+    grain = (grain - 0.5) * 2.0;
+    toneMapped += grain * filmGrain * 0.06;
+    toneMapped = clamp(toneMapped, 0.0, 5.0);
+
+    gl_FragColor = vec4(toneMapped, finalIntensity * layerAlpha);
 }`;
         
         this.program = this.createProgram(vertexShaderSource, fragmentShaderSource);
@@ -663,7 +956,47 @@ void main() {
             rot4dZW: this.gl.getUniformLocation(this.program, 'u_rot4dZW'),
             mouseIntensity: this.gl.getUniformLocation(this.program, 'u_mouseIntensity'),
             clickIntensity: this.gl.getUniformLocation(this.program, 'u_clickIntensity'),
-            roleIntensity: this.gl.getUniformLocation(this.program, 'u_roleIntensity')
+            roleIntensity: this.gl.getUniformLocation(this.program, 'u_roleIntensity'),
+            audioBass: this.gl.getUniformLocation(this.program, 'u_audioBass'),
+            audioMid: this.gl.getUniformLocation(this.program, 'u_audioMid'),
+            audioHigh: this.gl.getUniformLocation(this.program, 'u_audioHigh'),
+            audioEnergy: this.gl.getUniformLocation(this.program, 'u_audioEnergy'),
+            audioOnset: this.gl.getUniformLocation(this.program, 'u_audioOnset'),
+            audioSwing: this.gl.getUniformLocation(this.program, 'u_audioSwing'),
+            audioTriplet: this.gl.getUniformLocation(this.program, 'u_audioTriplet'),
+            audioBeatPhase: this.gl.getUniformLocation(this.program, 'u_audioBeatPhase'),
+            audioMeasurePhase: this.gl.getUniformLocation(this.program, 'u_audioMeasurePhase'),
+            audioColorOrbit: this.gl.getUniformLocation(this.program, 'u_audioColorOrbit'),
+            audioColorBeat: this.gl.getUniformLocation(this.program, 'u_audioColorBeat'),
+            audioSaturationPulse: this.gl.getUniformLocation(this.program, 'u_audioSaturationPulse'),
+            audioDimensionShift: this.gl.getUniformLocation(this.program, 'u_audioDimensionShift'),
+            universeModifier: this.gl.getUniformLocation(this.program, 'u_universeModifier'),
+            audioChaos: this.gl.getUniformLocation(this.program, 'u_audioChaos'),
+            audioVelocity: this.gl.getUniformLocation(this.program, 'u_audioVelocity'),
+            cameraOrbit: this.gl.getUniformLocation(this.program, 'u_cameraOrbit'),
+            cameraElevation: this.gl.getUniformLocation(this.program, 'u_cameraElevation'),
+            cameraDolly: this.gl.getUniformLocation(this.program, 'u_cameraDolly'),
+            cameraRoll: this.gl.getUniformLocation(this.program, 'u_cameraRoll'),
+            exposure: this.gl.getUniformLocation(this.program, 'u_exposure'),
+            shutter: this.gl.getUniformLocation(this.program, 'u_shutter'),
+            bloom: this.gl.getUniformLocation(this.program, 'u_bloom'),
+            keyLight: this.gl.getUniformLocation(this.program, 'u_keyLight'),
+            rimLight: this.gl.getUniformLocation(this.program, 'u_rimLight'),
+            ambientLight: this.gl.getUniformLocation(this.program, 'u_ambientLight'),
+            vignette: this.gl.getUniformLocation(this.program, 'u_vignette'),
+            cameraParallax: this.gl.getUniformLocation(this.program, 'u_cameraParallax'),
+            focusDistance: this.gl.getUniformLocation(this.program, 'u_focusDistance'),
+            focusSpread: this.gl.getUniformLocation(this.program, 'u_focusSpread'),
+            chromaticAberration: this.gl.getUniformLocation(this.program, 'u_chromaticAberration'),
+            lightTemperature: this.gl.getUniformLocation(this.program, 'u_lightTemperature'),
+            shadowContrast: this.gl.getUniformLocation(this.program, 'u_shadowContrast'),
+            fogDensity: this.gl.getUniformLocation(this.program, 'u_fogDensity'),
+            godrayIntensity: this.gl.getUniformLocation(this.program, 'u_godrayIntensity'),
+            filmGrain: this.gl.getUniformLocation(this.program, 'u_filmGrain'),
+            lensDistortion: this.gl.getUniformLocation(this.program, 'u_lensDistortion'),
+            frameBlend: this.gl.getUniformLocation(this.program, 'u_frameBlend'),
+            lightWrap: this.gl.getUniformLocation(this.program, 'u_lightWrap'),
+            colorBleed: this.gl.getUniformLocation(this.program, 'u_colorBleed')
         };
     }
     
@@ -861,6 +1194,32 @@ void main() {
         this.mouseY = y;
         this.mouseIntensity = intensity;
     }
+
+    setAudioChoreography(audioData = {}) {
+        const bands = audioData.bands || {};
+        const rhythm = audioData.rhythmPhases || {};
+        const dynamics = audioData.extremeDynamics || {};
+        const color = audioData.colorChoreography || {};
+
+        this.audioChoreo = {
+            bass: Math.max(0, Math.min(1, bands.bass ?? 0)),
+            mid: Math.max(0, Math.min(1, bands.mid ?? 0)),
+            high: Math.max(0, Math.min(1, bands.high ?? 0)),
+            energy: Math.max(0, Math.min(1, audioData.rms ?? audioData.energy ?? 0)),
+            onset: Math.max(0, Math.min(1, audioData.onset ?? dynamics.transientBurst ?? 0)),
+            swing: rhythm.swingPulse ?? 0,
+            triplet: rhythm.tripletPulse ?? 0,
+            beatPhase: rhythm.beatPhase ?? 0,
+            measurePhase: rhythm.measurePhase ?? 0,
+            colorOrbit: color.orbit ?? 0,
+            colorBeat: Math.max(0, Math.min(1, color.downbeatColor ?? 0)),
+            saturationPulse: Math.max(0, Math.min(1, color.saturationPulse ?? 0)),
+            dimensionShift: Math.max(0, dynamics.dimensionLift ?? 0),
+            intensityExponent: Math.max(0.2, dynamics.intensityExponent ?? 1),
+            chaos: Math.max(0, Math.min(1, dynamics.chaosSurge ?? 0)),
+            velocity: Math.max(0, Math.min(1, dynamics.motionVelocity ?? 0))
+        };
+    }
     
     /**
      * Render frame
@@ -910,40 +1269,71 @@ void main() {
         this.gl.uniform2f(this.uniforms.mouse, this.mouseX, this.mouseY);
         this.gl.uniform1f(this.uniforms.geometry, this.params.geometry);
         // 🎵 QUANTUM AUDIO REACTIVITY - Direct and effective
-        let gridDensity = this.params.gridDensity;
-        let morphFactor = this.params.morphFactor;
-        let hue = this.params.hue;
-        let chaos = this.params.chaos;
-        
-        if (window.audioEnabled && window.audioReactive) {
-            // Quantum audio mapping: Enhanced complex lattice response
-            gridDensity += window.audioReactive.bass * 40;      // Bass creates dense lattice structures
-            morphFactor += window.audioReactive.mid * 1.2;      // Mid frequencies morph the geometry
-            hue += window.audioReactive.high * 120;             // High frequencies shift colors dramatically
-            chaos += window.audioReactive.energy * 0.6;         // Overall energy adds chaos/complexity
-            
-            // Debug logging every 10 seconds to verify audio reactivity is working
-            if (Date.now() % 10000 < 16) {
-                console.log(`🌌 Quantum audio reactivity: Density+${(window.audioReactive.bass * 40).toFixed(1)} Morph+${(window.audioReactive.mid * 1.2).toFixed(2)} Hue+${(window.audioReactive.high * 120).toFixed(1)} Chaos+${(window.audioReactive.energy * 0.6).toFixed(2)}`);
-            }
-        }
-        
-        this.gl.uniform1f(this.uniforms.gridDensity, Math.min(100, gridDensity));
-        this.gl.uniform1f(this.uniforms.morphFactor, Math.min(2, morphFactor));
-        this.gl.uniform1f(this.uniforms.chaos, Math.min(1, chaos));
-        this.gl.uniform1f(this.uniforms.speed, this.params.speed);
+        const audio = this.audioChoreo || {};
+        let gridDensity = this.params.gridDensity + audio.bass * 40;
+        let morphFactor = this.params.morphFactor + audio.mid * 1.2 + audio.dimensionShift * 0.5;
+        let hue = this.params.hue + audio.high * 120 + audio.colorOrbit * 360;
+        let chaos = this.params.chaos + audio.energy * 0.6 + audio.chaos * 0.8;
+
+        this.gl.uniform1f(this.uniforms.gridDensity, Math.min(120, gridDensity));
+        this.gl.uniform1f(this.uniforms.morphFactor, Math.min(2.5, morphFactor));
+        this.gl.uniform1f(this.uniforms.chaos, Math.min(1.5, chaos));
+        this.gl.uniform1f(this.uniforms.speed, this.params.speed + audio.velocity * 0.6);
         // Hue now used as global intensity modifier for extreme layer system
-        this.gl.uniform1f(this.uniforms.hue, (hue % 360) / 360.0); // Normalize to 0-1
-        this.gl.uniform1f(this.uniforms.intensity, this.params.intensity);
+        this.gl.uniform1f(this.uniforms.hue, ((hue % 360) + 360) % 360 / 360.0); // Normalize to 0-1 and wrap safely
+        this.gl.uniform1f(this.uniforms.intensity, this.params.intensity + audio.energy * 0.3);
         this.gl.uniform1f(this.uniforms.saturation, this.params.saturation);
-        this.gl.uniform1f(this.uniforms.dimension, this.params.dimension);
+        this.gl.uniform1f(this.uniforms.dimension, this.params.dimension + audio.dimensionShift);
         this.gl.uniform1f(this.uniforms.rot4dXW, this.params.rot4dXW);
         this.gl.uniform1f(this.uniforms.rot4dYW, this.params.rot4dYW);
         this.gl.uniform1f(this.uniforms.rot4dZW, this.params.rot4dZW);
         this.gl.uniform1f(this.uniforms.mouseIntensity, this.mouseIntensity);
         this.gl.uniform1f(this.uniforms.clickIntensity, this.clickIntensity);
         this.gl.uniform1f(this.uniforms.roleIntensity, roleIntensities[this.role] || 1.0);
-        
+
+        this.gl.uniform1f(this.uniforms.audioBass, audio.bass || 0);
+        this.gl.uniform1f(this.uniforms.audioMid, audio.mid || 0);
+        this.gl.uniform1f(this.uniforms.audioHigh, audio.high || 0);
+        this.gl.uniform1f(this.uniforms.audioEnergy, audio.energy || 0);
+        this.gl.uniform1f(this.uniforms.audioOnset, audio.onset || 0);
+        this.gl.uniform1f(this.uniforms.audioSwing, audio.swing || 0);
+        this.gl.uniform1f(this.uniforms.audioTriplet, audio.triplet || 0);
+        this.gl.uniform1f(this.uniforms.audioBeatPhase, audio.beatPhase || 0);
+        this.gl.uniform1f(this.uniforms.audioMeasurePhase, audio.measurePhase || 0);
+        this.gl.uniform1f(this.uniforms.audioColorOrbit, audio.colorOrbit || 0);
+        this.gl.uniform1f(this.uniforms.audioColorBeat, audio.colorBeat || 0);
+        this.gl.uniform1f(this.uniforms.audioSaturationPulse, audio.saturationPulse || 0);
+        this.gl.uniform1f(this.uniforms.audioDimensionShift, audio.dimensionShift || 0);
+        this.gl.uniform1f(this.uniforms.universeModifier, audio.intensityExponent || 1);
+        this.gl.uniform1f(this.uniforms.audioChaos, audio.chaos || 0);
+        this.gl.uniform1f(this.uniforms.audioVelocity, audio.velocity || 0);
+
+        const camera = this.cameraLighting || {};
+        this.gl.uniform1f(this.uniforms.cameraOrbit, camera.orbit || 0);
+        this.gl.uniform1f(this.uniforms.cameraElevation, camera.elevation || 0);
+        this.gl.uniform1f(this.uniforms.cameraDolly, camera.dolly || 0);
+        this.gl.uniform1f(this.uniforms.cameraRoll, camera.roll || 0);
+        this.gl.uniform1f(this.uniforms.exposure, Math.max(0.1, camera.exposure || 0));
+        this.gl.uniform1f(this.uniforms.shutter, Math.max(0.2, camera.shutter || 0.5));
+        this.gl.uniform1f(this.uniforms.bloom, Math.max(0, camera.bloom || 0));
+        this.gl.uniform1f(this.uniforms.keyLight, Math.max(0, camera.keyLight || 0));
+        this.gl.uniform1f(this.uniforms.rimLight, Math.max(0, camera.rimLight || 0));
+        this.gl.uniform1f(this.uniforms.ambientLight, Math.max(0, camera.ambientLight || 0));
+        this.gl.uniform1f(this.uniforms.vignette, Math.max(0, camera.vignette || 0));
+        this.gl.uniform1f(this.uniforms.cameraParallax, camera.parallax || 0);
+        this.gl.uniform1f(this.uniforms.focusDistance, Math.max(0, camera.focus || 0));
+        this.gl.uniform1f(this.uniforms.focusSpread, Math.max(0.01, camera.focusSpread || 0));
+        this.gl.uniform1f(this.uniforms.chromaticAberration, Math.max(0, camera.chromaticAberration || 0));
+        this.gl.uniform1f(this.uniforms.lightTemperature, Math.max(0, camera.lightTemperature || 0));
+        this.gl.uniform1f(this.uniforms.shadowContrast, Math.max(0, camera.shadowContrast || 0));
+        this.gl.uniform1f(this.uniforms.fogDensity, Math.max(0, camera.fogDensity || 0));
+        this.gl.uniform1f(this.uniforms.godrayIntensity, Math.max(0, camera.godrayIntensity || 0));
+        this.gl.uniform1f(this.uniforms.filmGrain, Math.max(0, camera.filmGrain || 0));
+        this.gl.uniform1f(this.uniforms.lensDistortion, camera.lensDistortion || 0);
+        this.gl.uniform1f(this.uniforms.frameBlend, Math.max(0, camera.frameBlend || 0));
+        this.gl.uniform1f(this.uniforms.lightWrap, Math.max(0, camera.lightWrap || 0));
+        this.gl.uniform1f(this.uniforms.colorBleed, Math.max(0, camera.colorBleed || 0));
+
         this.gl.drawArrays(this.gl.TRIANGLE_STRIP, 0, 4);
     }
     
@@ -968,3 +1358,7 @@ void main() {
         }
     }
 }
+
+// Legacy compatibility for historical demo entry points that still import the old class name.
+// Keeping the alias avoids breaking the static HTML showcases while the new systems evolve.
+export { QuantumHolographicVisualizer as QuantumVisualizer };
