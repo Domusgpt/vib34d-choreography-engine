@@ -1,111 +1,52 @@
-# 🚀 Deployment Information
+# 🚀 Deployment Guide
 
-## Live Demo
+## GitHub Pages Ready by Default
 
-**GitHub Pages URL**: https://domusgpt.github.io/vib34d-choreography-engine/
+The repository root now renders the full Demo Atlas (`index.html`) so publishing any branch to GitHub Pages automatically exposes the latest catalog of experiences. All demo links are relative and resolve correctly whether the site is served from the repository root or the `examples/` directory.
 
-The site automatically redirects to the working demo at:
-https://domusgpt.github.io/vib34d-choreography-engine/examples/real-visualizers.html
+- **Primary entry point:** `https://<username>.github.io/vib34d-choreography-engine/`
+- **Atlas twin:** `https://<username>.github.io/vib34d-choreography-engine/examples/INDEX.html`
+- **Audio verification harness:** `https://<username>.github.io/vib34d-choreography-engine/examples/properly-reactive.html`
 
-## Repository
+## Quick Publish Checklist
 
-**GitHub Repo**: https://github.com/Domusgpt/vib34d-choreography-engine
+1. Push the branch you want to showcase to GitHub.
+2. Open **Settings → Pages** for the repository.
+3. Under **Build and deployment**, choose **Deploy from a branch**.
+4. Select your branch (or `main`) and the **`/ (root)`** folder, then click **Save**.
+5. GitHub Pages will build and publish `index.html`, which mirrors the Demo Atlas that already lives at `examples/INDEX.html`.
+6. Visit the live URL after the deployment completes (usually <60 seconds) to confirm the atlas, quick index, and curated cards load with audio-reactive demos.
 
-## What's Deployed
+> ℹ️ Because the atlas is data-driven, adding or removing demos only requires editing `examples/assets/demo-atlas-data.js`. Both `index.html` and `examples/INDEX.html` consume the same dataset, so the live site and local previews always stay in sync.
 
-✅ **ChoreographyEngine** - Complete timeline-based sequence system
-✅ **ShaderChoreographer** - GPU-level parameter control
-✅ **RotationChoreographer** - 8 rotation patterns
-✅ **Sequence Library** - 5 bass drop presets
-✅ **Working Demo** - Interactive 4D visualization
-✅ **Full Documentation** - Getting started + roadmap
+## Verifying the Deployment
 
-## Demo Features
+- **Audio Reactivity:** Launch `properly-reactive.html` from the atlas to confirm the looping groove starts, the analyzer emits seven-band data, and onset markers register in real time.
+- **Visualizer Coverage:** Use the quick index filters to open `final-ultimate.html`, `ultimate-controls.html`, or any other flagship experience. The canvases cover the full viewport and respond to audio, gesture macros, and the shared camera system.
+- **Legacy & Diagnostics:** The atlas groups mobile, diagnostic, and archival demos so regression checks remain one click away.
 
-When you visit the live demo, you can:
-
-1. **Start/Stop** - Control the choreography engine
-2. **Switch Rotation Patterns** - Try 8 different patterns:
-   - `smooth` - Continuous rotation
-   - `hyperspace_spiral` - Multi-plane spirals
-   - `beat_locked` - Quantized to beats
-   - `bass_momentum` - Accumulates from bass
-   - `spectral_orbit` - Frequency-based
-   - `energy_sweep` - Energy-driven
-   - `chaos_spin` - Unpredictable
-   - `onset_snap` - Sudden changes
-
-3. **Trigger Sequences** - Manually launch choreography:
-   - `bass_drop_cascade` - Anticipation → Impact → Release
-   - `bass_drop_explosion` - Explosive chaos
-   - `bass_drop_freeze` - Freeze then release
-   - `bass_drop_spiral` - Spiraling descent
-   - `bass_drop_pulse` - Rhythmic pulsing
-
-4. **Watch Live Logs** - See beat detection, sequences, and onsets in real-time
-
-## Technical Details
-
-- **Framework**: Pure JavaScript ES6 modules
-- **Graphics**: HTML5 Canvas 2D (demo uses simplified visualization)
-- **Audio**: Mock audio data (no actual audio input in demo)
-- **Performance**: 60fps on modern browsers
-- **Compatibility**: Chrome, Firefox, Safari, Edge
-
-## Local Development
+## Local Smoke Test Before Publishing
 
 ```bash
-# Clone repository
-git clone https://github.com/Domusgpt/vib34d-choreography-engine.git
-cd vib34d-choreography-engine
-
-# Serve locally
-npx serve
-# or
-python3 -m http.server 8080
-
-# Open http://localhost:8080/examples/basic-choreography.html
+npm install
+npm run build
+npm run test
+npx http-server # or npx serve / python3 -m http.server
+# open http://localhost:8080/
 ```
 
-## Integration with Real Visualizers
+Running the build and test scripts locally catches linting and bundling issues before GitHub Pages attempts to serve the branch.
 
-The demo uses a simplified 2D visualization. To integrate with real VIB34D visualizers:
+## Existing Live Deployment
 
-```javascript
-import { ChoreographyEngine } from './src/core/ChoreographyEngine.js';
-import { QuantumVisualizer } from './your-visualizers/QuantumVisualizer.js';
-
-const quantumViz = new QuantumVisualizer('canvas1', 'content', 1.0, 0);
-
-const engine = new ChoreographyEngine({
-    visualizers: [quantumViz],
-    audioAnalyzer: yourAudioAnalyzer,
-    bpm: 128
-});
-
-await engine.loadSequenceLibrary('./src/sequences/presets/bass-drops.json');
-engine.start();
-```
-
-## Deployment History
-
-- **2025-10-11**: Initial deployment
-  - ChoreographyEngine v1.0
-  - 8 rotation patterns
-  - 5 preset sequences
-  - Working demo
-
-## Status
-
-🟢 **LIVE** - GitHub Pages deployment successful
-
-Build time: ~34 seconds
-Last deploy: 2025-10-11 20:23 UTC
+- **GitHub Pages URL:** https://domusgpt.github.io/vib34d-choreography-engine/
+- **Repository:** https://github.com/Domusgpt/vib34d-choreography-engine
+- **Status:** 🟢 LIVE – serves the Demo Atlas with audio-reactive showcases, macro harnesses, and documentation links.
 
 ---
 
-**A Paul Phillips Manifestation**
-Send Love, Hate, or Opportunity: Paul@clearseassolutions.com
+**A Paul Phillips Manifestation**  
+Send Love, Hate, or Opportunity: Paul@clearseassolutions.com  
 Join The Exoditical Moral Architecture Movement: Parserator.com
 
 © 2025 Paul Phillips - Clear Seas Solutions LLC
