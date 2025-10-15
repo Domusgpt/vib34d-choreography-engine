@@ -44,7 +44,17 @@ export class HolographicVisualizer {
         
         this.variantParams = this.generateVariantParams(variant);
         this.roleParams = this.generateRoleParams(role);
-        
+
+        this.baseVariantParams = {
+            hue: this.variantParams.hue,
+            saturation: this.variantParams.saturation,
+            intensity: this.variantParams.intensity,
+            density: this.variantParams.density,
+            speed: this.variantParams.speed,
+            chaos: this.variantParams.chaos,
+            morph: this.variantParams.morph
+        };
+
         // Initialize state
         this.mouseX = 0.5;
         this.mouseY = 0.5;
@@ -76,6 +86,43 @@ export class HolographicVisualizer {
         this.audioSpeedBoost = 0.0;
         this.audioChaosBoost = 0.0;
         this.audioColorShift = 0.0;
+        this.audioChoreo = {
+            bass: 0,
+            mid: 0,
+            high: 0,
+            energy: 0,
+            onset: 0,
+            swing: 0,
+            triplet: 0,
+            beatPhase: 0,
+            measurePhase: 0,
+            chaos: 0,
+            densityBoost: 0,
+            morphBoost: 0,
+            speedBoost: 0,
+            colorOrbit: 0,
+            saturationPulse: 0,
+            colorBeat: 0,
+            accentLuma: 0,
+            ribbon: 0,
+            dimensionShift: 0,
+            motionVelocity: 0
+        };
+        this.audioSmooth = {
+            density: 0,
+            morph: 0,
+            speed: 0,
+            chaos: 0,
+            orbit: 0,
+            saturation: 0,
+            dimension: 0,
+            layerIntensity: 0,
+            layerSpeed: 0,
+            layerShimmer: 0
+        };
+        this.layerAudioIntensity = 0;
+        this.layerAudioSpeed = 0;
+        this.layerAudioShimmer = 0;
 
         this.startTime = Date.now();
         this.initShaders();
@@ -661,7 +708,7 @@ export class HolographicVisualizer {
     // Audio reactivity now handled directly in render() loop
     updateAudio_DISABLED() {
         return; // No longer used - audio handled in render()
-        
+
         // Musical visualization approach - responsive but controlled
         const smoothing = 0.6; // Less smoothing for more reactivity
         
@@ -706,6 +753,104 @@ export class HolographicVisualizer {
         }
         this.audioSmooth.beat *= 0.8; // Faster beat decay for more responsive pulses
     }
+
+    setAudioChoreography(audioData = {}) {
+        const clamp = (value, min = 0, max = 1) => Math.max(min, Math.min(max, value ?? 0));
+        const smoothingBlend = (key, target, smoothing = 0.55) => {
+            const current = this.audioSmooth[key] ?? 0;
+            const next = current * smoothing + target * (1 - smoothing);
+            this.audioSmooth[key] = next;
+            return next;
+        };
+
+        const bands = audioData.bands || {};
+        const rhythm = audioData.rhythmPhases || {};
+        const dynamics = audioData.extremeDynamics || {};
+        const color = audioData.colorChoreography || {};
+
+        const bass = clamp(bands.bass);
+        const mid = clamp(bands.mid);
+        const high = clamp(bands.high);
+        const energy = clamp(audioData.rms ?? audioData.energy ?? 0);
+        const onsetStrength = clamp(
+            Math.max(
+                typeof audioData.onset === 'number' ? audioData.onset : 0,
+                audioData.onsetEvent?.strength || 0,
+                dynamics.transientBurst || 0
+            )
+        );
+
+        const densityTarget = Math.min(2.5, bass * 1.8 + energy * 0.6);
+        const morphTarget = Math.min(2.0, mid * 1.2 + (dynamics.dimensionLift || 0) * 0.9);
+        const speedTarget = Math.min(2.2, energy * 0.7 + (dynamics.motionVelocity || 0) * 1.1 + Math.abs(rhythm.swingPulse || 0) * 0.4);
+        const chaosTarget = Math.min(2.0, high * 1.1 + (dynamics.chaosSurge || 0) * 1.2);
+        const orbitTarget = ((color.orbit ?? 0) + (rhythm.beatPhase || 0) * 0.1 + (rhythm.tripletPulse || 0) * 0.05) % 1;
+        const saturationTarget = clamp((color.saturationPulse ?? 0) + (color.downbeatColor ?? 0) * 0.4);
+        const dimensionTarget = Math.min(1.5, (dynamics.dimensionLift || 0) + energy * 0.2);
+
+        this.audioDensityBoost = smoothingBlend('density', densityTarget, 0.55);
+        this.audioMorphBoost = smoothingBlend('morph', morphTarget, 0.55);
+        this.audioSpeedBoost = smoothingBlend('speed', speedTarget, 0.5);
+        this.audioChaosBoost = smoothingBlend('chaos', chaosTarget, 0.5);
+        const orbit = smoothingBlend('orbit', orbitTarget, 0.65);
+        const saturation = smoothingBlend('saturation', saturationTarget, 0.6);
+        const dimensionShift = smoothingBlend('dimension', dimensionTarget, 0.6);
+
+        const intensityLayer = smoothingBlend('layerIntensity', clamp(bass + onsetStrength * 0.7), 0.6);
+        const speedLayer = smoothingBlend('layerSpeed', clamp(speedTarget, 0, 2.5), 0.6);
+        const shimmerLayer = smoothingBlend(
+            'layerShimmer',
+            clamp(high + (color.accentLuma || 0) * 0.6 + (color.ribbon || 0) * 0.3),
+            0.6
+        );
+
+        this.layerAudioIntensity = intensityLayer;
+        this.layerAudioSpeed = speedLayer;
+        this.layerAudioShimmer = shimmerLayer;
+
+        this.audioColorShift = orbit * Math.PI * 2;
+
+        this.audioChoreo = {
+            bass,
+            mid,
+            high,
+            energy,
+            onset: onsetStrength,
+            swing: rhythm.swingPulse || 0,
+            triplet: rhythm.tripletPulse || 0,
+            beatPhase: rhythm.beatPhase || 0,
+            measurePhase: rhythm.measurePhase || 0,
+            chaos: this.audioChaosBoost,
+            densityBoost: this.audioDensityBoost,
+            morphBoost: this.audioMorphBoost,
+            speedBoost: this.audioSpeedBoost,
+            colorOrbit: orbit,
+            saturationPulse: saturation,
+            colorBeat: clamp(color.downbeatColor ?? 0),
+            accentLuma: clamp(color.accentLuma ?? 0),
+            ribbon: clamp(color.ribbon ?? 0),
+            dimensionShift,
+            motionVelocity: dynamics.motionVelocity || 0
+        };
+    }
+
+    setLayerIntensity(value = 0) {
+        const target = Math.max(0, value);
+        this.audioSmooth.layerIntensity = (this.audioSmooth.layerIntensity ?? 0) * 0.6 + target * 0.4;
+        this.layerAudioIntensity = this.audioSmooth.layerIntensity;
+    }
+
+    setLayerSpeed(value = 0) {
+        const target = Math.max(0, value);
+        this.audioSmooth.layerSpeed = (this.audioSmooth.layerSpeed ?? 0) * 0.6 + target * 0.4;
+        this.layerAudioSpeed = this.audioSmooth.layerSpeed;
+    }
+
+    setShimmerIntensity(value = 0) {
+        const target = Math.max(0, value);
+        this.audioSmooth.layerShimmer = (this.audioSmooth.layerShimmer ?? 0) * 0.6 + target * 0.4;
+        this.layerAudioShimmer = this.audioSmooth.layerShimmer;
+    }
     
     updateScrollPhysics() {
         this.scrollPosition += this.scrollVelocity;
@@ -734,11 +879,32 @@ export class HolographicVisualizer {
         this.updateScrollPhysics();
         
         const time = Date.now() - this.startTime;
-        
-        // Convert HSL to RGB for color uniform
-        const hue = (this.variantParams.hue || 0) / 360; // Convert to 0-1 range
-        const saturation = this.variantParams.saturation || 0.8;
-        const lightness = Math.max(0.2, Math.min(0.8, this.variantParams.intensity || 0.5)); // Use intensity for lightness
+
+        const audio = this.audioChoreo || {};
+        const baseHue = this.baseVariantParams.hue || 0;
+        const orbitShift = audio.colorOrbit * 360;
+        const beatShift = audio.colorBeat * 140;
+        const swingShift = (audio.triplet || 0) * 20;
+        const finalHueDegrees = ((baseHue + orbitShift + beatShift + swingShift) % 360 + 360) % 360;
+        const hue = finalHueDegrees / 360;
+
+        const baseSaturation = Math.max(0.05, Math.min(1.0, this.baseVariantParams.saturation || 0.8));
+        const baseLightness = Math.max(0.2, Math.min(0.8, this.baseVariantParams.intensity || 0.5));
+        const saturation = Math.max(
+            0.05,
+            Math.min(
+                1.0,
+                baseSaturation + audio.saturationPulse * 0.35 + (this.layerAudioShimmer || 0) * 0.25
+            )
+        );
+        const lightness = Math.max(
+            0.18,
+            Math.min(
+                0.85,
+                baseLightness + audio.energy * 0.18 + audio.accentLuma * 0.22 - audio.ribbon * 0.12 +
+                    (this.layerAudioIntensity || 0) * 0.25
+            )
+        );
         
         // HSL to RGB conversion
         const hslToRgb = (h, s, l) => {
@@ -770,23 +936,37 @@ export class HolographicVisualizer {
         this.gl.uniform1f(this.uniforms.time, time);
         this.gl.uniform2f(this.uniforms.mouse, this.mouseX, this.mouseY);
         this.gl.uniform1f(this.uniforms.geometryType, this.variantParams.geometryType || 0);
-        this.gl.uniform1f(this.uniforms.density, this.variantParams.density || 1.0);
-        // FIX: Controlled speed calculation - base speed controls main movement, audio provides subtle boost
-        const baseSpeed = (this.variantParams.speed || 0.5) * 0.2; // Much slower base speed
-        const audioBoost = (this.audioSpeedBoost || 0.0) * 0.1; // Subtle audio boost only
-        this.gl.uniform1f(this.uniforms.speed, baseSpeed + audioBoost);
+
+        const densityBase = this.baseVariantParams.density || 1.0;
+        const density = densityBase + this.audioDensityBoost * 0.75 + audio.densityBoost * 0.35 + (this.layerAudioIntensity || 0) * 0.2;
+        this.gl.uniform1f(this.uniforms.density, density);
+
+        const baseSpeed = (this.baseVariantParams.speed || 0.5) * 0.18;
+        const audioSpeed = (this.audioSpeedBoost || 0) * 0.18 + (this.layerAudioSpeed || 0) * 0.08;
+        this.gl.uniform1f(this.uniforms.speed, baseSpeed + audioSpeed);
+
         this.gl.uniform3fv(this.uniforms.color, new Float32Array(rgbColor));
-        this.gl.uniform1f(this.uniforms.intensity, (this.variantParams.intensity || 0.5) * this.roleParams.intensity);
-        this.gl.uniform1f(this.uniforms.roleDensity, this.roleParams.densityMult);
-        this.gl.uniform1f(this.uniforms.roleSpeed, this.roleParams.speedMult);
-        this.gl.uniform1f(this.uniforms.colorShift, this.roleParams.colorShift + (this.variantParams.hue || 0) / 360);
-        this.gl.uniform1f(this.uniforms.chaosIntensity, this.variantParams.chaos || 0.0);
+
+        const intensityBase = (this.baseVariantParams.intensity || 0.5) * this.roleParams.intensity;
+        const intensityGain = 1 + (this.layerAudioIntensity || 0) * 0.6 + audio.energy * 0.25 + audio.accentLuma * 0.25;
+        this.gl.uniform1f(this.uniforms.intensity, intensityBase * intensityGain);
+
+        this.gl.uniform1f(this.uniforms.roleDensity, this.roleParams.densityMult * (1 + audio.densityBoost * 0.15));
+        this.gl.uniform1f(this.uniforms.roleSpeed, this.roleParams.speedMult * (1 + audio.motionVelocity * 0.25));
+
+        const colorShiftNormalized = ((this.roleParams.colorShift || 0) + finalHueDegrees) / 360;
+        this.gl.uniform1f(this.uniforms.colorShift, colorShiftNormalized);
+
+        const chaosEnvelope = Math.min(2.5, (this.baseVariantParams.chaos || 0) + this.audioChaosBoost * 0.5 + audio.chaos * 0.35);
+        this.gl.uniform1f(this.uniforms.chaosIntensity, chaosEnvelope);
         this.gl.uniform1f(this.uniforms.mouseIntensity, this.mouseIntensity);
         this.gl.uniform1f(this.uniforms.clickIntensity, this.clickIntensity);
         this.gl.uniform1f(this.uniforms.densityVariation, this.densityVariation);
         this.gl.uniform1f(this.uniforms.geometryType, this.variantParams.geometryType !== undefined ? this.variantParams.geometryType : this.variant || 0);
-        this.gl.uniform1f(this.uniforms.chaos, this.variantParams.chaos || 0.0);
-        this.gl.uniform1f(this.uniforms.morph, this.variantParams.morph || 0.0);
+        const chaosValue = Math.min(2.5, (this.baseVariantParams.chaos || 0) + this.audioChaosBoost * 0.5 + audio.chaos * 0.35);
+        const morphValue = Math.min(2.0, (this.baseVariantParams.morph || 0) + this.audioMorphBoost * 0.6 + audio.dimensionShift * 0.35);
+        this.gl.uniform1f(this.uniforms.chaos, chaosValue);
+        this.gl.uniform1f(this.uniforms.morph, morphValue);
         
         // Touch and scroll uniforms
         this.gl.uniform1f(this.uniforms.touchMorph, this.touchMorph);
@@ -795,33 +975,24 @@ export class HolographicVisualizer {
         this.gl.uniform1f(this.uniforms.gridDensityShift, this.gridDensityShift);
         this.gl.uniform1f(this.uniforms.colorScrollShift, this.colorScrollShift);
         
-        // 🎵 HOLOGRAPHIC AUDIO REACTIVITY - Direct and beautiful
-        let audioDensity = 0, audioMorph = 0, audioSpeed = 0, audioChaos = 0, audioColor = 0;
-        
-        if (window.audioEnabled && window.audioReactive) {
-            // Holographic audio mapping: Rich volumetric effects
-            audioDensity = window.audioReactive.bass * 1.5;     // Bass creates density in holographic layers
-            audioMorph = window.audioReactive.mid * 1.2;        // Mid frequencies morph the hologram
-            audioSpeed = window.audioReactive.high * 0.8;       // High frequencies speed up animation
-            audioChaos = window.audioReactive.energy * 0.6;     // Energy creates chaotic holographic distortion
-            audioColor = window.audioReactive.bass * 45;        // Bass affects holographic color shifts
-            
-            // Debug logging every 10 seconds to verify holographic audio reactivity
-            if (Date.now() % 10000 < 16) {
-                console.log(`✨ Holographic audio reactivity: Density+${audioDensity.toFixed(2)} Morph+${audioMorph.toFixed(2)} Speed+${audioSpeed.toFixed(2)} Chaos+${audioChaos.toFixed(2)} Color+${audioColor.toFixed(1)}`);
-            }
-        }
-        
+        const audioDensity = Math.max(0, this.audioDensityBoost);
+        const audioMorph = Math.max(0, this.audioMorphBoost);
+        const audioSpeedUniform = Math.max(0, this.audioSpeedBoost);
+        const audioChaos = Math.max(0, this.audioChaosBoost + audio.chaos * 0.25);
+        const audioColorShift = this.audioColorShift + audio.colorBeat * Math.PI * 0.5;
+
         this.gl.uniform1f(this.uniforms.audioDensityBoost, audioDensity);
         this.gl.uniform1f(this.uniforms.audioMorphBoost, audioMorph);
-        this.gl.uniform1f(this.uniforms.audioSpeedBoost, audioSpeed);
+        this.gl.uniform1f(this.uniforms.audioSpeedBoost, audioSpeedUniform);
         this.gl.uniform1f(this.uniforms.audioChaosBoost, audioChaos);
-        this.gl.uniform1f(this.uniforms.audioColorShift, audioColor);
-        
+        this.gl.uniform1f(this.uniforms.audioColorShift, audioColorShift);
+
         // 4D rotation uniforms
-        this.gl.uniform1f(this.uniforms.rot4dXW, this.variantParams.rot4dXW || 0.0);
-        this.gl.uniform1f(this.uniforms.rot4dYW, this.variantParams.rot4dYW || 0.0);
-        this.gl.uniform1f(this.uniforms.rot4dZW, this.variantParams.rot4dZW || 0.0);
+        const swingWarp = (audio.swing || 0) * 0.35;
+        const tripletWarp = (audio.triplet || 0) * 0.2;
+        this.gl.uniform1f(this.uniforms.rot4dXW, (this.variantParams.rot4dXW || 0.0) + swingWarp);
+        this.gl.uniform1f(this.uniforms.rot4dYW, (this.variantParams.rot4dYW || 0.0) + tripletWarp);
+        this.gl.uniform1f(this.uniforms.rot4dZW, (this.variantParams.rot4dZW || 0.0) + audio.motionVelocity * 0.4);
         
         this.gl.drawArrays(this.gl.TRIANGLE_STRIP, 0, 4);
     }

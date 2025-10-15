@@ -8,6 +8,15 @@ Unlike simple audio reactivity that just modulates a few parameters, this system
 
 ---
 
+## 🎚️ Visualizer Control Bus
+
+The new `VisualizerControlBus` routes every parameter change, gesture, and audio modulation through a shared channel system.
+
+- **Channel Smoothing** – Each parameter defines its own smoothing curve, range, and audio mappings for hyper-musical motion.
+- **Macro Capture** – Record live gestures as macros, then loop or blend them into performances without reprogramming.
+- **Modulation Stack** – Pointer gestures, onsets, and choreography cues stack as additive modulations so user baselines stay intact.
+- **Shared Access** – Quantum, Holographic, and Polychora systems now tap the same control surface to keep colour, geometry, and lighting choreographed together.
+
 ## 🌟 Key Features
 
 ### 1. **7-Band Frequency Analysis**
@@ -61,6 +70,18 @@ Accumulators track:
 - Mid accumulator (balanced decay)
 - High accumulator (fast decay for crisp highs)
 - Energy accumulator (overall loudness tracking)
+
+---
+
+### 7. **Hypercolor Palette Engine**
+Colour is now orchestrated by a dedicated Hypercolor Palette Engine that feeds every visualizer:
+
+- **Curated palette families** – Pastel kawaii, neon rave, deep space bloom, aurora dreams, and cosmic sorbet blends are resampled in CIE L\*a\*b\* space for velvety transitions even during wild jumps.
+- **Audio-triggered swaps** – Downbeat spikes and transient bursts can pull in fresh palettes when the energy and chaos envelopes align, keeping long sets from feeling static.
+- **Pointer + gesture routing** – Pointer orbit and distance modulate the palette sampler so live gestures bend hue ribbons, shimmer layers, and morph factors together.
+- **Shadow-aware shading** – Each palette ships with a depth tone allowing shaders to mix primary, secondary, accent, and shadow channels for cinematic contrast.
+
+The control bus exposes the palette state so Quantum, Holographic, and Polychora canvases stay colour-synced while still expressing their own dynamics.
 
 ---
 
