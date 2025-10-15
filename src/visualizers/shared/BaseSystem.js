@@ -8,6 +8,7 @@
 
 import { ParameterMapper } from '../../audio/ParameterMapper.js';
 import { ColorSystem } from '../../color/ColorSystem.js';
+import { VisualizerControlBus } from './VisualizerControlBus.js';
 
 export class BaseSystem {
     constructor(config) {
@@ -24,6 +25,7 @@ export class BaseSystem {
         this.audioAnalyzer = null;
         this.parameterMapper = new ParameterMapper();
         this.colorSystem = new ColorSystem();
+        this.controlBus = new VisualizerControlBus();
 
         // State
         this.isInitialized = false;
@@ -159,6 +161,10 @@ export class BaseSystem {
         // Update parameter manager
         this.parameters.setParameter(name, value);
 
+        if (this.controlBus) {
+            this.controlBus.setBaseValue(name, value);
+        }
+
         // Update visualizer if it has the method
         if (this.visualizer && this.visualizer.updateParameter) {
             this.visualizer.updateParameter(name, value);
@@ -178,7 +184,32 @@ export class BaseSystem {
      * Get current parameter values
      */
     getParameters() {
-        return this.parameters ? this.parameters.getAllParameters() : {};
+        const base = this.parameters ? this.parameters.getAllParameters() : {};
+        if (this.controlBus) {
+            return this.controlBus.getSnapshot(base);
+        }
+        return base;
+    }
+
+    /**
+     * Prepare a snapshot of parameters with control bus modulation applied.
+     */
+    prepareControlParameters(deltaTime, overrides = {}, audioData = null) {
+        const base = this.parameters ? this.parameters.getAllParameters() : {};
+        const merged = {
+            ...base,
+            ...this.userParameters,
+            ...overrides
+        };
+
+        if (!this.controlBus) {
+            return merged;
+        }
+
+        return this.controlBus.update(deltaTime, {
+            baseParameters: merged,
+            audioData
+        });
     }
 
     /**
@@ -250,8 +281,8 @@ export class BaseSystem {
                 }
             }
 
-            // Update color system
-            this.colorSystem.update(deltaTime);
+            // Update color system with current audio context so palettes can react
+            this.colorSystem.update(deltaTime, audioData);
 
             // Update visualizer (implemented by subclass)
             this.update(deltaTime, finalParams, audioData);
