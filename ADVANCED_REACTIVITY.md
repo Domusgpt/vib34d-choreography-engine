@@ -8,6 +8,49 @@ Unlike simple audio reactivity that just modulates a few parameters, this system
 
 ---
 
+## 🎚️ Visualizer Control Bus
+
+The new `VisualizerControlBus` routes every parameter change, gesture, and audio modulation through a shared channel system.
+
+- **Channel Smoothing** – Each parameter defines its own smoothing curve, range, and audio mappings for hyper-musical motion.
+- **Macro Capture** – Record live gestures as macros, then loop or blend them into performances without reprogramming.
+- **Modulation Stack** – Pointer gestures, onsets, and choreography cues stack as additive modulations so user baselines stay intact.
+- **Shared Access** – Quantum, Holographic, and Polychora systems now tap the same control surface to keep colour, geometry, and lighting choreographed together.
+
+### 🎞️ Gesture Macro Recording
+
+The control bus now acts as a **macro sequencer** that can capture pointer motion, touch swipes, scroll bursts, and any control channel in real time. A few highlights:
+
+- **Beat-aware capture** – Every frame stores its elapsed beat so takes can be quantized on stop.
+- **Channel & tag filters** – Record only colour channels, only geometry, or a custom set with `{ tags: ['color'] }` or `{ channels: ['hue', 'intensity'] }`.
+- **Gesture timeline** – Pointer/touch events are logged alongside parameter frames so macros can redraw choreography, not just values.
+- **Playback blending** – Loop macros with weight + blend values and they will merge with live modulations.
+
+```js
+// Record a 2-bar pointer solo on colour channels and quantize to 1/4 notes
+system.startMacroRecording('colorOrbitSolo', {
+  tags: ['color'],
+  quantizeBeats: 0.25,
+  description: 'Quarter-note ribbon orbit'
+});
+
+// ...perform pointer gestures & tweaks...
+
+const macro = system.stopMacroRecording();
+console.log('Captured macro duration', macro.duration);
+
+// Play back with a gentle blend and loop it
+const playbackId = system.playMacro('colorOrbitSolo', {
+  blend: 0.65,
+  loop: true
+});
+
+// Later, export for sharing or editing
+const json = system.exportMacro('colorOrbitSolo');
+```
+
+During playback the base system automatically applies pointer gestures to the active visualizer. Custom gesture types (e.g., scroll wheels) can be injected by calling `controlBus.recordGesture(type, payload)` and handled through `BaseSystem.applyMacroGesture` or an override in subclasses.
+
 ## 🌟 Key Features
 
 ### 1. **7-Band Frequency Analysis**
@@ -35,7 +78,54 @@ Advanced color modulation system:
 - **Hue acceleration**: Bass frequencies slow/reverse hue
 - **Onset jumps**: Strong transients cause hue leaps (60-180°)
 - **Saturation from mids**: Vocal/synth energy increases color saturation
+
+### 4. **Palette Director Sequencing**
+The new lightweight `PaletteDirector` keeps demo surfaces in sync with the Hypercolor engine even when they are not running the full control bus.
+
+- **Reactive Mode** – Waits for downbeat + transient spikes before rotating to the next palette in the playlist.
+- **Interval Mode** – Steps through a curated list every _N_ seconds; perfect for ambient showcases.
+- **Tempo Mode** – Divides the beat grid (e.g., every 8 beats) so palettes change on musically aligned phrases.
+- **Energy Mode** – Surges to the next palette once RMS energy clears a configurable threshold.
+- **Manual Mode** – Locks the current palette and hides the extra controls for focused grading sessions.
+
+Every demo now exposes the playlist, auto-mode buttons, and thresholds so mobile and desktop consoles share the same colour vocabulary.
 - **Brightness from RMS**: Overall loudness controls intensity
+
+### 4b. **Scene Director Orchestration**
+
+Palette shifts are only half of the cinematic story. The new lightweight `SceneDirector` sequences entire **visual scenes** across the demo surfaces, blending palette rotations with geometry swaps, baseline parameter curves, and colour grading envelopes.
+
+- **Shared Scene Library** – Curate a list of scene objects that describe palette IDs, geometry indices, baseline parameter values, and vibrance/glitch accents.
+- **Reactive Modes** – Drive scene changes from downbeat + transient spikes, beat divisions, pure time intervals, or energy thresholds just like the palette director.
+- **Playlist Chips** – Toggle scenes in/out of the rotation with one tap; the director automatically falls back to all scenes if the selection would otherwise be empty.
+- **State Application** – Each scene pushes new baseline values into the mobile and desktop consoles (slider positions, geometry chips, vibrance/moiré sliders) so future audio modulation and gestures blend on top of a consistent baseline.
+- **Order Controls & Countdown** – Swap between in-order and shuffle rotations, fire manual next/previous triggers, and monitor the upcoming scene and countdown timer directly from the desktop and mobile status bars.
+- **Manual Queue** – Drop any scene into a short-term queue that fires before automation resumes. Queued entries are shared across mobile and desktop so operators can tee up the next look from either surface.
+- **Favorites & Quick Recall** – Star signature looks to surface them as tap targets; favorites are persisted inside the director so mode/order changes do not clear them.
+- **Scene History Ledger** – Every automatic or manual trigger is timestamped with its reason (reactive, interval, tempo, energy, manual) so you can audit or replay the choreography arc mid-show.
+
+```js
+const sceneDirector = new SceneDirector({
+  scenes: sceneLibrary,
+  mode: 'reactive',
+  intervalSeconds: 56,
+  tempoDivision: 32,
+  energyThreshold: 0.78
+});
+
+const scene = sceneDirector.update(audioFrame, elapsedSeconds, activeSceneId);
+if (scene) {
+  applyScene(scene); // update sliders, geometry, palettes, vibrance, and UI
+}
+
+// Queue and favorite controls power the new UI rails
+sceneDirector.queueScene('aurora-orbit');
+sceneDirector.toggleFavorite('ember-throttle');
+
+const { queue, history } = sceneDirector.getStatus(audioFrame, elapsedSeconds, activeSceneId);
+```
+
+The Ultimate Reactive console exposes the full scene grid with desktop-friendly cards, while the Mobile Maestro ships a condensed layout optimised for thumb reach. Both surfaces now keep **status readouts** for the active scene and honour manual selections by resetting the director timers.
 
 ### 4. **Motion Speed & Direction Modulation**
 The visualization's motion responds to audio:
@@ -61,6 +151,35 @@ Accumulators track:
 - Mid accumulator (balanced decay)
 - High accumulator (fast decay for crisp highs)
 - Energy accumulator (overall loudness tracking)
+
+---
+
+### 7. **Hypercolor Palette Engine**
+Colour is now orchestrated by a dedicated Hypercolor Palette Engine that feeds every visualizer:
+
+- **Curated palette families** – Pastel kawaii, neon rave, deep space bloom, aurora dreams, and cosmic sorbet blends are resampled in CIE L\*a\*b\* space for velvety transitions even during wild jumps.
+- **Audio-triggered swaps** – Downbeat spikes and transient bursts can pull in fresh palettes when the energy and chaos envelopes align, keeping long sets from feeling static.
+- **Pointer + gesture routing** – Pointer orbit and distance modulate the palette sampler so live gestures bend hue ribbons, shimmer layers, and morph factors together.
+- **Shadow-aware shading** – Each palette ships with a depth tone allowing shaders to mix primary, secondary, accent, and shadow channels for cinematic contrast.
+
+The control bus exposes the palette state so Quantum, Holographic, and Polychora canvases stay colour-synced while still expressing their own dynamics.
+
+### 8. **Adaptive Camera & Lighting Rails**
+The shared `CameraLightingSystem` now pilots cinematic motion and lighting envelopes across every visualizer:
+
+- **Preset rails** – Orbit Sparkle, Heart Glide, and Bass Drop Zoom define baseline orbit speeds, elevation curves, and dolly ranges tuned for each canvas.
+- **Audio-driven motion** – Bass momentum, swing pulses, onset bursts, and colour accents nudge orbit, tilt, zoom, and roll so the framing moves with the groove.
+- **Filmic lighting** – Exposure, shutter blur, bloom, key/fill/rim balance, and vignette intensity respond to energy and chaos, delivering tonemapped highlights straight in the shader.
+- **Control bus offsets** – New `camera*` and `lighting` channels let macros and live gestures layer additional moves or lighting cues without breaking the audio choreography.
+- **Preset morphing** – `transitionCameraPreset()` blends between presets over musical phrases so orbit, dolly, exposure, and rim highlights ease into new moods instead of cutting abruptly.
+- **Auto directors** – Each system now evaluates energy, swing, colour ribbons, and dimensional surges every frame to queue cinematic preset swaps (e.g. glide → sparkle → drop) with sensible cooldowns.
+- **Depth cinematography** – The shared state now emits focus distance, focus spread, parallax warp, chromatic aberration, colour temperature, fog density, shadow contrast, and godray intensity so each shader renders volumetric haze, bokeh-inspired falloff, and prismatic flares tied to the music.
+- **Temperature aware tonemapping** – Light temperature tracks palette orbits and energy to tilt every canvas between icy blue rave lighting and warm sunrise glow while maintaining consistent exposure.
+- **Fog + godray choreography** – Bass drops and downbeats bloom volumetric fog and godrays that sweep across Quantum, Holographic, and Polychora canvases in sync with lattice surges and colour ribbons.
+
+- **Cinematic post-FX envelope** – New film grain, lens distortion, frame blending, light wrap, and colour bleed channels sit on the same camera rail so macros or audio bursts can push every canvas from glossy glass-box clarity to hazy anamorphic dreamscapes in perfect sync.
+
+Quantum, Holographic, and Polychora shaders consume these uniforms to render consistent cinematic depth and glow regardless of which system is on screen.
 
 ---
 
