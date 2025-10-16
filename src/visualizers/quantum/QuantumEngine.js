@@ -4,7 +4,7 @@
  */
 
 import { QuantumHolographicVisualizer } from './QuantumVisualizer.js';
-import { ParameterManager } from '../core/Parameters.js';
+import { ParameterManager } from '../../core/Parameters.js';
 import { GeometryLibrary } from '../../geometry/GeometryLibrary.js';
 
 export class QuantumEngine {
