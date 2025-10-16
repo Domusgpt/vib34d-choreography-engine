@@ -1,6 +1,20 @@
 # 🎉 What's New in VIB34D Choreography Engine
 
-## Latest Update: Mobile Maestro Console & Quantum Hypercolor
+## Latest Update: Palette Director & Hypercolor Expansion
+
+### 🎨 Palette sequencing on every console
+- Dropped a shared `PaletteDirector` into the Mobile Maestro and Ultimate Reactive consoles so palette journeys can auto-rotate on downbeats, tempo grids, energy spikes, or a simple interval timer.
+- Added playlist toggles, mode buttons, and contextual sliders (interval seconds, beat division, energy threshold) that collapse when manual mode is selected to preserve screen real estate.
+
+### 🌌 Quantum gains four new colour families
+- Expanded the Quantum shader with Luxe Ember, Biolumens, Cyber Noir, and Aurora Cascade palette profiles while keeping the original six legacy options intact.
+- Updated every layer's colour math so the new profiles inject gold-teal, bioluminescent, cyberpunk, and aurora-inspired journeys without breaking existing choreography.
+
+### 🖥️ Ultimate Reactive mirrors Mobile Maestro polish
+- Brought the compact palette controls, playlist chips, and auto-mode HUD from Mobile Maestro into `examples/ultimate-reactive.html` so desktop rigs enjoy the same streamlined colour workflow.
+- Synced the consoles to the same choreography engine so manual palette picks and automatic rotations stay locked across devices.
+
+## Previous Update: Mobile Maestro Console & Quantum Hypercolor
 
 ### 📱 Mobile-Smart evolves into the Mobile Maestro
 - Rebuilt [`examples/mobile-smart.html`](examples/mobile-smart.html) with the Advanced Reactive aesthetic, a sliding bottom console, and mobile-first tabs so choreography controls never crowd the canvas.

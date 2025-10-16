@@ -78,6 +78,17 @@ Advanced color modulation system:
 - **Hue acceleration**: Bass frequencies slow/reverse hue
 - **Onset jumps**: Strong transients cause hue leaps (60-180°)
 - **Saturation from mids**: Vocal/synth energy increases color saturation
+
+### 4. **Palette Director Sequencing**
+The new lightweight `PaletteDirector` keeps demo surfaces in sync with the Hypercolor engine even when they are not running the full control bus.
+
+- **Reactive Mode** – Waits for downbeat + transient spikes before rotating to the next palette in the playlist.
+- **Interval Mode** – Steps through a curated list every _N_ seconds; perfect for ambient showcases.
+- **Tempo Mode** – Divides the beat grid (e.g., every 8 beats) so palettes change on musically aligned phrases.
+- **Energy Mode** – Surges to the next palette once RMS energy clears a configurable threshold.
+- **Manual Mode** – Locks the current palette and hides the extra controls for focused grading sessions.
+
+Every demo now exposes the playlist, auto-mode buttons, and thresholds so mobile and desktop consoles share the same colour vocabulary.
 - **Brightness from RMS**: Overall loudness controls intensity
 
 ### 4. **Motion Speed & Direction Modulation**

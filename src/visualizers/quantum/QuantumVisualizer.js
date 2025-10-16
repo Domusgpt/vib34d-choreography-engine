@@ -632,6 +632,22 @@ vec3 getLayerColorPalette(int layerIndex, float t) {
             color1 = vec3(0.1, 0.1, 0.1);
             color2 = vec3(0.05, 0.05, 0.05);
             color3 = vec3(0.18, 0.18, 0.18);
+        } else if (profile == 6) {
+            color1 = vec3(0.08, 0.02, 0.01);
+            color2 = vec3(0.18, 0.08, 0.03);
+            color3 = vec3(0.02, 0.16, 0.18);
+        } else if (profile == 7) {
+            color1 = vec3(0.0, 0.04, 0.12);
+            color2 = vec3(0.0, 0.12, 0.2);
+            color3 = vec3(0.0, 0.24, 0.2);
+        } else if (profile == 8) {
+            color1 = vec3(0.05, 0.0, 0.1);
+            color2 = vec3(0.1, 0.0, 0.2);
+            color3 = vec3(0.02, 0.08, 0.25);
+        } else if (profile == 9) {
+            color1 = vec3(0.02, 0.08, 0.12);
+            color2 = vec3(0.05, 0.12, 0.28);
+            color3 = vec3(0.12, 0.2, 0.35);
         } else {
             color1 = vec3(0.05, 0.0, 0.2);
             color2 = vec3(0.0, 0.0, 0.1);
@@ -660,6 +676,22 @@ vec3 getLayerColorPalette(int layerIndex, float t) {
             color1 = vec3(0.2, 0.2, 0.2);
             color2 = vec3(0.35, 0.35, 0.35);
             color3 = vec3(0.15, 0.15, 0.15);
+        } else if (profile == 6) {
+            color1 = vec3(0.45, 0.20, 0.02);
+            color2 = vec3(0.72, 0.38, 0.08);
+            color3 = vec3(0.20, 0.45, 0.35);
+        } else if (profile == 7) {
+            color1 = vec3(0.0, 0.4, 0.24);
+            color2 = vec3(0.0, 0.65, 0.5);
+            color3 = vec3(0.2, 0.9, 0.7);
+        } else if (profile == 8) {
+            color1 = vec3(0.0, 0.3, 0.6);
+            color2 = vec3(0.0, 0.6, 0.9);
+            color3 = vec3(0.2, 0.9, 1.0);
+        } else if (profile == 9) {
+            color1 = vec3(0.0, 0.5, 0.6);
+            color2 = vec3(0.3, 0.7, 0.9);
+            color3 = vec3(0.6, 0.4, 0.9);
         } else {
             color1 = vec3(0.0, 1.0, 0.0);
             color2 = vec3(0.8, 1.0, 0.0);
@@ -688,6 +720,22 @@ vec3 getLayerColorPalette(int layerIndex, float t) {
             color1 = vec3(0.4, 0.4, 0.4);
             color2 = vec3(0.7, 0.7, 0.7);
             color3 = vec3(1.0, 1.0, 1.0);
+        } else if (profile == 6) {
+            color1 = vec3(0.85, 0.45, 0.08);
+            color2 = vec3(1.0, 0.7, 0.2);
+            color3 = vec3(0.3, 0.7, 0.6);
+        } else if (profile == 7) {
+            color1 = vec3(0.0, 0.45, 0.6);
+            color2 = vec3(0.0, 0.7, 0.9);
+            color3 = vec3(0.3, 0.9, 1.0);
+        } else if (profile == 8) {
+            color1 = vec3(0.8, 0.1, 0.5);
+            color2 = vec3(0.9, 0.2, 0.7);
+            color3 = vec3(1.0, 0.4, 0.9);
+        } else if (profile == 9) {
+            color1 = vec3(0.2, 0.7, 0.8);
+            color2 = vec3(0.5, 0.9, 1.0);
+            color3 = vec3(0.8, 0.7, 1.0);
         } else {
             color1 = vec3(1.0, 0.0, 0.0);
             color2 = vec3(1.0, 0.5, 0.0);
@@ -716,6 +764,22 @@ vec3 getLayerColorPalette(int layerIndex, float t) {
             color1 = vec3(0.65, 0.65, 0.65);
             color2 = vec3(0.85, 0.85, 0.85);
             color3 = vec3(0.95, 0.95, 0.95);
+        } else if (profile == 6) {
+            color1 = vec3(1.0, 0.6, 0.2);
+            color2 = vec3(0.1, 0.7, 0.6);
+            color3 = vec3(0.35, 0.45, 0.8);
+        } else if (profile == 7) {
+            color1 = vec3(0.1, 0.5, 0.8);
+            color2 = vec3(0.3, 0.8, 0.9);
+            color3 = vec3(0.6, 1.0, 0.9);
+        } else if (profile == 8) {
+            color1 = vec3(0.4, 0.0, 0.6);
+            color2 = vec3(0.0, 0.8, 0.9);
+            color3 = vec3(0.9, 0.1, 0.6);
+        } else if (profile == 9) {
+            color1 = vec3(0.3, 0.6, 1.0);
+            color2 = vec3(0.7, 0.5, 1.0);
+            color3 = vec3(0.9, 0.8, 1.0);
         } else {
             color1 = vec3(0.0, 1.0, 1.0);
             color2 = vec3(0.0, 0.5, 1.0);
@@ -744,6 +808,22 @@ vec3 getLayerColorPalette(int layerIndex, float t) {
             color1 = vec3(0.5, 0.5, 0.5);
             color2 = vec3(0.75, 0.75, 0.75);
             color3 = vec3(0.35, 0.35, 0.35);
+        } else if (profile == 6) {
+            color1 = vec3(0.9, 0.5, 0.15);
+            color2 = vec3(0.3, 0.75, 0.65);
+            color3 = vec3(0.12, 0.2, 0.45);
+        } else if (profile == 7) {
+            color1 = vec3(0.0, 0.6, 0.8);
+            color2 = vec3(0.2, 0.9, 0.8);
+            color3 = vec3(0.5, 1.0, 0.8);
+        } else if (profile == 8) {
+            color1 = vec3(0.1, 0.0, 0.25);
+            color2 = vec3(0.0, 0.7, 0.8);
+            color3 = vec3(0.9, 0.2, 0.7);
+        } else if (profile == 9) {
+            color1 = vec3(0.1, 0.5, 0.8);
+            color2 = vec3(0.5, 0.8, 1.0);
+            color3 = vec3(0.9, 0.9, 1.0);
         } else {
             color1 = vec3(1.0, 0.0, 1.0);
             color2 = vec3(0.8, 0.0, 1.0);
