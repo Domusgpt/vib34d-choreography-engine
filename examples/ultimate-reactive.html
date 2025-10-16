@@ -3,238 +3,1273 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VIB34D ULTIMATE CONTROLS</title>
+    <title>VIB34D Ultimate Reactive Console</title>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            background: #000;
-            color: #0f0;
-            font-family: 'Courier New', monospace;
-            overflow: hidden;
+        :root {
+            color-scheme: dark;
+            --bg: #020607;
+            --panel-bg: rgba(0, 20, 25, 0.92);
+            --panel-border: rgba(0, 255, 255, 0.55);
+            --accent: #00f0ff;
+            --accent-soft: rgba(0, 240, 255, 0.3);
+            --accent-strong: rgba(0, 240, 255, 0.6);
+            --glow: rgba(0, 255, 255, 0.35);
+            --text-primary: #d6fff9;
+            --text-secondary: rgba(180, 255, 245, 0.72);
+            --text-tertiary: rgba(180, 255, 245, 0.55);
+            --danger: #ff3b7f;
+            --radius: 14px;
+            --transition: 180ms cubic-bezier(0.33, 1, 0.68, 1);
+            font-family: 'IBM Plex Mono', 'Courier New', monospace;
         }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text-primary);
+            overflow: hidden;
+            font-family: inherit;
+        }
+
+        #appShell {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+
         canvas {
-            position: fixed;
+            position: absolute;
             top: 0;
             left: 0;
             width: 100vw;
             height: 100vh;
+            display: block;
         }
-        #controls {
-            position: fixed;
-            top: 10px;
-            right: 10px;
-            background: rgba(0, 0, 0, 0.95);
-            padding: 15px;
-            border: 2px solid #0f0;
-            max-width: 380px;
-            max-height: 95vh;
-            overflow-y: auto;
-            z-index: 1000;
-            font-size: 11px;
-        }
-        h1 {
-            color: #0ff;
-            font-size: 16px;
-            margin-bottom: 10px;
-            text-shadow: 0 0 10px #0ff;
-        }
-        h2 {
-            color: #0ff;
-            font-size: 13px;
-            margin: 12px 0 8px 0;
-            border-bottom: 1px solid #0f0;
-            padding-bottom: 3px;
-        }
-        button {
-            background: #0f0;
-            color: #000;
-            border: none;
-            padding: 6px 12px;
-            margin: 2px;
+
+        #controlToggle {
+            position: absolute;
+            top: 16px;
+            left: 16px;
+            z-index: 1200;
+            background: rgba(0, 0, 0, 0.55);
+            border: 1px solid var(--panel-border);
+            color: var(--accent);
+            border-radius: 999px;
+            padding: 10px 18px;
             cursor: pointer;
-            font-family: 'Courier New', monospace;
-            font-weight: bold;
-            font-size: 10px;
-        }
-        button:hover { background: #0ff; box-shadow: 0 0 10px #0ff; }
-        button.active { background: #f0f; box-shadow: 0 0 10px #f0f; }
-        .slider-row {
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
             display: flex;
             align-items: center;
-            margin: 5px 0;
             gap: 8px;
+            backdrop-filter: blur(12px);
+            transition: transform var(--transition), box-shadow var(--transition);
         }
-        .slider-row label {
-            flex: 0 0 90px;
-            font-size: 10px;
+
+        #controlToggle:hover,
+        #controlToggle:focus-visible {
+            transform: translateY(-1px);
+            box-shadow: 0 0 18px var(--glow);
         }
-        .slider-row input[type="range"] {
+
+        #controlToggle .dot {
+            width: 10px;
+            height: 10px;
+            background: var(--accent);
+            border-radius: 50%;
+            box-shadow: 0 0 12px var(--accent);
+        }
+
+        #controlPanel {
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: min(420px, 100vw);
+            height: 100vh;
+            background: var(--panel-bg);
+            border-left: 2px solid var(--panel-border);
+            box-shadow: -12px 0 60px rgba(0, 0, 0, 0.45);
+            backdrop-filter: blur(20px);
+            display: flex;
+            flex-direction: column;
+            z-index: 1100;
+            transition: transform var(--transition);
+        }
+
+        #controlPanel.collapsed {
+            transform: translateX(calc(100% + 24px));
+        }
+
+        .panel-header {
+            padding: 20px 24px 18px 24px;
+            border-bottom: 1px solid rgba(0, 255, 255, 0.2);
+            position: sticky;
+            top: 0;
+            background: linear-gradient(140deg, rgba(0, 40, 48, 0.95) 0%, rgba(0, 20, 30, 0.9) 100%);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+            z-index: 10;
+        }
+
+        .panel-header .title-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 12px;
+            margin-bottom: 16px;
+        }
+
+        .panel-header h1 {
+            font-size: 1.2rem;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--accent);
+            text-shadow: 0 0 16px rgba(0, 240, 255, 0.75);
+        }
+
+        .panel-close {
+            border: none;
+            background: rgba(0, 0, 0, 0.45);
+            color: var(--text-secondary);
+            border-radius: 10px;
+            width: 36px;
+            height: 36px;
+            font-size: 1.2rem;
+            cursor: pointer;
+            transition: background var(--transition), color var(--transition);
+        }
+
+        .panel-close:hover,
+        .panel-close:focus-visible {
+            background: rgba(0, 255, 255, 0.12);
+            color: var(--accent);
+        }
+
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px 16px;
+            font-size: 0.8rem;
+        }
+
+        .status-card {
+            padding: 10px 12px;
+            border-radius: 10px;
+            background: rgba(0, 20, 30, 0.85);
+            border: 1px solid rgba(0, 255, 255, 0.18);
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .status-card .status-label {
+            color: var(--text-tertiary);
+            font-size: 0.75rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        .status-card .status-value {
+            color: var(--accent);
+            font-weight: 600;
+            letter-spacing: 0.05em;
+        }
+
+        .status-card .status-sub {
+            color: rgba(192, 252, 252, 0.75);
+            font-size: 0.68rem;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+        }
+
+        .panel-body {
             flex: 1;
-            height: 20px;
+            overflow-y: auto;
+            padding: 18px 22px 28px 22px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            scroll-behavior: smooth;
+            -webkit-overflow-scrolling: touch;
+            touch-action: pan-y;
         }
-        .slider-row .value {
-            flex: 0 0 45px;
-            text-align: right;
-            color: #0ff;
-            font-weight: bold;
+
+        .panel-body::-webkit-scrollbar {
+            width: 10px;
         }
-        .btn-group {
+
+        .panel-body::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        .panel-body::-webkit-scrollbar-thumb {
+            background: rgba(0, 255, 255, 0.35);
+            border-radius: 4px;
+        }
+
+        .collapsible {
+            border: 1px solid rgba(0, 255, 255, 0.2);
+            border-radius: var(--radius);
+            background: rgba(0, 25, 35, 0.75);
+            overflow: hidden;
+        }
+
+        .collapsible-header {
+            width: 100%;
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.18em;
+            font-size: 0.78rem;
+            padding: 14px 18px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+        }
+
+        .collapsible-header:hover,
+        .collapsible-header:focus-visible {
+            background: rgba(0, 255, 255, 0.08);
+            color: var(--accent);
+        }
+
+        .collapsible-header .chevron {
+            transition: transform var(--transition);
+        }
+
+        .collapsible:not(.open) .collapsible-header .chevron {
+            transform: rotate(-90deg);
+        }
+
+        .collapsible-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 320ms cubic-bezier(0.22, 1, 0.36, 1);
+        }
+
+        .collapsible.open .collapsible-content {
+            max-height: 1200px;
+        }
+
+        .section-inner {
+            padding: 16px 18px 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .file-picker {
+            display: inline-flex;
+            align-items: center;
+            justify-content: space-between;
+            border: 1px dashed rgba(0, 255, 255, 0.3);
+            border-radius: 10px;
+            padding: 12px 16px;
+            gap: 12px;
+            background: rgba(0, 35, 45, 0.6);
+            cursor: pointer;
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+        }
+
+        .file-picker:hover,
+        .file-picker:focus-within {
+            border-color: var(--accent);
+            color: var(--accent);
+            box-shadow: 0 0 18px rgba(0, 255, 255, 0.18);
+        }
+
+        .file-picker input[type="file"] {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            border: 0;
+        }
+
+        .transport-row {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .pill-button {
+            border: 1px solid rgba(0, 255, 255, 0.35);
+            background: rgba(0, 255, 255, 0.08);
+            color: var(--accent);
+            padding: 10px 16px;
+            border-radius: 999px;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            cursor: pointer;
+            transition: all var(--transition);
+        }
+
+        .pill-button:hover,
+        .pill-button:focus-visible {
+            background: rgba(0, 255, 255, 0.25);
+            box-shadow: 0 0 18px rgba(0, 255, 255, 0.2);
+        }
+
+        .pill-button.danger {
+            border-color: rgba(255, 59, 127, 0.5);
+            color: var(--danger);
+            background: rgba(255, 59, 127, 0.1);
+        }
+
+        .pill-button.secondary {
+            border-color: rgba(0, 255, 255, 0.18);
+            background: rgba(0, 40, 50, 0.45);
+            color: var(--text-secondary);
+        }
+
+        .pill-button.secondary:hover,
+        .pill-button.secondary:focus-visible {
+            color: var(--accent);
+            border-color: rgba(0, 255, 255, 0.35);
+        }
+
+        .button-group {
             display: flex;
             flex-wrap: wrap;
-            gap: 3px;
-            margin: 5px 0;
+            gap: 8px;
         }
-        input[type="file"] {
-            background: rgba(0, 255, 0, 0.2);
-            color: #0f0;
-            border: 1px solid #0f0;
-            padding: 4px;
-            font-family: 'Courier New', monospace;
+
+        .chip {
+            border: 1px solid rgba(0, 255, 255, 0.28);
+            border-radius: 999px;
+            padding: 8px 14px;
+            background: rgba(0, 50, 60, 0.55);
+            cursor: pointer;
+            color: var(--text-secondary);
+            font-size: 0.78rem;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            transition: all var(--transition);
+        }
+
+        .chip:hover,
+        .chip:focus-visible {
+            background: rgba(0, 255, 255, 0.18);
+            color: var(--accent);
+        }
+
+.chip.active {
+    background: rgba(0, 255, 255, 0.35);
+    color: var(--bg);
+    box-shadow: 0 0 18px rgba(0, 255, 255, 0.35);
+}
+
+.mode-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin: 14px 0 8px;
+}
+
+.mode-bar.compact {
+    margin: 0;
+    gap: 8px;
+}
+
+.mode-button {
+    flex: 1 1 110px;
+    border-radius: 999px;
+    border: 1px solid rgba(0, 255, 255, 0.28);
+    background: rgba(0, 255, 255, 0.05);
+    color: var(--text-tertiary);
+    font-size: 0.7rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    padding: 7px 12px;
+    cursor: pointer;
+    transition: background var(--transition), color var(--transition), border var(--transition), box-shadow var(--transition);
+}
+
+.mode-button.active {
+    background: rgba(0, 255, 255, 0.24);
+    color: var(--accent);
+    border-color: rgba(0, 255, 255, 0.62);
+    box-shadow: 0 0 22px rgba(0, 255, 255, 0.2);
+}
+
+.cycle-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.cycle-chip {
+    border-radius: 12px;
+    padding: 10px 14px;
+    background: rgba(0, 255, 255, 0.04);
+    border: 1px dashed rgba(0, 255, 255, 0.22);
+    color: var(--text-tertiary);
+    font-size: 0.68rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: background var(--transition), border var(--transition), color var(--transition), box-shadow var(--transition);
+}
+
+.cycle-chip.active {
+    background: rgba(0, 255, 255, 0.2);
+    color: var(--accent);
+    border-style: solid;
+    border-color: rgba(0, 255, 255, 0.55);
+    box-shadow: 0 0 18px rgba(0, 255, 255, 0.22);
+}
+
+.scene-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    gap: 12px;
+    margin-bottom: 14px;
+}
+
+.scene-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+    padding: 14px 16px;
+    border-radius: 18px;
+    border: 1px solid rgba(0, 255, 255, 0.24);
+    background: linear-gradient(145deg, rgba(0, 32, 40, 0.75) 0%, rgba(0, 18, 26, 0.82) 100%);
+    color: var(--text-secondary);
+    text-align: left;
+    cursor: pointer;
+    transition: transform var(--transition), box-shadow var(--transition), border var(--transition);
+}
+
+.scene-card::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: radial-gradient(circle at top left, rgba(0, 255, 255, 0.18), transparent 65%);
+    opacity: 0;
+    transition: opacity var(--transition);
+    pointer-events: none;
+}
+
+.scene-card:hover,
+.scene-card:focus-visible {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 32px rgba(0, 255, 255, 0.18);
+    border-color: rgba(0, 255, 255, 0.4);
+}
+
+.scene-card:hover::after,
+.scene-card:focus-visible::after {
+    opacity: 1;
+}
+
+.scene-card.active {
+    border-color: rgba(0, 255, 255, 0.6);
+    box-shadow: 0 14px 38px rgba(0, 255, 255, 0.28);
+}
+
+.scene-card.active::after {
+    opacity: 1;
+}
+
+.scene-card.favorite {
+    border-color: rgba(255, 170, 0, 0.65);
+    box-shadow: 0 14px 34px rgba(255, 170, 0, 0.22);
+}
+
+.scene-card-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 0;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
+.scene-card .scene-card-actions {
+    margin-top: 6px;
+    justify-content: flex-start;
+}
+
+.scene-card-action {
+    border: 1px solid rgba(0, 255, 255, 0.24);
+    background: rgba(0, 255, 255, 0.05);
+    color: var(--text-tertiary);
+    font-size: 0.62rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    padding: 5px 10px;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: background var(--transition), color var(--transition), border var(--transition), transform var(--transition);
+}
+
+.scene-card-action:hover,
+.scene-card-action:focus-visible {
+    background: rgba(0, 255, 255, 0.18);
+    border-color: rgba(0, 255, 255, 0.45);
+    color: var(--accent);
+}
+
+.scene-card-action[data-action="favorite"].active {
+    background: rgba(255, 170, 0, 0.22);
+    border-color: rgba(255, 170, 0, 0.6);
+    color: #ffda8b;
+}
+
+.scene-card-action[data-action="queue"].active {
+    background: rgba(0, 255, 200, 0.22);
+    border-color: rgba(0, 255, 200, 0.6);
+    color: #9ffcf0;
+}
+
+.scene-layout {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 18px;
+}
+
+.scene-deck-wrapper {
+    flex: 2 1 420px;
+    min-width: 0;
+}
+
+.scene-sidebar {
+    flex: 1 1 260px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.mini-panel {
+    background: rgba(0, 20, 28, 0.8);
+    border-radius: 18px;
+    border: 1px solid rgba(0, 255, 255, 0.16);
+    padding: 14px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.mini-panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    color: var(--text-secondary);
+    font-size: 0.72rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+}
+
+.mini-panel-header button {
+    font-size: 0.6rem;
+    padding: 4px 8px;
+}
+
+.mini-panel-subtitle {
+    color: var(--text-tertiary);
+    font-size: 0.68rem;
+    letter-spacing: 0.08em;
+}
+
+.mini-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.mini-list li {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 8px 10px;
+    border-radius: 12px;
+    background: rgba(0, 255, 255, 0.06);
+    border: 1px solid rgba(0, 255, 255, 0.12);
+    color: var(--text-secondary);
+    font-size: 0.68rem;
+    letter-spacing: 0.08em;
+}
+
+.mini-list li button {
+    font-size: 0.58rem;
+    padding: 4px 8px;
+    letter-spacing: 0.18em;
+}
+
+.mini-list li .descriptor {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.mini-list li .descriptor span {
+    display: block;
+}
+
+.mini-list li .descriptor .title {
+    font-size: 0.68rem;
+    color: var(--accent);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+
+.mini-list li .descriptor .meta {
+    color: var(--text-tertiary);
+    font-size: 0.62rem;
+    letter-spacing: 0.06em;
+}
+
+.mini-chip-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.mini-chip {
+    border-radius: 999px;
+    border: 1px solid rgba(0, 255, 255, 0.18);
+    background: rgba(0, 255, 255, 0.08);
+    color: var(--text-secondary);
+    font-size: 0.62rem;
+    letter-spacing: 0.16em;
+    padding: 6px 10px;
+    cursor: pointer;
+    transition: background var(--transition), border var(--transition), color var(--transition);
+}
+
+.mini-chip:hover,
+.mini-chip:focus-visible {
+    background: rgba(0, 255, 255, 0.22);
+    border-color: rgba(0, 255, 255, 0.38);
+    color: var(--accent);
+}
+
+.empty-state {
+    color: var(--text-tertiary);
+    font-size: 0.66rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    text-align: center;
+    padding: 12px 4px;
+    border-radius: 12px;
+    border: 1px dashed rgba(0, 255, 255, 0.12);
+    background: rgba(0, 255, 255, 0.04);
+}
+
+.scene-name {
+    font-size: 0.85rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent);
+}
+
+.scene-meta {
+    font-size: 0.72rem;
+    letter-spacing: 0.05em;
+    color: var(--text-tertiary);
+    line-height: 1.45;
+}
+
+.scene-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.scene-tag {
+    font-size: 0.62rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    padding: 4px 8px;
+    border-radius: 999px;
+    border: 1px solid rgba(0, 255, 255, 0.25);
+    background: rgba(0, 255, 255, 0.08);
+    color: var(--accent);
+}
+
+.scene-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 16px;
+}
+
+.scene-controls .control-row.compact {
+    margin-top: 0;
+    border-top: none;
+    padding: 0;
+}
+
+.scene-transport {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.scene-transport .pill-button {
+    flex: 1 1 120px;
+}
+
+.scene-controls .control-row.compact + .control-row.compact {
+    margin-top: 4px;
+}
+
+.scene-control.hidden {
+    display: none;
+}
+
+.control-row.compact {
+    padding-top: 6px;
+    border-top: 1px solid rgba(0, 255, 255, 0.12);
+    margin-top: 10px;
+}
+
+.control-row.compact.hidden {
+    display: none;
+}
+
+        .control-row {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .control-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        .control-label span:last-child {
+            color: var(--accent);
+            font-weight: 600;
+            min-width: 52px;
+            text-align: right;
+        }
+
+        input[type="range"] {
             width: 100%;
-            margin: 5px 0;
-            font-size: 10px;
+            height: 8px;
+            appearance: none;
+            background: linear-gradient(90deg, rgba(0, 255, 255, 0.25), rgba(0, 255, 255, 0.05));
+            border-radius: 999px;
+            outline: none;
         }
-        #audioLevels {
-            background: rgba(0, 100, 255, 0.1);
-            padding: 8px;
-            margin: 8px 0;
-            border-left: 3px solid #0ff;
-            font-size: 10px;
+
+        input[type="range"]::-webkit-slider-thumb {
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: var(--accent);
+            box-shadow: 0 0 16px rgba(0, 255, 255, 0.6);
+            cursor: pointer;
+            transition: transform var(--transition);
         }
-        .level-bar {
-            height: 12px;
-            background: rgba(0, 255, 0, 0.2);
-            margin: 3px 0;
+
+        input[type="range"]:active::-webkit-slider-thumb,
+        input[type="range"]:hover::-webkit-slider-thumb {
+            transform: scale(1.12);
+        }
+
+        input[type="range"]::-moz-range-track {
+            height: 8px;
+            background: rgba(0, 255, 255, 0.2);
+            border-radius: 999px;
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            border: none;
+            background: var(--accent);
+            box-shadow: 0 0 16px rgba(0, 255, 255, 0.6);
+            cursor: pointer;
+        }
+
+        .audio-meter {
+            display: grid;
+            gap: 6px;
+        }
+
+        .meter {
             position: relative;
+            height: 14px;
+            border-radius: 999px;
+            overflow: hidden;
+            background: rgba(0, 255, 255, 0.05);
+            border: 1px solid rgba(0, 255, 255, 0.15);
         }
-        .level-fill {
-            height: 100%;
-            background: #0f0;
-            transition: width 0.1s;
-        }
-        .level-label {
+
+        .meter .label {
             position: absolute;
-            left: 4px;
-            top: 0;
-            color: #000;
-            font-weight: bold;
-            font-size: 9px;
-            line-height: 12px;
+            left: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 0.7rem;
+            letter-spacing: 0.08em;
+            color: var(--bg);
+            text-transform: uppercase;
+            font-weight: 600;
             mix-blend-mode: difference;
+        }
+
+        .meter .fill {
+            height: 100%;
+            width: 0%;
+            border-radius: inherit;
+            transition: width 90ms ease-out;
+            background: linear-gradient(90deg, rgba(0, 255, 255, 0.65), rgba(255, 0, 160, 0.65));
+        }
+
+        .note-card {
+            border-radius: 10px;
+            background: rgba(0, 30, 45, 0.75);
+            border: 1px solid rgba(0, 255, 255, 0.18);
+            padding: 12px 14px;
+            font-size: 0.75rem;
+            color: var(--text-tertiary);
+            line-height: 1.45;
+        }
+
+        .panel-tabs {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 10px;
+            padding: 14px 22px 0 22px;
+            border-bottom: 1px solid rgba(0, 255, 255, 0.18);
+            background: linear-gradient(140deg, rgba(0, 40, 48, 0.92) 0%, rgba(0, 20, 30, 0.88) 100%);
+            position: sticky;
+            top: 112px;
+            z-index: 9;
+        }
+
+        .tab-button {
+            background: rgba(0, 30, 40, 0.8);
+            border: 1px solid rgba(0, 255, 255, 0.25);
+            border-radius: 999px;
+            color: var(--text-secondary);
+            padding: 10px 16px;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            font-size: 0.72rem;
+            font-weight: 600;
+            transition: background var(--transition), color var(--transition), border-color var(--transition), box-shadow var(--transition);
+            cursor: pointer;
+        }
+
+        .tab-button.active,
+        .tab-button:focus-visible {
+            background: rgba(0, 255, 255, 0.18);
+            border-color: rgba(0, 255, 255, 0.55);
+            color: var(--accent);
+            box-shadow: 0 0 0 1px rgba(0, 255, 255, 0.25), 0 0 18px rgba(0, 255, 255, 0.25);
+        }
+
+        .tab-panel {
+            display: none;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .tab-panel.active {
+            display: flex;
+        }
+
+        @media (max-width: 1024px) {
+            #controlPanel {
+                width: min(360px, 88vw);
+            }
+        }
+
+        @media (max-width: 900px) {
+            #controlToggle {
+                top: 12px;
+                left: 50%;
+                transform: translateX(-50%);
+            }
+
+            #controlToggle.collapsed {
+                transform: translate(-50%, 0);
+            }
+
+            #controlPanel {
+                width: min(420px, 94vw);
+                border-left-width: 0;
+                border-top: 2px solid var(--panel-border);
+                border-top-left-radius: var(--radius);
+                border-top-right-radius: var(--radius);
+                bottom: 0;
+                top: auto;
+                height: min(88vh, 620px);
+                box-shadow: 0 -14px 40px rgba(0, 0, 0, 0.6);
+                transform: translateY(calc(100% + 24px));
+            }
+
+            #controlPanel.open-mobile {
+                transform: translateY(0);
+            }
+
+            #controlPanel.collapsed {
+                transform: translateY(calc(100% + 24px));
+            }
+
+            .panel-header {
+                border-bottom: none;
+            }
+
+            .status-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .panel-tabs {
+                padding: 12px 18px 0 18px;
+                top: 0;
+            }
+
+            .panel-body {
+                padding-bottom: 36px;
+            }
+
+            .scene-grid {
+                grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            }
+
+            .scene-layout {
+                flex-direction: column;
+            }
+
+            .scene-sidebar {
+                flex-direction: row;
+                flex-wrap: wrap;
+            }
+
+            .scene-sidebar .mini-panel {
+                flex: 1 1 220px;
+            }
+        }
+
+        @media (max-width: 640px) {
+            .panel-tabs {
+                display: flex;
+                overflow-x: auto;
+                gap: 12px;
+                padding-bottom: 8px;
+            }
+
+            .panel-tabs::-webkit-scrollbar {
+                display: none;
+            }
+
+            .tab-button {
+                flex: 0 0 auto;
+            }
         }
     </style>
 </head>
 <body>
-    <canvas id="mainCanvas"></canvas>
+    <div id="appShell">
+        <canvas id="mainCanvas"></canvas>
 
-    <div id="controls">
-        <h1>🔧 VIB34D ULTIMATE</h1>
+        <button id="controlToggle" aria-expanded="true">
+            <span class="dot" aria-hidden="true"></span>
+            Controls
+        </button>
 
-        <!-- Audio -->
-        <h2>🎵 Audio</h2>
-        <input type="file" id="audioFile" accept="audio/*">
-        <div class="btn-group">
-            <button id="playBtn">▶ PLAY</button>
-            <button id="pauseBtn">⏸ PAUSE</button>
-        </div>
-        <div id="audioLevels">
-            <div class="level-bar"><div class="level-fill" id="bassBar"></div><div class="level-label">BASS</div></div>
-            <div class="level-bar"><div class="level-fill" id="midBar"></div><div class="level-label">MID</div></div>
-            <div class="level-bar"><div class="level-fill" id="highBar"></div><div class="level-label">HIGH</div></div>
-        </div>
+        <div id="controlPanel">
+            <div class="panel-header">
+                <div class="title-row">
+                    <h1>Ultimate Reactive Console</h1>
+                    <button class="panel-close" id="panelClose" aria-label="Hide controls">×</button>
+                </div>
+                <div class="status-grid">
+                    <div class="status-card">
+                        <span class="status-label">Visualizer</span>
+                        <span class="status-value" id="visualizerStatus">Quantum</span>
+                    </div>
+                    <div class="status-card">
+                        <span class="status-label">Track</span>
+                        <span class="status-value" id="audioStatus">Idle</span>
+                    </div>
+                    <div class="status-card">
+                        <span class="status-label">BPM</span>
+                        <span class="status-value" id="tempoStatus">128</span>
+                    </div>
+                    <div class="status-card">
+                        <span class="status-label">Timeline</span>
+                        <span class="status-value" id="measureStatus">0:00</span>
+                    </div>
+                    <div class="status-card status-scene">
+                        <span class="status-label">Scene</span>
+                        <span class="status-value" id="sceneStatus">Aurora Orbit</span>
+                        <span class="status-sub" id="nextSceneStatus">Next: —</span>
+                        <span class="status-sub" id="sceneCountdown">In —</span>
+                    </div>
+                </div>
+            </div>
 
-        <!-- Geometry -->
-        <h2>🔷 Geometry Type</h2>
-        <div class="btn-group" id="geometryBtns"></div>
+            <nav class="panel-tabs" id="panelTabs" aria-label="Control views" role="tablist">
+                <button class="tab-button active" type="button" data-tab="overview" id="tab-button-overview" role="tab" aria-controls="tab-overview">Overview</button>
+                <button class="tab-button" type="button" data-tab="directors" id="tab-button-directors" role="tab" aria-controls="tab-directors">Directors</button>
+                <button class="tab-button" type="button" data-tab="parameters" id="tab-button-parameters" role="tab" aria-controls="tab-parameters">Parameters</button>
+                <button class="tab-button" type="button" data-tab="automation" id="tab-button-automation" role="tab" aria-controls="tab-automation">Automation</button>
+            </nav>
 
-        <!-- All Parameters -->
-        <h2>🎚️ Parameters</h2>
-        <div class="slider-row">
-            <label>Intensity:</label>
-            <input type="range" id="intensity" min="0.1" max="2.0" step="0.05" value="1.0">
-            <span class="value" id="intensityVal">1.0</span>
-        </div>
-        <div class="slider-row">
-            <label>Grid Density:</label>
-            <input type="range" id="gridDensity" min="5" max="80" step="1" value="25">
-            <span class="value" id="gridDensityVal">25</span>
-        </div>
-        <div class="slider-row">
-            <label>Morph Factor:</label>
-            <input type="range" id="morphFactor" min="0.1" max="3.0" step="0.1" value="1.0">
-            <span class="value" id="morphFactorVal">1.0</span>
-        </div>
-        <div class="slider-row">
-            <label>Chaos:</label>
-            <input type="range" id="chaos" min="0.0" max="1.0" step="0.05" value="0.2">
-            <span class="value" id="chaosVal">0.2</span>
-        </div>
-        <div class="slider-row">
-            <label>Speed:</label>
-            <input type="range" id="speed" min="0.1" max="3.0" step="0.1" value="1.0">
-            <span class="value" id="speedVal">1.0</span>
-        </div>
-        <div class="slider-row">
-            <label>Hue:</label>
-            <input type="range" id="hue" min="0" max="360" step="1" value="180">
-            <span class="value" id="hueVal">180</span>
-        </div>
-        <div class="slider-row">
-            <label>Saturation:</label>
-            <input type="range" id="saturation" min="0.0" max="1.0" step="0.05" value="1.0">
-            <span class="value" id="saturationVal">1.0</span>
-        </div>
-        <div class="slider-row">
-            <label>Dimension:</label>
-            <input type="range" id="dimension" min="2.0" max="5.0" step="0.1" value="3.5">
-            <span class="value" id="dimensionVal">3.5</span>
-        </div>
+            <div class="panel-body" id="panelBody">
+                <div class="tab-panel active" data-tab="overview" id="tab-overview" role="tabpanel" aria-labelledby="tab-button-overview">
+                                    <section class="collapsible open" data-section="audio">
+                                        <button class="collapsible-header" type="button" aria-expanded="true">
+                                            <span>Audio &amp; Transport</span>
+                                            <span class="chevron">▼</span>
+                                        </button>
+                                        <div class="collapsible-content">
+                                            <div class="section-inner">
+                                                <label class="file-picker">
+                                                    <span id="filePickerLabel">Load Audio Track</span>
+                                                    <input type="file" id="audioFile" accept="audio/*">
+                                                </label>
+                                                <div class="transport-row">
+                                                    <button id="playBtn" class="pill-button">Play</button>
+                                                    <button id="pauseBtn" class="pill-button danger">Pause</button>
+                                                </div>
+                                                <div class="audio-meter">
+                                                    <div class="meter" data-band="bass">
+                                                        <span class="label">Bass</span>
+                                                        <div class="fill" id="bassBar"></div>
+                                                    </div>
+                                                    <div class="meter" data-band="mid">
+                                                        <span class="label">Mid</span>
+                                                        <div class="fill" id="midBar"></div>
+                                                    </div>
+                                                    <div class="meter" data-band="high">
+                                                        <span class="label">High</span>
+                                                        <div class="fill" id="highBar"></div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </section>
 
-        <!-- 4D Rotations -->
-        <h2>🌀 4D Rotation</h2>
-        <div class="slider-row">
-            <label>Rot XW:</label>
-            <input type="range" id="rot4dXW" min="-6.28" max="6.28" step="0.1" value="0">
-            <span class="value" id="rot4dXWVal">0.0</span>
-        </div>
-        <div class="slider-row">
-            <label>Rot YW:</label>
-            <input type="range" id="rot4dYW" min="-6.28" max="6.28" step="0.1" value="0">
-            <span class="value" id="rot4dYWVal">0.0</span>
-        </div>
-        <div class="slider-row">
-            <label>Rot ZW:</label>
-            <input type="range" id="rot4dZW" min="-6.28" max="6.28" step="0.1" value="0">
-            <span class="value" id="rot4dZWVal">0.0</span>
-        </div>
+                                    <section class="collapsible open" data-section="visualizer">
+                                        <button class="collapsible-header" type="button" aria-expanded="true">
+                                            <span>Visualizer Selector</span>
+                                            <span class="chevron">▼</span>
+                                        </button>
+                                        <div class="collapsible-content">
+                                            <div class="section-inner">
+                                                <div class="button-group" id="systemSelector">
+                                                    <button class="chip active system-btn" data-system="quantum">Quantum</button>
+                                                    <button class="chip system-btn" data-system="faceted">Faceted</button>
+                                                    <button class="chip system-btn" data-system="holographic">Holographic</button>
+                                                </div>
+                                                <div class="note-card">
+                                                    Switch visual engines while keeping parameter curves, automation, and palettes in sync.
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </section>
 
-        <!-- Systems -->
-        <h2>🎨 System</h2>
-        <div class="btn-group">
-            <button class="system-btn active" data-system="quantum">Quantum</button>
-            <button class="system-btn" data-system="faceted">Faceted</button>
-            <button class="system-btn" data-system="holographic">Holographic</button>
-        </div>
+                                    <section class="collapsible open" data-section="geometry">
+                                        <button class="collapsible-header" type="button" aria-expanded="true">
+                                            <span>Geometry Library</span>
+                                            <span class="chevron">▼</span>
+                                        </button>
+                                        <div class="collapsible-content">
+                                            <div class="section-inner">
+                                                <div class="button-group" id="geometryBtns"></div>
+                                            </div>
+                                        </div>
+                                    </section>
+                </div>
 
-        <!-- Rotation Patterns -->
-        <h2>🌀 Rotation Pattern</h2>
-        <div class="btn-group" id="rotationBtns"></div>
+                <div class="tab-panel" data-tab="directors" id="tab-directors" role="tabpanel" aria-labelledby="tab-button-directors" hidden>
+                                    <section class="collapsible open" data-section="scenes">
+                                        <button class="collapsible-header" type="button" aria-expanded="true">
+                                            <span>Scene Director</span>
+                                            <span class="chevron">▼</span>
+                                        </button>
+                                        <div class="collapsible-content">
+                                            <div class="section-inner">
+                                                <div class="scene-controls">
+                                                    <div class="mode-bar" id="sceneModeBar">
+                                                        <button class="mode-button active" data-scene-mode="reactive">Reactive</button>
+                                                        <button class="mode-button" data-scene-mode="interval">Interval</button>
+                                                        <button class="mode-button" data-scene-mode="tempo">Tempo</button>
+                                                        <button class="mode-button" data-scene-mode="energy">Energy</button>
+                                                        <button class="mode-button" data-scene-mode="off">Manual</button>
+                                                    </div>
+                                                    <div class="mode-bar compact" id="sceneOrderBar">
+                                                        <button class="mode-button active" data-scene-order="forward">In Order</button>
+                                                        <button class="mode-button" data-scene-order="shuffle">Shuffle</button>
+                                                    </div>
+                                                    <div class="scene-transport">
+                                                        <button class="pill-button secondary" type="button" id="scenePrev">Prev Scene</button>
+                                                        <button class="pill-button" type="button" id="sceneNext">Next Scene</button>
+                                                    </div>
+                                                    <div class="control-row compact scene-control hidden" data-scene-mode="interval">
+                                                        <div class="control-label"><span>Interval (s)</span><span id="value-sceneInterval">48s</span></div>
+                                                        <input type="range" id="sceneInterval" min="12" max="240" step="1" value="48">
+                                                    </div>
+                                                    <div class="control-row compact scene-control hidden" data-scene-mode="tempo">
+                                                        <div class="control-label"><span>Beats per Scene</span><span id="value-sceneTempo">32</span></div>
+                                                        <input type="range" id="sceneTempo" min="4" max="128" step="1" value="32">
+                                                    </div>
+                                                    <div class="control-row compact scene-control hidden" data-scene-mode="energy">
+                                                        <div class="control-label"><span>Energy Trigger</span><span id="value-sceneEnergy">0.78</span></div>
+                                                        <input type="range" id="sceneEnergy" min="0.4" max="0.95" step="0.01" value="0.78">
+                                                    </div>
+                                                </div>
+                                                <div class="scene-layout">
+                                                    <div class="scene-deck-wrapper">
+                                                        <div class="scene-grid" id="sceneDeck"></div>
+                                                        <div class="cycle-grid" id="sceneRotationGrid"></div>
+                                                    </div>
+                                                    <aside class="scene-sidebar">
+                                                        <div class="mini-panel" id="sceneQueuePanel">
+                                                            <div class="mini-panel-header">
+                                                                <span>Manual Queue</span>
+                                                                <button class="pill-button secondary" type="button" id="clearSceneQueue">Clear</button>
+                                                            </div>
+                                                            <div class="mini-panel-subtitle">Scenes fire in order before automation resumes.</div>
+                                                            <ul class="mini-list" id="sceneQueueList"></ul>
+                                                        </div>
+                                                        <div class="mini-panel" id="sceneFavoritePanel">
+                                                            <div class="mini-panel-header">
+                                                                <span>Favorites</span>
+                                                            </div>
+                                                            <div class="mini-panel-subtitle">Tap to jump instantly to featured looks.</div>
+                                                            <div class="mini-chip-grid" id="sceneFavoriteGrid"></div>
+                                                        </div>
+                                                        <div class="mini-panel" id="sceneHistoryPanel">
+                                                            <div class="mini-panel-header">
+                                                                <span>Recent Scenes</span>
+                                                            </div>
+                                                            <div class="mini-panel-subtitle">Live log of manual and automatic triggers.</div>
+                                                            <ul class="mini-list" id="sceneHistoryList"></ul>
+                                                        </div>
+                                                    </aside>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </section>
+                </div>
 
-        <!-- Sequences -->
-        <h2>💥 Sequences</h2>
-        <div class="btn-group" id="sequenceBtns"></div>
+                <div class="tab-panel" data-tab="parameters" id="tab-parameters" role="tabpanel" aria-labelledby="tab-button-parameters" hidden>
+                                    <section class="collapsible open" data-section="core-parameters">
+                                        <button class="collapsible-header" type="button" aria-expanded="true">
+                                            <span>Core Motion</span>
+                                            <span class="chevron">▼</span>
+                                        </button>
+                                        <div class="collapsible-content">
+                                            <div class="section-inner" id="coreParameterStack"></div>
+                                        </div>
+                                    </section>
 
-        <!-- Thresholds -->
-        <h2>🎚️ Thresholds</h2>
-        <div class="slider-row">
-            <label>Onset:</label>
-            <input type="range" id="onsetThresh" min="0.5" max="0.99" step="0.01" value="0.85">
-            <span class="value" id="onsetThreshVal">0.85</span>
-        </div>
-        <div class="slider-row">
-            <label>Bass:</label>
-            <input type="range" id="bassThresh" min="0.5" max="0.99" step="0.01" value="0.83">
-            <span class="value" id="bassThreshVal">0.83</span>
+                                    <section class="collapsible" data-section="color">
+                                        <button class="collapsible-header" type="button" aria-expanded="false">
+                                            <span>Color &amp; Atmosphere</span>
+                                            <span class="chevron">▼</span>
+                                        </button>
+                                        <div class="collapsible-content">
+                                            <div class="section-inner" id="colorParameterStack">
+                                                <div class="button-group" id="paletteStyleGroup" role="group" aria-label="Palette style">
+                                                    <button class="chip active" data-style="0" type="button">Hypercolor</button>
+                                                    <button class="chip" data-style="1" type="button">Uniform</button>
+                                                </div>
+                                                <div class="button-group" id="paletteChipGroup"></div>
+                                                <div class="mode-bar" id="paletteModeBar">
+                                                    <button class="mode-button active" data-palette-mode="reactive">Reactive</button>
+                                                    <button class="mode-button" data-palette-mode="interval">Interval</button>
+                                                    <button class="mode-button" data-palette-mode="tempo">Tempo</button>
+                                                    <button class="mode-button" data-palette-mode="energy">Energy</button>
+                                                    <button class="mode-button" data-palette-mode="off">Manual</button>
+                                                </div>
+                                                <div class="cycle-grid" id="paletteCycleGrid"></div>
+                                                <div class="control-row compact hidden" data-mode="interval">
+                                                    <div class="control-label"><span>Interval (s)</span><span id="value-paletteInterval">32s</span></div>
+                                                    <input type="range" id="paletteInterval" min="6" max="160" step="1" value="32">
+                                                </div>
+                                                <div class="control-row compact hidden" data-mode="tempo">
+                                                    <div class="control-label"><span>Beats per Shift</span><span id="value-paletteTempo">8</span></div>
+                                                    <input type="range" id="paletteTempo" min="2" max="48" step="1" value="8">
+                                                </div>
+                                                <div class="control-row compact hidden" data-mode="energy">
+                                                    <div class="control-label"><span>Energy Threshold</span><span id="value-paletteEnergy">0.72</span></div>
+                                                    <input type="range" id="paletteEnergy" min="0.3" max="0.95" step="0.01" value="0.72">
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </section>
+
+                                    <section class="collapsible" data-section="rotation">
+                                        <button class="collapsible-header" type="button" aria-expanded="false">
+                                            <span>4D Rotation Control</span>
+                                            <span class="chevron">▼</span>
+                                        </button>
+                                        <div class="collapsible-content">
+                                            <div class="section-inner" id="rotationParameterStack"></div>
+                                        </div>
+                                    </section>
+                </div>
+
+                <div class="tab-panel" data-tab="automation" id="tab-automation" role="tabpanel" aria-labelledby="tab-button-automation" hidden>
+                                    <section class="collapsible" data-section="patterns">
+                                        <button class="collapsible-header" type="button" aria-expanded="false">
+                                            <span>Rotation Patterns</span>
+                                            <span class="chevron">▼</span>
+                                        </button>
+                                        <div class="collapsible-content">
+                                            <div class="section-inner">
+                                                <div class="button-group" id="rotationBtns"></div>
+                                            </div>
+                                        </div>
+                                    </section>
+
+                                    <section class="collapsible" data-section="sequences">
+                                        <button class="collapsible-header" type="button" aria-expanded="false">
+                                            <span>Sequence Launchers</span>
+                                            <span class="chevron">▼</span>
+                                        </button>
+                                        <div class="collapsible-content">
+                                            <div class="section-inner">
+                                                <div class="button-group" id="sequenceBtns"></div>
+                                            </div>
+                                        </div>
+                                    </section>
+
+                                    <section class="collapsible" data-section="thresholds">
+                                        <button class="collapsible-header" type="button" aria-expanded="false">
+                                            <span>Reactivity Thresholds</span>
+                                            <span class="chevron">▼</span>
+                                        </button>
+                                        <div class="collapsible-content">
+                                            <div class="section-inner" id="thresholdStack"></div>
+                                        </div>
+                                    </section>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -242,6 +1277,8 @@
         import { ChoreographyEngine } from '../src/core/ChoreographyEngine.js';
         import { RotationChoreographer } from '../src/choreographers/RotationChoreographer.js';
         import { ShaderChoreographer } from '../src/choreographers/ShaderChoreographer.js';
+        import { PaletteDirector } from '../src/choreographers/PaletteDirector.js';
+        import { SceneDirector } from '../src/choreographers/SceneDirector.js';
         import { QuantumHolographicVisualizer } from '../src/visualizers/quantum/QuantumVisualizer.js';
         import { IntegratedHolographicVisualizer } from '../src/visualizers/faceted/FacetedVisualizer.js';
         import { HolographicVisualizer } from '../src/visualizers/holographic/HolographicVisualizer.js';
@@ -252,15 +1289,64 @@
         canvas.width = window.innerWidth * (window.devicePixelRatio || 1);
         canvas.height = window.innerHeight * (window.devicePixelRatio || 1);
 
-        let currentVisualizer, audioAnalyzer, audioContext, audioElement;
-        let onsetThreshold = 0.85, bassThreshold = 0.83;
+        const controlPanel = document.getElementById('controlPanel');
+        const panelBody = document.getElementById('panelBody');
+        const controlToggle = document.getElementById('controlToggle');
+        const panelClose = document.getElementById('panelClose');
+        const tabButtons = Array.from(document.querySelectorAll('.tab-button'));
+        const tabPanels = Array.from(document.querySelectorAll('.tab-panel'));
+        const visualizerStatus = document.getElementById('visualizerStatus');
+        const audioStatus = document.getElementById('audioStatus');
+        const filePickerLabel = document.getElementById('filePickerLabel');
+        const tempoStatus = document.getElementById('tempoStatus');
+        const measureStatus = document.getElementById('measureStatus');
+        const sceneStatus = document.getElementById('sceneStatus');
+        const nextSceneStatus = document.getElementById('nextSceneStatus');
+        const sceneCountdown = document.getElementById('sceneCountdown');
+        const paletteChipGroup = document.getElementById('paletteChipGroup');
+        const paletteModeBar = document.getElementById('paletteModeBar');
+        const paletteCycleGrid = document.getElementById('paletteCycleGrid');
+        const paletteIntervalSlider = document.getElementById('paletteInterval');
+        const paletteTempoSlider = document.getElementById('paletteTempo');
+        const paletteEnergySlider = document.getElementById('paletteEnergy');
+        const paletteIntervalValue = document.getElementById('value-paletteInterval');
+        const paletteTempoValue = document.getElementById('value-paletteTempo');
+        const paletteEnergyValue = document.getElementById('value-paletteEnergy');
+        const sceneDeck = document.getElementById('sceneDeck');
+        const sceneModeBar = document.getElementById('sceneModeBar');
+        const sceneOrderBar = document.getElementById('sceneOrderBar');
+        const scenePrevButton = document.getElementById('scenePrev');
+        const sceneNextButton = document.getElementById('sceneNext');
+        const sceneRotationGrid = document.getElementById('sceneRotationGrid');
+        const sceneQueueList = document.getElementById('sceneQueueList');
+        const sceneHistoryList = document.getElementById('sceneHistoryList');
+        const sceneFavoriteGrid = document.getElementById('sceneFavoriteGrid');
+        const clearSceneQueueButton = document.getElementById('clearSceneQueue');
+        const sceneIntervalSlider = document.getElementById('sceneInterval');
+        const sceneTempoSlider = document.getElementById('sceneTempo');
+        const sceneEnergySlider = document.getElementById('sceneEnergy');
+        const sceneIntervalValue = document.getElementById('value-sceneInterval');
+        const sceneTempoValue = document.getElementById('value-sceneTempo');
+        const sceneEnergyValue = document.getElementById('value-sceneEnergy');
 
-        // Initialize Quantum
-        currentVisualizer = new QuantumHolographicVisualizer('mainCanvas', 'content', 1.0, 0);
+        let currentVisualizer = new QuantumHolographicVisualizer('mainCanvas', 'content', 1.0, 0);
+        const paletteState = { profile: 0, style: 0 };
         currentVisualizer.updateParameter('intensity', 1.0);
+        currentVisualizer.updateParameter('gridDensity', 25);
         currentVisualizer.updateParameter('hue', 180);
         currentVisualizer.updateParameter('saturation', 1.0);
-        currentVisualizer.updateParameter('gridDensity', 25);
+        currentVisualizer.updateParameter('colorProfile', paletteState.profile);
+        currentVisualizer.updateParameter('colorStyle', paletteState.style);
+        currentVisualizer.updateParameter('colorVibrance', 1.2);
+        currentVisualizer.updateParameter('glitchMoire', 0.0);
+
+        let audioAnalyzer = null;
+        let audioContext = null;
+        let audioElement = null;
+        let audioObjectUrl = null;
+        let onsetThreshold = 0.85;
+        let bassThreshold = 0.83;
+        let currentGeometryIndex = 0;
 
         const engine = new ChoreographyEngine({
             visualizers: [currentVisualizer],
@@ -268,50 +1354,1069 @@
             bpm: 128
         });
 
+        tempoStatus.textContent = engine.bpm;
+
         const rotationChoreographer = new RotationChoreographer();
         const shaderChoreographer = new ShaderChoreographer(currentVisualizer);
 
         await engine.loadSequenceLibrary('../src/sequences/presets/bass-drops.json');
 
+        // Responsive control surface
+        const mobileQuery = window.matchMedia('(max-width: 900px)');
+        function setPanelOpen(open) {
+            const isMobile = mobileQuery.matches;
+            if (isMobile) {
+                controlPanel.classList.toggle('open-mobile', open);
+                controlPanel.classList.toggle('collapsed', !open);
+            } else {
+                controlPanel.classList.toggle('collapsed', !open);
+            }
+            controlToggle.setAttribute('aria-expanded', open);
+            controlToggle.classList.toggle('collapsed', !open);
+        }
+
+        function syncPanelToViewport() {
+            setPanelOpen(!mobileQuery.matches);
+        }
+
+        mobileQuery.addEventListener('change', syncPanelToViewport);
+        syncPanelToViewport();
+
+        controlToggle.addEventListener('click', () => {
+            const isCollapsed = controlPanel.classList.contains('collapsed') && !controlPanel.classList.contains('open-mobile');
+            setPanelOpen(isCollapsed);
+        });
+
+        panelClose.addEventListener('click', () => setPanelOpen(false));
+
+        function activateTab(targetTab) {
+            tabButtons.forEach(button => {
+                const active = button.dataset.tab === targetTab;
+                button.classList.toggle('active', active);
+                button.setAttribute('aria-pressed', active ? 'true' : 'false');
+                button.setAttribute('aria-selected', active ? 'true' : 'false');
+                button.setAttribute('tabindex', active ? '0' : '-1');
+            });
+
+            tabPanels.forEach(panel => {
+                const active = panel.dataset.tab === targetTab;
+                panel.classList.toggle('active', active);
+                if (active) {
+                    panel.removeAttribute('hidden');
+                    panel.setAttribute('aria-hidden', 'false');
+                    panel.setAttribute('tabindex', '0');
+                    panel.querySelectorAll('.collapsible.open .collapsible-content').forEach(content => {
+                        content.style.maxHeight = content.scrollHeight + 'px';
+                    });
+                } else {
+                    panel.setAttribute('hidden', '');
+                    panel.setAttribute('aria-hidden', 'true');
+                    panel.setAttribute('tabindex', '-1');
+                }
+            });
+
+            if (panelBody) {
+                panelBody.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+        }
+
+        tabButtons.forEach(button => {
+            button.addEventListener('click', () => activateTab(button.dataset.tab));
+        });
+
+        activateTab('overview');
+
+        function focusTabByOffset(currentIndex, delta) {
+            const total = tabButtons.length;
+            if (!total) return;
+            const nextIndex = (currentIndex + delta + total) % total;
+            const nextButton = tabButtons[nextIndex];
+            activateTab(nextButton.dataset.tab);
+            nextButton.focus();
+        }
+
+        tabButtons.forEach((button, index) => {
+            button.addEventListener('keydown', (event) => {
+                if (event.key === 'ArrowRight' || event.key === 'ArrowDown') {
+                    event.preventDefault();
+                    focusTabByOffset(index, 1);
+                } else if (event.key === 'ArrowLeft' || event.key === 'ArrowUp') {
+                    event.preventDefault();
+                    focusTabByOffset(index, -1);
+                }
+            });
+        });
+
+        // Collapsible sections
+        document.querySelectorAll('.collapsible').forEach(section => {
+            const header = section.querySelector('.collapsible-header');
+            const content = section.querySelector('.collapsible-content');
+            header.addEventListener('click', () => {
+                const open = section.classList.toggle('open');
+                header.setAttribute('aria-expanded', open);
+                if (open) {
+                    content.style.maxHeight = content.scrollHeight + 'px';
+                } else {
+                    content.style.maxHeight = null;
+                }
+            });
+            if (section.classList.contains('open')) {
+                requestAnimationFrame(() => {
+                    content.style.maxHeight = content.scrollHeight + 'px';
+                });
+            }
+        });
+
+        window.addEventListener('resize', () => {
+            document.querySelectorAll('.collapsible.open .collapsible-content').forEach(content => {
+                content.style.maxHeight = content.scrollHeight + 'px';
+            });
+        });
+
+        // Slider creation helpers
+        const sliderContainers = {
+            core: document.getElementById('coreParameterStack'),
+            color: document.getElementById('colorParameterStack'),
+            rotation: document.getElementById('rotationParameterStack'),
+            thresholds: document.getElementById('thresholdStack')
+        };
+
+        const sliderDefinitions = [
+            { id: 'intensity', label: 'Intensity', min: 0.1, max: 2.0, step: 0.05, value: 1.0, section: 'core', param: true, format: v => v.toFixed(2) },
+            { id: 'gridDensity', label: 'Grid Density', min: 5, max: 80, step: 1, value: 25, section: 'core', param: true, format: v => Math.round(v) },
+            { id: 'morphFactor', label: 'Morph Factor', min: 0.1, max: 3.0, step: 0.05, value: 1.0, section: 'core', param: true, format: v => v.toFixed(2) },
+            { id: 'chaos', label: 'Chaos', min: 0, max: 1, step: 0.02, value: 0.2, section: 'core', param: true, format: v => v.toFixed(2) },
+            { id: 'speed', label: 'Speed', min: 0.1, max: 3.0, step: 0.05, value: 1.0, section: 'core', param: true, format: v => v.toFixed(2) },
+            { id: 'dimension', label: 'Dimension', min: 2.0, max: 5.0, step: 0.05, value: 3.5, section: 'core', param: true, format: v => v.toFixed(2) },
+            { id: 'hue', label: 'Hue', min: 0, max: 360, step: 1, value: 180, section: 'color', param: true, format: v => Math.round(v) },
+            { id: 'saturation', label: 'Saturation', min: 0, max: 1, step: 0.02, value: 1.0, section: 'color', param: true, format: v => v.toFixed(2) },
+            { id: 'colorVibrance', label: 'Color Vibrance', min: 0.3, max: 2.5, step: 0.05, value: 1.2, section: 'color', param: true, format: v => v.toFixed(2) },
+            { id: 'glitchMoire', label: 'Moiré RGB Offset', min: 0, max: 1, step: 0.02, value: 0.0, section: 'color', param: true, format: v => v.toFixed(2) },
+            { id: 'rot4dXW', label: 'Rotation XW', min: -6.28, max: 6.28, step: 0.05, value: 0, section: 'rotation', param: true, format: v => v.toFixed(2) },
+            { id: 'rot4dYW', label: 'Rotation YW', min: -6.28, max: 6.28, step: 0.05, value: 0, section: 'rotation', param: true, format: v => v.toFixed(2) },
+            { id: 'rot4dZW', label: 'Rotation ZW', min: -6.28, max: 6.28, step: 0.05, value: 0, section: 'rotation', param: true, format: v => v.toFixed(2) },
+            { id: 'onsetThresh', label: 'Onset Threshold', min: 0.5, max: 0.99, step: 0.01, value: onsetThreshold, section: 'thresholds', format: v => v.toFixed(2), onInput: v => { onsetThreshold = v; } },
+            { id: 'bassThresh', label: 'Bass Threshold', min: 0.5, max: 0.99, step: 0.01, value: bassThreshold, section: 'thresholds', format: v => v.toFixed(2), onInput: v => { bassThreshold = v; } }
+        ];
+
+        const sliderElements = new Map();
+        const sliderLabels = new Map();
+        const sliderDefinitionMap = new Map();
+
+        function createSlider(def) {
+            const container = sliderContainers[def.section];
+            if (!container) return;
+
+            const row = document.createElement('div');
+            row.className = 'control-row';
+
+            const label = document.createElement('label');
+            label.className = 'control-label';
+            const labelSpan = document.createElement('span');
+            labelSpan.textContent = def.label;
+            const valueSpan = document.createElement('span');
+            valueSpan.textContent = typeof def.format === 'function' ? def.format(def.value) : def.value;
+            label.append(labelSpan, valueSpan);
+
+            const input = document.createElement('input');
+            input.type = 'range';
+            input.id = def.id;
+            input.min = def.min;
+            input.max = def.max;
+            input.step = def.step;
+            input.value = def.value;
+
+            input.addEventListener('input', () => {
+                const rawValue = parseFloat(input.value);
+                valueSpan.textContent = typeof def.format === 'function' ? def.format(rawValue) : rawValue;
+                if (def.param) {
+                    currentVisualizer.updateParameter(def.id, rawValue);
+                }
+                if (def.onInput) def.onInput(rawValue);
+            });
+
+            row.append(label, input);
+            container.appendChild(row);
+            sliderElements.set(def.id, input);
+            sliderLabels.set(def.id, valueSpan);
+            sliderDefinitionMap.set(def.id, def);
+
+            if (def.param) {
+                currentVisualizer.updateParameter(def.id, def.value);
+            }
+        }
+
+        sliderDefinitions.forEach(createSlider);
+
+        function setSliderValue(id, value) {
+            const slider = sliderElements.get(id);
+            const def = sliderDefinitionMap.get(id);
+            if (!slider || !def) {
+                return;
+            }
+
+            slider.value = value;
+            const label = sliderLabels.get(id);
+            if (label) {
+                label.textContent = typeof def.format === 'function' ? def.format(value) : value;
+            }
+
+            if (def.param) {
+                currentVisualizer.updateParameter(id, value);
+            }
+
+            if (typeof def.onInput === 'function') {
+                def.onInput(value);
+            }
+        }
+
+        const palettes = [
+            { id: 0, name: 'Legacy Hypercolor', description: 'Classic multi-spectrum energy' },
+            { id: 1, name: 'Aurora Bloom', description: 'Glacial blues with aurora flares' },
+            { id: 2, name: 'Solar Inferno', description: 'Molten oranges and eclipse reds' },
+            { id: 3, name: 'Midnight Prism', description: 'Nocturnal violets and cobalt' },
+            { id: 4, name: 'Neon Mirage', description: 'Cyan magenta nightclub haze' },
+            { id: 5, name: 'Monochrome Bloom', description: 'Greyscale bloom for filmic mood' },
+            { id: 6, name: 'Luxe Ember', description: 'Gold embers with teal shadows' },
+            { id: 7, name: 'Biolumens', description: 'Deep sea greens with electric blue' },
+            { id: 8, name: 'Cyber Noir', description: 'Violet storms with neon cyan' },
+            { id: 9, name: 'Aurora Cascade', description: 'Prismatic teal and lilac' }
+        ];
+
+        const paletteDirector = new PaletteDirector({
+            palettes,
+            intervalSeconds: parseInt(paletteIntervalSlider.value, 10) || 32,
+            tempoDivision: parseInt(paletteTempoSlider.value, 10) || 8,
+            energyThreshold: parseFloat(paletteEnergySlider.value) || 0.72,
+            mode: 'reactive'
+        });
+
+        const paletteStyleGroup = document.getElementById('paletteStyleGroup');
+        const paletteChips = new Map();
+        const cycleChips = new Map();
+
+        const updatePaletteStyleUI = () => {
+            if (!paletteStyleGroup) return;
+            paletteStyleGroup.querySelectorAll('button').forEach((button) => {
+                const style = Number.parseInt(button.dataset.style, 10);
+                button.classList.toggle('active', style === paletteState.style);
+            });
+        };
+
+        const setPaletteStyle = (style, { notify = false } = {}) => {
+            const numeric = Number.isFinite(style) ? Math.max(0, Math.floor(style)) : 0;
+            if (paletteState.style === numeric) {
+                updatePaletteStyleUI();
+                return;
+            }
+            paletteState.style = numeric;
+            updatePaletteStyleUI();
+            currentVisualizer.updateParameter('colorStyle', paletteState.style);
+            if (notify) {
+                const elapsedSeconds = (Date.now() - engine.startTime) / 1000;
+                paletteDirector.acknowledgeManualSelection(elapsedSeconds);
+            }
+        };
+
+        const updatePaletteSelectionUI = () => {
+            paletteChips.forEach((chip, id) => {
+                chip.classList.toggle('active', id === paletteState.profile);
+            });
+        };
+
+        const refreshCycleState = () => {
+            const playlist = new Set(paletteDirector.getState().playlist);
+            cycleChips.forEach((chip, id) => {
+                chip.classList.toggle('active', playlist.has(id));
+            });
+        };
+
+        const setPaletteMode = (mode) => {
+            paletteDirector.setMode(mode);
+            paletteModeBar.querySelectorAll('.mode-button').forEach(button => {
+                button.classList.toggle('active', button.dataset.paletteMode === mode);
+            });
+            document.querySelectorAll('.control-row.compact').forEach(row => {
+                const targetMode = row.dataset.mode;
+                row.classList.toggle('hidden', targetMode !== mode);
+            });
+        };
+
+        if (paletteStyleGroup) {
+            paletteStyleGroup.querySelectorAll('button').forEach((button) => {
+                button.addEventListener('click', () => {
+                    const style = Number.parseInt(button.dataset.style, 10);
+                    if (Number.isNaN(style)) return;
+                    setPaletteStyle(style, { notify: true });
+                });
+            });
+        }
+
+        palettes.forEach((palette) => {
+            const chip = document.createElement('button');
+            chip.className = 'chip';
+            chip.textContent = palette.name;
+            chip.title = palette.description;
+            if (palette.id === paletteState.profile) {
+                chip.classList.add('active');
+            }
+            chip.addEventListener('click', () => {
+                paletteState.profile = palette.id;
+                updatePaletteSelectionUI();
+                currentVisualizer.updateParameter('colorProfile', paletteState.profile);
+                const elapsedSeconds = (Date.now() - engine.startTime) / 1000;
+                paletteDirector.acknowledgeManualSelection(elapsedSeconds);
+            });
+            paletteChipGroup.appendChild(chip);
+            paletteChips.set(palette.id, chip);
+
+            const cycleChip = document.createElement('button');
+            cycleChip.className = 'cycle-chip';
+            cycleChip.textContent = palette.name;
+            cycleChip.title = `Include ${palette.name} in auto rotation`;
+            if (paletteDirector.playlist.has(palette.id)) {
+                cycleChip.classList.add('active');
+            }
+            cycleChip.addEventListener('click', () => {
+                paletteDirector.togglePlaylist(palette.id);
+                refreshCycleState();
+            });
+            paletteCycleGrid.appendChild(cycleChip);
+            cycleChips.set(palette.id, cycleChip);
+        });
+
+        paletteModeBar.querySelectorAll('.mode-button').forEach(button => {
+            button.addEventListener('click', () => {
+                setPaletteMode(button.dataset.paletteMode);
+            });
+        });
+
+        paletteIntervalSlider.addEventListener('input', () => {
+            const seconds = parseInt(paletteIntervalSlider.value, 10);
+            paletteIntervalValue.textContent = `${seconds}s`;
+            paletteDirector.setInterval(seconds);
+        });
+
+        paletteTempoSlider.addEventListener('input', () => {
+            const beats = parseInt(paletteTempoSlider.value, 10);
+            paletteTempoValue.textContent = beats;
+            paletteDirector.setTempoDivision(beats);
+        });
+
+        paletteEnergySlider.addEventListener('input', () => {
+            const threshold = parseFloat(paletteEnergySlider.value);
+            paletteEnergyValue.textContent = threshold.toFixed(2);
+            paletteDirector.setEnergyThreshold(threshold);
+        });
+
+        paletteIntervalValue.textContent = `${paletteIntervalSlider.value}s`;
+        paletteTempoValue.textContent = paletteTempoSlider.value;
+        paletteEnergyValue.textContent = parseFloat(paletteEnergySlider.value).toFixed(2);
+        setPaletteMode('reactive');
+        setPaletteStyle(paletteState.style);
+        updatePaletteSelectionUI();
+        refreshCycleState();
+
+
         // Geometry buttons
         const geoNames = GeometryLibrary.getGeometryNames();
-        const geoBtns = document.getElementById('geometryBtns');
-        geoNames.forEach((name, i) => {
+        const geometryContainer = document.getElementById('geometryBtns');
+        const geometryButtons = new Map();
+
+        const setGeometry = (index) => {
+            currentGeometryIndex = index;
+            currentVisualizer.updateParameter('geometry', index);
+            geometryButtons.forEach((button, buttonIndex) => {
+                button.classList.toggle('active', buttonIndex === index);
+            });
+        };
+
+        geoNames.forEach((name, index) => {
             const btn = document.createElement('button');
+            btn.className = 'chip';
             btn.textContent = name;
-            btn.onclick = () => {
-                currentVisualizer.updateParameter('geometry', i);
-                geoBtns.querySelectorAll('button').forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-            };
-            if (i === 0) btn.classList.add('active');
-            geoBtns.appendChild(btn);
+            btn.addEventListener('click', () => setGeometry(index));
+            geometryContainer.appendChild(btn);
+            geometryButtons.set(index, btn);
         });
 
-        // All parameter sliders
-        ['intensity', 'gridDensity', 'morphFactor', 'chaos', 'speed', 'hue', 'saturation', 'dimension', 'rot4dXW', 'rot4dYW', 'rot4dZW'].forEach(param => {
-            const slider = document.getElementById(param);
-            const val = document.getElementById(param + 'Val');
-            slider.oninput = () => {
-                const v = parseFloat(slider.value);
-                val.textContent = v.toFixed(2);
-                currentVisualizer.updateParameter(param, v);
-            };
+        setGeometry(currentGeometryIndex);
+
+        const sceneLibrary = [
+            {
+                id: 'aurora-orbit',
+                name: 'Aurora Orbit',
+                description: 'Teal and lilac ribbons spiral across the hypersphere.',
+                tags: ['Glide', 'Aurora'],
+                paletteId: 9,
+                geometry: 2,
+                parameters: {
+                    gridDensity: 36,
+                    morphFactor: 1.35,
+                    chaos: 0.26,
+                    speed: 1.18,
+                    dimension: 3.9,
+                    intensity: 1.15,
+                    hue: 210,
+                    saturation: 1.08,
+                    rot4dXW: 1.2,
+                    rot4dYW: 0.68,
+                    rot4dZW: 0.92
+                },
+                color: {
+                    vibrance: 1.45,
+                    moire: 0.32
+                }
+            },
+            {
+                id: 'ember-throttle',
+                name: 'Ember Throttle',
+                description: 'Molten gold fractals pulse with percussive hits.',
+                tags: ['Fractal', 'Heat'],
+                paletteId: 6,
+                geometry: 5,
+                parameters: {
+                    gridDensity: 48,
+                    morphFactor: 1.6,
+                    chaos: 0.54,
+                    speed: 1.45,
+                    dimension: 3.4,
+                    intensity: 1.35,
+                    hue: 34,
+                    saturation: 1.22,
+                    rot4dXW: 0.48,
+                    rot4dYW: 0.86,
+                    rot4dZW: 1.38
+                },
+                color: {
+                    vibrance: 1.82,
+                    moire: 0.18
+                }
+            },
+            {
+                id: 'cyber-veil',
+                name: 'Cyber Veil',
+                description: 'Chromatic hypercube orbits with neon vapor trails.',
+                tags: ['Glitch', 'Vapor'],
+                paletteId: 8,
+                geometry: 1,
+                parameters: {
+                    gridDensity: 28,
+                    morphFactor: 0.92,
+                    chaos: 0.24,
+                    speed: 1.05,
+                    dimension: 3.6,
+                    intensity: 1.05,
+                    hue: 288,
+                    saturation: 1.18,
+                    rot4dXW: 0.94,
+                    rot4dYW: 1.28,
+                    rot4dZW: 0.74
+                },
+                color: {
+                    vibrance: 1.38,
+                    moire: 0.46
+                }
+            },
+            {
+                id: 'mono-lens',
+                name: 'Mono Lens',
+                description: 'Film grain bloom with monochrome focus pulls.',
+                tags: ['Filmic', 'Calm'],
+                paletteId: 5,
+                geometry: 3,
+                parameters: {
+                    gridDensity: 22,
+                    morphFactor: 0.82,
+                    chaos: 0.18,
+                    speed: 0.95,
+                    dimension: 3.2,
+                    intensity: 0.95,
+                    hue: 8,
+                    saturation: 0.3,
+                    rot4dXW: 0.22,
+                    rot4dYW: 0.42,
+                    rot4dZW: 0.58
+                },
+                color: {
+                    vibrance: 0.62,
+                    moire: 0.06,
+                    style: 1
+                }
+            },
+            {
+                id: 'neon-surge',
+                name: 'Neon Surge',
+                description: 'Sonic waveforms ignite magenta and cyan turbulence.',
+                tags: ['Hype', 'Wave'],
+                paletteId: 4,
+                geometry: 6,
+                parameters: {
+                    gridDensity: 40,
+                    morphFactor: 1.12,
+                    chaos: 0.36,
+                    speed: 1.72,
+                    dimension: 3.7,
+                    intensity: 1.28,
+                    hue: 332,
+                    saturation: 1.24,
+                    rot4dXW: 1.58,
+                    rot4dYW: 1.12,
+                    rot4dZW: 1.78
+                },
+                color: {
+                    vibrance: 1.6,
+                    moire: 0.55
+                }
+            }
+        ];
+
+        const sceneDirector = new SceneDirector({
+            scenes: sceneLibrary,
+            intervalSeconds: parseInt(sceneIntervalSlider.value, 10) || 48,
+            tempoDivision: parseInt(sceneTempoSlider.value, 10) || 32,
+            energyThreshold: parseFloat(sceneEnergySlider.value) || 0.78,
+            cooldownSeconds: 8,
+            mode: 'reactive'
         });
 
-        // Thresholds
-        document.getElementById('onsetThresh').oninput = (e) => {
-            onsetThreshold = parseFloat(e.target.value);
-            document.getElementById('onsetThreshVal').textContent = onsetThreshold.toFixed(2);
+        const sceneCards = new Map();
+        const sceneCycleChips = new Map();
+        const sceneFavoriteButtons = new Map();
+        const sceneQueueButtons = new Map();
+        let activeSceneId = sceneLibrary.length ? sceneLibrary[0].id : null;
+        let latestAudioData = null;
+        let latestElapsedSeconds = 0;
+
+        const updateSceneSelectionUI = (status = null) => {
+            const queueIds = status?.queue
+                ? new Set(status.queue.map((entry) => entry.id))
+                : new Set(sceneDirector.getState().queue || []);
+
+            sceneCards.forEach((card, id) => {
+                const isActive = id === activeSceneId;
+                const isFavorite = sceneDirector.isFavorite(id);
+                const isQueued = queueIds.has(id);
+
+                card.classList.toggle('active', isActive);
+                card.classList.toggle('favorite', isFavorite);
+
+                const favoriteButton = sceneFavoriteButtons.get(id);
+                if (favoriteButton) {
+                    favoriteButton.classList.toggle('active', isFavorite);
+                    favoriteButton.setAttribute('aria-pressed', isFavorite ? 'true' : 'false');
+                }
+
+                const queueButton = sceneQueueButtons.get(id);
+                if (queueButton) {
+                    queueButton.classList.toggle('active', isQueued);
+                    queueButton.setAttribute('aria-pressed', isQueued ? 'true' : 'false');
+                }
+            });
+
+            if (sceneStatus) {
+                if (activeSceneId) {
+                    const activeScene = sceneDirector.getSceneById(activeSceneId);
+                    sceneStatus.textContent = activeScene ? activeScene.name : '—';
+                } else {
+                    sceneStatus.textContent = '—';
+                }
+            }
         };
-        document.getElementById('bassThresh').oninput = (e) => {
-            bassThreshold = parseFloat(e.target.value);
-            document.getElementById('bassThreshVal').textContent = bassThreshold.toFixed(2);
+
+        const formatCountdownValue = (seconds) => {
+            if (seconds == null || !Number.isFinite(seconds)) {
+                return '—';
+            }
+            const safe = Math.max(0, seconds);
+            if (safe >= 90) {
+                const minutes = Math.floor(safe / 60);
+                const secs = Math.floor(safe % 60).toString().padStart(2, '0');
+                return `${minutes}:${secs}`;
+            }
+            if (safe >= 10) {
+                return `${Math.round(safe)}s`;
+            }
+            return `${safe.toFixed(1)}s`;
         };
+
+        const formatReasonLabel = (reason, manual = false) => {
+            if (manual) {
+                return 'Manual';
+            }
+            switch (reason) {
+                case 'interval':
+                    return 'Interval';
+                case 'tempo':
+                    return 'Tempo';
+                case 'energy':
+                    return 'Energy';
+                case 'reactive':
+                    return 'Reactive';
+                case 'manual':
+                    return 'Manual';
+                default:
+                    if (typeof reason === 'string' && reason.length) {
+                        return reason.charAt(0).toUpperCase() + reason.slice(1);
+                    }
+                    return 'Auto';
+            }
+        };
+
+        const formatTimeAgo = (timestamp) => {
+            if (typeof timestamp !== 'number' || Number.isNaN(timestamp)) {
+                return '—';
+            }
+            const delta = Math.max(0, Date.now() - timestamp);
+            if (delta < 1000) {
+                return 'Just now';
+            }
+            if (delta < 60_000) {
+                return `${Math.floor(delta / 1000)}s ago`;
+            }
+            if (delta < 3_600_000) {
+                return `${Math.floor(delta / 60_000)}m ago`;
+            }
+            if (delta < 86_400_000) {
+                return `${Math.floor(delta / 3_600_000)}h ago`;
+            }
+            return `${Math.floor(delta / 86_400_000)}d ago`;
+        };
+
+        const renderSceneQueue = (status = null) => {
+            if (!sceneQueueList) return;
+            sceneQueueList.innerHTML = '';
+
+            const queue = status?.queue || [];
+            if (clearSceneQueueButton) {
+                clearSceneQueueButton.disabled = queue.length === 0;
+            }
+
+            if (queue.length === 0) {
+                const empty = document.createElement('li');
+                empty.className = 'empty-state';
+                empty.textContent = 'Queue empty';
+                empty.setAttribute('aria-live', 'polite');
+                sceneQueueList.appendChild(empty);
+                return;
+            }
+
+            queue.forEach((entry, index) => {
+                const item = document.createElement('li');
+
+                const descriptor = document.createElement('div');
+                descriptor.className = 'descriptor';
+
+                const title = document.createElement('span');
+                title.className = 'title';
+                title.textContent = `${index + 1}. ${entry.name}`;
+                descriptor.appendChild(title);
+
+                if (entry.description) {
+                    const meta = document.createElement('span');
+                    meta.className = 'meta';
+                    meta.textContent = entry.description;
+                    descriptor.appendChild(meta);
+                }
+
+                item.appendChild(descriptor);
+
+                const buttonGroup = document.createElement('div');
+                buttonGroup.className = 'scene-card-actions';
+
+                const launchButton = document.createElement('button');
+                launchButton.type = 'button';
+                launchButton.className = 'scene-card-action';
+                launchButton.textContent = 'Launch';
+                launchButton.addEventListener('click', (event) => {
+                    event.stopPropagation();
+                    const queuedScene = sceneDirector.getSceneById(entry.id);
+                    if (queuedScene) {
+                        applyScene(queuedScene);
+                    }
+                });
+
+                const removeButton = document.createElement('button');
+                removeButton.type = 'button';
+                removeButton.className = 'scene-card-action';
+                removeButton.textContent = 'Remove';
+                removeButton.addEventListener('click', (event) => {
+                    event.stopPropagation();
+                    sceneDirector.removeFromQueue(entry.id);
+                    updateSceneStatusDisplays(sceneDirector.getStatus(latestAudioData, latestElapsedSeconds, activeSceneId));
+                });
+
+                buttonGroup.appendChild(launchButton);
+                buttonGroup.appendChild(removeButton);
+                item.appendChild(buttonGroup);
+
+                sceneQueueList.appendChild(item);
+            });
+        };
+
+        const renderSceneFavorites = (status = null) => {
+            if (!sceneFavoriteGrid) return;
+            sceneFavoriteGrid.innerHTML = '';
+
+            const favorites = status?.favorites || [];
+            if (favorites.length === 0) {
+                const empty = document.createElement('div');
+                empty.className = 'empty-state';
+                empty.textContent = 'No favorites yet';
+                sceneFavoriteGrid.appendChild(empty);
+                return;
+            }
+
+            favorites.forEach((entry) => {
+                const chip = document.createElement('button');
+                chip.type = 'button';
+                chip.className = 'mini-chip';
+                chip.textContent = entry.name;
+                chip.addEventListener('click', () => {
+                    const favScene = sceneDirector.getSceneById(entry.id);
+                    if (favScene) {
+                        applyScene(favScene);
+                    }
+                });
+                chip.addEventListener('contextmenu', (event) => {
+                    event.preventDefault();
+                    sceneDirector.toggleFavorite(entry.id);
+                    updateSceneStatusDisplays(sceneDirector.getStatus(latestAudioData, latestElapsedSeconds, activeSceneId));
+                });
+                sceneFavoriteGrid.appendChild(chip);
+            });
+        };
+
+        const renderSceneHistory = (status = null) => {
+            if (!sceneHistoryList) return;
+            sceneHistoryList.innerHTML = '';
+
+            const history = status?.history || [];
+            if (history.length === 0) {
+                const empty = document.createElement('li');
+                empty.className = 'empty-state';
+                empty.textContent = 'No recent events';
+                sceneHistoryList.appendChild(empty);
+                return;
+            }
+
+            history.forEach((entry) => {
+                const item = document.createElement('li');
+
+                const descriptor = document.createElement('div');
+                descriptor.className = 'descriptor';
+
+                const title = document.createElement('span');
+                title.className = 'title';
+                title.textContent = entry.name || 'Scene';
+                descriptor.appendChild(title);
+
+                const meta = document.createElement('span');
+                meta.className = 'meta';
+                meta.textContent = `${formatReasonLabel(entry.reason, entry.manual)} · ${formatTimeAgo(entry.timestamp)}`;
+                descriptor.appendChild(meta);
+
+                item.appendChild(descriptor);
+
+                const buttonGroup = document.createElement('div');
+                buttonGroup.className = 'scene-card-actions';
+
+                const replayButton = document.createElement('button');
+                replayButton.type = 'button';
+                replayButton.className = 'scene-card-action';
+                replayButton.textContent = 'Replay';
+                replayButton.addEventListener('click', (event) => {
+                    event.stopPropagation();
+                    const historyScene = sceneDirector.getSceneById(entry.id);
+                    if (historyScene) {
+                        applyScene(historyScene);
+                    }
+                });
+
+                buttonGroup.appendChild(replayButton);
+                item.appendChild(buttonGroup);
+
+                sceneHistoryList.appendChild(item);
+            });
+        };
+
+        const updateSceneStatusDisplays = (status = null) => {
+            if (nextSceneStatus) {
+                nextSceneStatus.textContent = status?.nextSceneName
+                    ? `Next: ${status.nextSceneName}`
+                    : 'Next: —';
+            }
+
+            if (sceneCountdown) {
+                const countdownText = status?.countdownSeconds != null && Number.isFinite(status.countdownSeconds)
+                    ? `In ${formatCountdownValue(status.countdownSeconds)}`
+                    : 'In —';
+                sceneCountdown.textContent = countdownText;
+            }
+
+            renderSceneQueue(status);
+            renderSceneFavorites(status);
+            renderSceneHistory(status);
+            updateSceneSelectionUI(status);
+        };
+
+        const updateSceneOrderUI = () => {
+            if (!sceneOrderBar) return;
+            const ordering = sceneDirector.getState().ordering || 'forward';
+            sceneOrderBar.querySelectorAll('.mode-button').forEach((button) => {
+                button.classList.toggle('active', button.dataset.sceneOrder === ordering);
+            });
+        };
+
+        const handleSceneShift = (direction) => {
+            if (direction === 'previous') {
+                const previousId = sceneDirector.getPreviousSceneId(activeSceneId);
+                const previousScene = sceneDirector.getSceneById(previousId);
+                if (previousScene) {
+                    applyScene(previousScene);
+                }
+                return;
+            }
+
+            const nextId = sceneDirector.getNextSceneId(activeSceneId, { preview: false });
+            const nextScene = sceneDirector.getSceneById(nextId);
+            if (nextScene) {
+                applyScene(nextScene);
+            }
+        };
+
+        const refreshSceneRotationState = () => {
+            const rotationSet = new Set(sceneDirector.getState().rotationSet);
+            sceneCycleChips.forEach((chip, id) => {
+                chip.classList.toggle('active', rotationSet.has(id));
+            });
+            updateSceneStatusDisplays(sceneDirector.getStatus(latestAudioData, latestElapsedSeconds, activeSceneId));
+        };
+
+        const applyScene = (scene, options = {}) => {
+            if (!scene) return;
+
+            activeSceneId = scene.id;
+
+            if (typeof scene.geometry === 'number') {
+                setGeometry(scene.geometry);
+            }
+
+            if (scene.parameters) {
+                Object.entries(scene.parameters).forEach(([key, value]) => setSliderValue(key, value));
+            }
+
+            if (scene.color) {
+                if (typeof scene.color.hue === 'number') setSliderValue('hue', scene.color.hue);
+                if (typeof scene.color.saturation === 'number') setSliderValue('saturation', scene.color.saturation);
+                if (typeof scene.color.vibrance === 'number') setSliderValue('colorVibrance', scene.color.vibrance);
+                if (typeof scene.color.moire === 'number') setSliderValue('glitchMoire', scene.color.moire);
+                if (typeof scene.color.style === 'number') setPaletteStyle(scene.color.style, { notify: !options.auto });
+            }
+
+            if (typeof scene.paletteId === 'number') {
+                paletteState.profile = scene.paletteId;
+                updatePaletteSelectionUI();
+                currentVisualizer.updateParameter('colorProfile', paletteState.profile);
+                if (!options.auto) {
+                    const elapsedSeconds = Number.isFinite(latestElapsedSeconds)
+                        ? latestElapsedSeconds
+                        : (Date.now() - engine.startTime) / 1000;
+                    paletteDirector.acknowledgeManualSelection(elapsedSeconds);
+                }
+            }
+
+            if (!options.auto) {
+                const elapsedSeconds = Number.isFinite(latestElapsedSeconds)
+                    ? latestElapsedSeconds
+                    : (Date.now() - engine.startTime) / 1000;
+                const elapsedBeats = latestAudioData?.rhythmPhases?.elapsedBeats;
+                sceneDirector.acknowledgeManualSelection(elapsedSeconds, elapsedBeats, scene.id, { manual: true });
+            }
+
+            const status = sceneDirector.getStatus(latestAudioData, latestElapsedSeconds, activeSceneId);
+            updateSceneStatusDisplays(status);
+        };
+
+        sceneLibrary.forEach((scene) => {
+            const card = document.createElement('div');
+            card.className = 'scene-card';
+            card.tabIndex = 0;
+            card.setAttribute('role', 'group');
+            card.setAttribute('aria-label', `Activate scene ${scene.name}`);
+
+            const nameEl = document.createElement('span');
+            nameEl.className = 'scene-name';
+            nameEl.textContent = scene.name;
+            card.appendChild(nameEl);
+
+            const metaEl = document.createElement('span');
+            metaEl.className = 'scene-meta';
+            metaEl.textContent = scene.description;
+            card.appendChild(metaEl);
+
+            if (Array.isArray(scene.tags) && scene.tags.length) {
+                const tagsEl = document.createElement('div');
+                tagsEl.className = 'scene-tags';
+                scene.tags.forEach((tag) => {
+                    const tagEl = document.createElement('span');
+                    tagEl.className = 'scene-tag';
+                    tagEl.textContent = tag;
+                    tagsEl.appendChild(tagEl);
+                });
+                card.appendChild(tagsEl);
+            }
+
+            const actionRow = document.createElement('div');
+            actionRow.className = 'scene-card-actions';
+
+            const favoriteButton = document.createElement('button');
+            favoriteButton.type = 'button';
+            favoriteButton.className = 'scene-card-action';
+            favoriteButton.dataset.action = 'favorite';
+            favoriteButton.textContent = 'Favorite';
+            favoriteButton.setAttribute('aria-pressed', 'false');
+            favoriteButton.title = `Toggle ${scene.name} as a favorite`;
+            favoriteButton.addEventListener('click', (event) => {
+                event.stopPropagation();
+                sceneDirector.toggleFavorite(scene.id);
+                updateSceneStatusDisplays(sceneDirector.getStatus(latestAudioData, latestElapsedSeconds, activeSceneId));
+            });
+
+            const queueButton = document.createElement('button');
+            queueButton.type = 'button';
+            queueButton.className = 'scene-card-action';
+            queueButton.dataset.action = 'queue';
+            queueButton.textContent = 'Queue Next';
+            queueButton.setAttribute('aria-pressed', 'false');
+            queueButton.title = `Queue ${scene.name} to run before automation`;
+            queueButton.addEventListener('click', (event) => {
+                event.stopPropagation();
+                sceneDirector.queueScene(scene.id);
+                updateSceneStatusDisplays(sceneDirector.getStatus(latestAudioData, latestElapsedSeconds, activeSceneId));
+            });
+
+            actionRow.appendChild(favoriteButton);
+            actionRow.appendChild(queueButton);
+            card.appendChild(actionRow);
+
+            card.addEventListener('click', (event) => {
+                if (event.target instanceof HTMLElement && event.target.closest('.scene-card-action')) {
+                    return;
+                }
+                applyScene(scene);
+            });
+
+            card.addEventListener('keydown', (event) => {
+                if ((event.key === 'Enter' || event.key === ' ') && event.target === card) {
+                    event.preventDefault();
+                    applyScene(scene);
+                }
+            });
+
+            sceneDeck.appendChild(card);
+            sceneCards.set(scene.id, card);
+            sceneFavoriteButtons.set(scene.id, favoriteButton);
+            sceneQueueButtons.set(scene.id, queueButton);
+
+            const cycleChip = document.createElement('button');
+            cycleChip.type = 'button';
+            cycleChip.className = 'cycle-chip';
+            cycleChip.textContent = scene.name;
+            cycleChip.title = `Include ${scene.name} in scene rotation`;
+            cycleChip.addEventListener('click', () => {
+                sceneDirector.toggleScene(scene.id);
+                refreshSceneRotationState();
+            });
+            sceneRotationGrid.appendChild(cycleChip);
+            sceneCycleChips.set(scene.id, cycleChip);
+        });
+
+        if (clearSceneQueueButton) {
+            clearSceneQueueButton.addEventListener('click', () => {
+                sceneDirector.clearQueue();
+                updateSceneStatusDisplays(sceneDirector.getStatus(latestAudioData, latestElapsedSeconds, activeSceneId));
+            });
+        }
+
+        const setSceneMode = (mode) => {
+            sceneDirector.setMode(mode);
+            sceneModeBar.querySelectorAll('.mode-button').forEach((button) => {
+                button.classList.toggle('active', button.dataset.sceneMode === mode);
+            });
+            document.querySelectorAll('.scene-control').forEach((control) => {
+                const target = control.dataset.sceneMode;
+                control.classList.toggle('hidden', target !== mode);
+            });
+            updateSceneStatusDisplays(sceneDirector.getStatus(latestAudioData, latestElapsedSeconds, activeSceneId));
+        };
+
+        sceneModeBar.querySelectorAll('.mode-button').forEach((button) => {
+            button.addEventListener('click', () => setSceneMode(button.dataset.sceneMode));
+        });
+
+        if (sceneOrderBar) {
+            sceneOrderBar.querySelectorAll('.mode-button').forEach((button) => {
+                button.addEventListener('click', () => {
+                    const ordering = button.dataset.sceneOrder;
+                    sceneDirector.setOrdering(ordering);
+                    updateSceneOrderUI();
+                    updateSceneStatusDisplays(sceneDirector.getStatus(latestAudioData, latestElapsedSeconds, activeSceneId));
+                });
+            });
+        }
+
+        if (scenePrevButton) {
+            scenePrevButton.addEventListener('click', () => handleSceneShift('previous'));
+        }
+
+        if (sceneNextButton) {
+            sceneNextButton.addEventListener('click', () => handleSceneShift('next'));
+        }
+
+        sceneIntervalSlider.addEventListener('input', () => {
+            const seconds = parseInt(sceneIntervalSlider.value, 10);
+            sceneIntervalValue.textContent = `${seconds}s`;
+            sceneDirector.setInterval(seconds);
+            updateSceneStatusDisplays(sceneDirector.getStatus(latestAudioData, latestElapsedSeconds, activeSceneId));
+        });
+
+        sceneTempoSlider.addEventListener('input', () => {
+            const beats = parseInt(sceneTempoSlider.value, 10);
+            sceneTempoValue.textContent = beats;
+            sceneDirector.setTempoDivision(beats);
+            updateSceneStatusDisplays(sceneDirector.getStatus(latestAudioData, latestElapsedSeconds, activeSceneId));
+        });
+
+        sceneEnergySlider.addEventListener('input', () => {
+            const threshold = parseFloat(sceneEnergySlider.value);
+            sceneEnergyValue.textContent = threshold.toFixed(2);
+            sceneDirector.setEnergyThreshold(threshold);
+            updateSceneStatusDisplays(sceneDirector.getStatus(latestAudioData, latestElapsedSeconds, activeSceneId));
+        });
+
+        sceneIntervalValue.textContent = `${sceneIntervalSlider.value}s`;
+        sceneTempoValue.textContent = sceneTempoSlider.value;
+        sceneEnergyValue.textContent = parseFloat(sceneEnergySlider.value).toFixed(2);
+        setSceneMode('reactive');
+        updateSceneOrderUI();
+        refreshSceneRotationState();
+
+        if (sceneLibrary.length > 0) {
+            applyScene(sceneLibrary[0], { auto: true });
+            sceneDirector.acknowledgeManualSelection(0, latestAudioData?.rhythmPhases?.elapsedBeats, sceneLibrary[0].id, {
+                manual: false,
+                reason: 'init'
+            });
+            updateSceneStatusDisplays(sceneDirector.getStatus(latestAudioData, latestElapsedSeconds, activeSceneId));
+        } else {
+            sceneStatus.textContent = '—';
+            updateSceneStatusDisplays();
+        }
 
         // System switching
         document.querySelectorAll('.system-btn').forEach(btn => {
-            btn.onclick = () => {
+            btn.addEventListener('click', () => {
                 const system = btn.dataset.system;
                 if (currentVisualizer.destroy) currentVisualizer.destroy();
 
@@ -319,31 +2424,83 @@
                 else if (system === 'faceted') currentVisualizer = new IntegratedHolographicVisualizer('mainCanvas', 'content', 1.0, 0);
                 else currentVisualizer = new HolographicVisualizer('mainCanvas', 'content', 1.0, 0);
 
-                // Restore all slider values
-                ['intensity', 'gridDensity', 'morphFactor', 'chaos', 'speed', 'hue', 'saturation', 'dimension', 'rot4dXW', 'rot4dYW', 'rot4dZW'].forEach(param => {
-                    currentVisualizer.updateParameter(param, parseFloat(document.getElementById(param).value));
+                sliderDefinitions.filter(def => def.param).forEach(def => {
+                    const slider = sliderElements.get(def.id);
+                    if (slider) {
+                        const value = parseFloat(slider.value);
+                        currentVisualizer.updateParameter(def.id, value);
+                    }
                 });
+                currentVisualizer.updateParameter('colorProfile', paletteState.profile);
+                currentVisualizer.updateParameter('colorStyle', paletteState.style);
+                currentVisualizer.updateParameter('geometry', currentGeometryIndex);
 
                 engine.visualizers = [currentVisualizer];
+                shaderChoreographer.visualizer = currentVisualizer;
+                shaderChoreographer.gl = currentVisualizer.gl;
+                shaderChoreographer.program = currentVisualizer.program;
+
                 document.querySelectorAll('.system-btn').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
-            };
+                visualizerStatus.textContent = system.charAt(0).toUpperCase() + system.slice(1);
+            });
         });
 
-        // Audio
-        document.getElementById('audioFile').onchange = async (e) => {
-            const file = e.target.files[0];
+        // Rotation patterns
+        const rotationContainer = document.getElementById('rotationBtns');
+        rotationChoreographer.getPatternNames().forEach(name => {
+            const btn = document.createElement('button');
+            btn.className = 'chip';
+            btn.textContent = name.replace(/_/g, ' ');
+            btn.addEventListener('click', () => {
+                rotationChoreographer.setPattern(name);
+                rotationContainer.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+            });
+            rotationContainer.appendChild(btn);
+        });
+
+        // Sequences
+        const sequenceContainer = document.getElementById('sequenceBtns');
+        engine.sequences.forEach((seq, name) => {
+            const btn = document.createElement('button');
+            btn.className = 'chip';
+            btn.textContent = name.replace(/_/g, ' ').replace(/^sequence\s*/i, '').trim();
+            btn.addEventListener('click', () => engine.startSequence(name, Date.now()));
+            sequenceContainer.appendChild(btn);
+        });
+
+        // Audio handling
+        function updateAudioStatus(state, detail = '') {
+            audioStatus.textContent = detail ? `${state} · ${detail}` : state;
+        }
+
+        updateAudioStatus('Idle');
+
+        document.getElementById('audioFile').addEventListener('change', async (event) => {
+            const file = event.target.files?.[0];
             if (!file) return;
+
             try {
                 if (audioElement) {
                     audioElement.pause();
                     audioElement.src = '';
+                    if (audioElement.parentNode) {
+                        audioElement.parentNode.removeChild(audioElement);
+                    }
                 }
+                if (audioObjectUrl) {
+                    URL.revokeObjectURL(audioObjectUrl);
+                    audioObjectUrl = null;
+                }
+
                 const url = URL.createObjectURL(file);
+                audioObjectUrl = url;
                 audioElement = new Audio();
                 audioElement.src = url;
-                audioElement.volume = 1.0;
+                audioElement.loop = false;
                 audioElement.preload = 'auto';
+                audioElement.crossOrigin = 'anonymous';
                 audioElement.style.display = 'none';
                 document.body.appendChild(audioElement);
 
@@ -353,45 +2510,34 @@
                 source.connect(audioAnalyzer.analyser);
                 audioAnalyzer.analyser.connect(audioContext.destination);
                 engine.audioAnalyzer = audioAnalyzer;
+
+                const trackName = file.name.replace(/\.[^/.]+$/, '');
+                filePickerLabel.textContent = `Loaded: ${file.name}`;
+                updateAudioStatus('Loaded', trackName);
+
+                audioElement.addEventListener('ended', () => updateAudioStatus('Finished'));
+                audioElement.addEventListener('pause', () => updateAudioStatus('Paused'));
+                audioElement.addEventListener('play', () => updateAudioStatus('Playing'));
+                audioElement.addEventListener('loadedmetadata', () => updateAudioStatus('Ready', trackName));
             } catch (err) {
                 console.error(err);
+                updateAudioStatus('Error');
             }
-        };
+        });
 
-        document.getElementById('playBtn').onclick = async () => {
+        document.getElementById('playBtn').addEventListener('click', async () => {
             if (!audioElement) return;
             try {
                 if (audioContext && audioContext.state === 'suspended') await audioContext.resume();
                 await audioElement.play();
             } catch (err) {
                 console.error(err);
+                updateAudioStatus('Error');
             }
-        };
-
-        document.getElementById('pauseBtn').onclick = () => {
-            if (audioElement) audioElement.pause();
-        };
-
-        // Rotation patterns
-        const rotBtns = document.getElementById('rotationBtns');
-        rotationChoreographer.getPatternNames().forEach(name => {
-            const btn = document.createElement('button');
-            btn.textContent = name.replace(/_/g, ' ');
-            btn.onclick = () => {
-                rotationChoreographer.setPattern(name);
-                rotBtns.querySelectorAll('button').forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-            };
-            rotBtns.appendChild(btn);
         });
 
-        // Sequences
-        const seqBtns = document.getElementById('sequenceBtns');
-        engine.sequences.forEach((seq, name) => {
-            const btn = document.createElement('button');
-            btn.textContent = name.replace(/_/g, ' ').substring(10);
-            btn.onclick = () => engine.startSequence(name, Date.now());
-            seqBtns.appendChild(btn);
+        document.getElementById('pauseBtn').addEventListener('click', () => {
+            if (audioElement) audioElement.pause();
         });
 
         // Render loop
@@ -399,34 +2545,61 @@
         function render() {
             const audioData = audioAnalyzer ? audioAnalyzer.analyze() : engine.getMockAudioData();
 
-            // Update audio bars
+            latestAudioData = audioData;
+
             if (audioData.bands) {
-                document.getElementById('bassBar').style.width = (audioData.bands.bass * 100) + '%';
-                document.getElementById('midBar').style.width = (audioData.bands.mid * 100) + '%';
-                document.getElementById('highBar').style.width = (audioData.bands.high * 100) + '%';
+                document.getElementById('bassBar').style.width = (audioData.bands.bass * 100).toFixed(1) + '%';
+                document.getElementById('midBar').style.width = (audioData.bands.mid * 100).toFixed(1) + '%';
+                document.getElementById('highBar').style.width = (audioData.bands.high * 100).toFixed(1) + '%';
             }
 
-            // Set global audio reactive
             window.audioEnabled = true;
             window.audioReactive = {
                 bass: audioData.bands?.bass || 0.3,
                 mid: audioData.bands?.mid || 0.3,
                 high: audioData.bands?.high || 0.3,
-                energy: audioData.rms || 0.3
+                energy: audioData.rms || 0.3,
+                thresholds: {
+                    onset: onsetThreshold,
+                    bass: bassThreshold
+                }
             };
 
-            const rotations = rotationChoreographer.update(audioData, (Date.now() - engine.startTime) / 1000, engine.currentBeat, 16);
-            shaderChoreographer.update(audioData, (engine.currentBeat % engine.beatsPerMeasure) / engine.beatsPerMeasure, engine.currentBeat, engine.currentMeasure, Date.now());
+            const now = Date.now();
+            const seconds = (now - engine.startTime) / 1000;
+            const beat = engine.currentBeat;
+            rotationChoreographer.update(audioData, seconds, beat, 16);
+            shaderChoreographer.update(audioData, (engine.currentBeat % engine.beatsPerMeasure) / engine.beatsPerMeasure, beat, engine.currentMeasure, now);
 
-            // Apply rotations from pattern (don't override manual controls)
-            // currentVisualizer.updateParameter('rot4dXW', rotations.rot4dXW);
-            // currentVisualizer.updateParameter('rot4dYW', rotations.rot4dYW);
-            // currentVisualizer.updateParameter('rot4dZW', rotations.rot4dZW);
+            const timeline = audioElement?.currentTime ?? seconds;
+            latestElapsedSeconds = timeline;
+            const minutes = Math.floor(timeline / 60).toString();
+            const secs = Math.floor(timeline % 60).toString().padStart(2, '0');
+            measureStatus.textContent = `${minutes}:${secs}`;
+
+            const suggestedScene = sceneDirector.update(audioData, timeline, activeSceneId);
+            if (suggestedScene && suggestedScene.id !== activeSceneId) {
+                applyScene(suggestedScene, { auto: true });
+            }
+
+            const suggestedPalette = paletteDirector.update(audioData, timeline, paletteState.profile);
+            if (suggestedPalette !== null && suggestedPalette !== paletteState.profile) {
+                paletteState.profile = suggestedPalette;
+                updatePaletteSelectionUI();
+                currentVisualizer.updateParameter('colorProfile', paletteState.profile);
+            }
+
+            updateSceneStatusDisplays(sceneDirector.getStatus(audioData, timeline, activeSceneId));
 
             currentVisualizer.render();
             requestAnimationFrame(render);
         }
         render();
+
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth * (window.devicePixelRatio || 1);
+            canvas.height = window.innerHeight * (window.devicePixelRatio || 1);
+        });
     </script>
 </body>
 </html>
