@@ -3,543 +3,1048 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>VIB34D Mobile Smart</title>
+    <title>VIB34D Mobile Maestro</title>
     <style>
+        :root {
+            color-scheme: dark;
+            --bg: #02040a;
+            --panel: rgba(0, 16, 20, 0.94);
+            --panel-border: rgba(0, 255, 255, 0.55);
+            --accent: #00f0ff;
+            --accent-soft: rgba(0, 240, 255, 0.28);
+            --accent-strong: rgba(0, 240, 255, 0.55);
+            --green: #9dff57;
+            --text-primary: #d8fff7;
+            --text-secondary: rgba(185, 255, 245, 0.75);
+            --text-muted: rgba(185, 255, 245, 0.55);
+            --danger: #ff3b7f;
+            --radius: 16px;
+            --transition: 200ms cubic-bezier(0.33, 1, 0.68, 1);
+            font-family: 'IBM Plex Mono', 'Courier New', monospace;
+        }
+
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
-            -webkit-tap-highlight-color: transparent;
         }
 
         body {
-            background: #000;
+            background: var(--bg);
+            color: var(--text-primary);
+            font-family: inherit;
             overflow: hidden;
-            position: fixed;
-            width: 100%;
-            height: 100%;
-            font-family: 'Courier New', monospace;
+        }
+
+        #appShell {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
         }
 
         canvas {
-            position: fixed;
-            top: 0;
-            left: 0;
+            position: absolute;
+            inset: 0;
             width: 100vw;
             height: 100vh;
-            z-index: 1;
+            display: block;
         }
 
-        /* Bottom Drawer */
         #drawer {
             position: fixed;
-            bottom: 0;
             left: 0;
             right: 0;
-            background: rgba(0, 0, 0, 0.98);
-            border-top: 3px solid #0ff;
-            z-index: 1000;
-            transition: transform 0.3s ease-out;
-            max-height: 70vh;
+            bottom: 0;
+            background: var(--panel);
+            border-top: 2px solid var(--panel-border);
+            box-shadow: 0 -18px 40px rgba(0, 0, 0, 0.55);
+            transition: transform var(--transition);
+            transform: translateY(calc(100% - 60px));
+            z-index: 1200;
             display: flex;
             flex-direction: column;
+            max-height: 75vh;
+            backdrop-filter: blur(18px);
         }
 
-        #drawer.minimized {
-            transform: translateY(calc(100% - 50px));
+        #drawer.open {
+            transform: translateY(0%);
         }
 
-        /* Drawer Handle */
         #handle {
-            height: 50px;
-            background: linear-gradient(135deg, #001a1a 0%, #003333 100%);
+            height: 60px;
             display: flex;
-            justify-content: space-between;
             align-items: center;
-            padding: 0 15px;
+            justify-content: space-between;
+            padding: 0 18px;
             cursor: pointer;
-            user-select: none;
-            border-bottom: 2px solid #0ff;
-        }
-
-        #handle:active {
-            background: linear-gradient(135deg, #002828 0%, #004444 100%);
+            background: linear-gradient(135deg, rgba(0, 40, 48, 0.95) 0%, rgba(0, 16, 22, 0.9) 100%);
+            border-bottom: 1px solid rgba(0, 255, 255, 0.18);
         }
 
         .handle-title {
-            color: #0ff;
-            font-size: 14px;
-            font-weight: bold;
-            text-shadow: 0 0 5px #0ff;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            font-size: 0.78rem;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            color: var(--accent);
+        }
+
+        .handle-title span:last-child {
+            color: var(--text-secondary);
+            font-size: 0.66rem;
+            letter-spacing: 0.1em;
         }
 
         .handle-icon {
-            color: #0ff;
-            font-size: 20px;
-            transition: transform 0.3s;
+            color: var(--accent);
+            font-size: 1.2rem;
+            transition: transform var(--transition);
         }
 
-        #drawer.minimized .handle-icon {
+        #drawer.open .handle-icon {
             transform: rotate(180deg);
         }
 
-        /* Status Bar */
-        #status-bar {
-            padding: 8px 15px;
-            background: rgba(0, 40, 40, 0.5);
+        #statusBar {
             display: flex;
-            justify-content: space-between;
             align-items: center;
-            font-size: 11px;
-            border-bottom: 1px solid rgba(0, 255, 255, 0.3);
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 12px;
+            padding: 10px 18px 12px;
+            border-bottom: 1px solid rgba(0, 255, 255, 0.14);
+            background: rgba(0, 24, 28, 0.7);
+            font-size: 0.75rem;
+        }
+
+        .status-cluster {
+            display: flex;
+            align-items: center;
+            gap: 12px;
         }
 
         .status-item {
-            display: flex;
+            display: inline-flex;
             align-items: center;
-            gap: 5px;
-            color: #0f0;
+            gap: 6px;
+            color: var(--text-secondary);
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+
+        .status-item.subtle {
+            color: var(--text-muted);
+            font-size: 0.6rem;
+            letter-spacing: 0.12em;
         }
 
         .status-dot {
-            width: 8px;
-            height: 8px;
+            width: 10px;
+            height: 10px;
             border-radius: 50%;
-            animation: pulse 2s infinite;
+            background: #888;
+            box-shadow: 0 0 12px rgba(255, 255, 255, 0.4);
+            animation: pulse 2.4s infinite;
         }
 
         .status-dot.mock {
-            background: #ff0;
+            background: #ffce00;
+            box-shadow: 0 0 16px rgba(255, 206, 0, 0.5);
         }
 
         .status-dot.real {
-            background: #0f0;
+            background: #17ff9f;
+            box-shadow: 0 0 16px rgba(23, 255, 159, 0.6);
         }
 
         @keyframes pulse {
             0%, 100% { opacity: 1; }
-            50% { opacity: 0.3; }
+            50% { opacity: 0.35; }
         }
 
-        /* Drawer Content */
-        #drawer-content {
-            flex: 1;
-            overflow-y: auto;
-            -webkit-overflow-scrolling: touch;
-        }
-
-        #drawer-content::-webkit-scrollbar {
-            width: 6px;
-        }
-
-        #drawer-content::-webkit-scrollbar-thumb {
-            background: #0ff;
-            border-radius: 3px;
-        }
-
-        /* Tabs */
-        #tabs {
+        #tabBar {
             display: flex;
-            background: rgba(0, 0, 0, 0.8);
-            border-bottom: 2px solid rgba(0, 255, 255, 0.3);
-            position: sticky;
-            top: 0;
-            z-index: 10;
+            border-bottom: 1px solid rgba(0, 255, 255, 0.16);
+            background: rgba(0, 0, 0, 0.35);
         }
 
         .tab {
             flex: 1;
-            padding: 12px 8px;
-            text-align: center;
-            color: rgba(0, 255, 255, 0.5);
-            font-size: 11px;
-            font-weight: bold;
+            padding: 12px 6px;
+            background: transparent;
+            border: none;
+            color: rgba(0, 255, 255, 0.45);
+            font-size: 0.72rem;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
             cursor: pointer;
-            border-right: 1px solid rgba(0, 255, 255, 0.2);
-            transition: all 0.2s;
-        }
-
-        .tab:last-child {
-            border-right: none;
+            transition: background var(--transition), color var(--transition);
         }
 
         .tab.active {
-            color: #0ff;
-            background: rgba(0, 255, 255, 0.2);
-            text-shadow: 0 0 5px #0ff;
+            color: var(--accent);
+            background: rgba(0, 255, 255, 0.08);
         }
 
-        .tab:active {
-            background: rgba(0, 255, 255, 0.3);
+        #drawerContent {
+            flex: 1;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+            padding: 18px 18px 28px;
+            display: flex;
+            flex-direction: column;
+            gap: 18px;
         }
 
-        /* Tab Content */
-        .tab-content {
+        #drawerContent::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        #drawerContent::-webkit-scrollbar-thumb {
+            background: rgba(0, 255, 255, 0.45);
+            border-radius: 3px;
+        }
+
+        .tab-panel {
             display: none;
-            padding: 15px;
+            flex-direction: column;
+            gap: 18px;
         }
 
-        .tab-content.active {
-            display: block;
+        .tab-panel.active {
+            display: flex;
         }
 
-        /* Controls */
+        .section {
+            background: rgba(0, 18, 24, 0.82);
+            border: 1px solid rgba(0, 255, 255, 0.18);
+            border-radius: var(--radius);
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+        }
+
+        .section-title {
+            font-size: 0.78rem;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            color: var(--accent);
+        }
+
+        .section-hint {
+            color: var(--text-muted);
+            font-size: 0.68rem;
+            letter-spacing: 0.08em;
+        }
+
         .control {
-            margin-bottom: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
         }
 
         .control-label {
             display: flex;
             justify-content: space-between;
-            margin-bottom: 6px;
-            font-size: 11px;
-            color: #0f0;
+            align-items: center;
+            font-size: 0.72rem;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: var(--text-secondary);
         }
 
         .control-value {
-            color: #0ff;
-            font-weight: bold;
+            color: var(--accent);
+            font-size: 0.72rem;
         }
 
         input[type="range"] {
             width: 100%;
-            height: 8px;
-            background: rgba(0, 255, 255, 0.2);
-            border-radius: 4px;
-            outline: none;
             -webkit-appearance: none;
+            appearance: none;
+            height: 6px;
+            border-radius: 3px;
+            background: linear-gradient(90deg, rgba(0, 255, 255, 0.35), rgba(0, 120, 255, 0.25));
+            outline: none;
         }
 
         input[type="range"]::-webkit-slider-thumb {
             -webkit-appearance: none;
-            width: 24px;
-            height: 24px;
-            background: #0ff;
+            width: 18px;
+            height: 18px;
             border-radius: 50%;
-            cursor: pointer;
-            box-shadow: 0 0 10px #0ff;
-        }
-
-        input[type="range"]::-moz-range-thumb {
-            width: 24px;
-            height: 24px;
-            background: #0ff;
+            background: var(--accent);
+            box-shadow: 0 0 14px rgba(0, 255, 255, 0.75);
             border: none;
-            border-radius: 50%;
-            cursor: pointer;
-            box-shadow: 0 0 10px #0ff;
         }
 
-        /* Buttons */
-        .btn-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
+        .pill-row {
+            display: flex;
+            flex-wrap: wrap;
             gap: 10px;
-            margin-bottom: 15px;
         }
 
-        button {
-            background: rgba(0, 255, 255, 0.2);
-            border: 2px solid #0ff;
-            color: #0ff;
-            padding: 12px;
-            font-size: 12px;
-            font-family: 'Courier New', monospace;
-            font-weight: bold;
+        .pill-button {
+            border: 1px solid rgba(0, 255, 255, 0.3);
+            border-radius: 999px;
+            padding: 6px 14px;
+            font-size: 0.68rem;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            background: rgba(0, 255, 255, 0.08);
+            color: var(--text-secondary);
             cursor: pointer;
-            border-radius: 6px;
-            transition: all 0.2s;
+            transition: background var(--transition), color var(--transition), border var(--transition);
         }
 
-        button:active {
-            background: rgba(0, 255, 255, 0.4);
+        .pill-button.active {
+            background: rgba(0, 255, 255, 0.22);
+            border-color: rgba(0, 255, 255, 0.6);
+            color: var(--accent);
+        }
+
+        .pill-button.secondary {
+            border-color: rgba(0, 255, 255, 0.18);
+            background: rgba(0, 48, 60, 0.5);
+            color: var(--text-muted);
+        }
+
+        .pill-button.secondary:hover,
+        .pill-button.secondary:focus-visible {
+            color: var(--accent);
+            border-color: rgba(0, 255, 255, 0.35);
+        }
+
+        .chip-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 10px;
+        }
+
+        .scene-transport {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .scene-transport .pill-button {
+            flex: 1 1 50%;
+        }
+
+        .scene-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+        }
+
+        .scene-card {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            padding: 12px 14px;
+            border-radius: 16px;
+            border: 1px solid rgba(0, 255, 255, 0.28);
+            background: linear-gradient(150deg, rgba(0, 32, 40, 0.82) 0%, rgba(0, 18, 26, 0.9) 100%);
+            color: var(--text-secondary);
+            text-align: left;
+            cursor: pointer;
+            transition: transform var(--transition), box-shadow var(--transition), border var(--transition);
+        }
+
+        .scene-card:active {
             transform: scale(0.98);
         }
 
-        button.active {
-            background: rgba(0, 255, 0, 0.3);
-            border-color: #0f0;
-            color: #0f0;
+        .scene-card.active {
+            border-color: rgba(0, 255, 255, 0.55);
+            box-shadow: 0 12px 28px rgba(0, 255, 255, 0.24);
         }
 
-        /* File input */
-        input[type="file"] {
-            width: 100%;
-            padding: 10px;
-            background: rgba(0, 255, 255, 0.1);
-            border: 2px solid #0ff;
-            color: #0f0;
-            font-size: 11px;
-            font-family: 'Courier New', monospace;
-            margin-bottom: 10px;
-            border-radius: 6px;
+        .scene-card .scene-name {
+            font-size: 0.78rem;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            color: var(--accent);
         }
 
-        /* Audio bars */
-        .audio-bars {
+        .scene-card .scene-meta {
+            font-size: 0.68rem;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+            line-height: 1.4;
+        }
+
+        .scene-tags {
             display: flex;
+            flex-wrap: wrap;
             gap: 6px;
-            height: 80px;
-            align-items: flex-end;
-            margin-bottom: 15px;
-            padding: 10px;
-            background: rgba(0, 0, 0, 0.7);
-            border-radius: 6px;
-            border: 1px solid rgba(0, 255, 255, 0.3);
         }
 
-        .bar-container {
-            flex: 1;
+        .scene-tag {
+            font-size: 0.58rem;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+            padding: 3px 8px;
+            border-radius: 999px;
+            border: 1px solid rgba(0, 255, 255, 0.25);
+            background: rgba(0, 255, 255, 0.08);
+            color: var(--accent);
+        }
+
+        .scene-actions {
             display: flex;
             flex-direction: column;
+            gap: 10px;
+            margin-top: 6px;
+        }
+
+        .scene-actions .mini-stack {
+            display: flex;
+            gap: 8px;
+        }
+
+        .mini-button {
+            border: 1px solid rgba(0, 255, 255, 0.28);
+            background: rgba(0, 255, 255, 0.08);
+            color: var(--accent);
+            border-radius: 999px;
+            padding: 4px 12px;
+            font-size: 0.62rem;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: background var(--transition), color var(--transition), border var(--transition), opacity var(--transition);
+        }
+
+        .mini-button.secondary {
+            color: var(--text-secondary);
+            border-color: rgba(0, 255, 255, 0.18);
+            background: rgba(0, 255, 255, 0.05);
+        }
+
+        .mini-button.danger {
+            color: var(--danger);
+            border-color: rgba(255, 59, 127, 0.4);
+            background: rgba(255, 59, 127, 0.08);
+        }
+
+        .mini-button:hover,
+        .mini-button:focus-visible {
+            background: rgba(0, 255, 255, 0.22);
+            color: var(--bg);
+        }
+
+        .mini-button.secondary:hover,
+        .mini-button.secondary:focus-visible {
+            color: var(--accent);
+            border-color: rgba(0, 255, 255, 0.35);
+        }
+
+        .mini-button.danger:hover,
+        .mini-button.danger:focus-visible {
+            background: rgba(255, 59, 127, 0.22);
+            color: #fff;
+        }
+
+        .mini-button[disabled] {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .scene-weight {
+            display: flex;
             align-items: center;
-            gap: 4px;
+            gap: 8px;
+            font-size: 0.62rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--text-muted);
         }
 
-        .bar {
-            width: 100%;
-            background: linear-gradient(to top, #0f0 0%, #0ff 50%, #f0f 100%);
-            border-radius: 3px;
-            transition: height 0.1s;
-            min-height: 3px;
+        .scene-weight span {
+            min-width: 42px;
         }
 
-        .bar-label {
-            font-size: 9px;
-            color: #0ff;
-            font-weight: bold;
+        .scene-weight input[type="range"] {
+            flex: 1;
+            accent-color: var(--accent);
         }
 
-        /* Section headers */
-        .section-header {
-            color: #0ff;
-            font-size: 12px;
-            font-weight: bold;
-            margin: 15px 0 10px 0;
-            padding-bottom: 5px;
-            border-bottom: 1px solid rgba(0, 255, 255, 0.3);
+        .scene-weight-value {
+            min-width: 44px;
+            text-align: right;
+            color: var(--accent);
         }
 
-        .file-name {
-            font-size: 10px;
-            color: #0f0;
-            margin-bottom: 10px;
-            word-break: break-all;
+        .scene-queue-block,
+        .scene-history-block {
+            margin-top: 16px;
+            padding: 14px 16px;
+            border-radius: 14px;
+            border: 1px solid rgba(0, 255, 255, 0.18);
+            background: linear-gradient(150deg, rgba(0, 28, 36, 0.78) 0%, rgba(0, 16, 24, 0.84) 100%);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
         }
 
-        /* Strength bar */
-        .strength-bar-container {
-            height: 12px;
-            background: rgba(0, 0, 0, 0.7);
-            border-radius: 6px;
+        .queue-header,
+        .history-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 0.68rem;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            color: var(--text-muted);
+        }
+
+        .queue-list,
+        .history-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin: 0;
+            padding: 0;
+        }
+
+        .queue-item,
+        .history-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            padding: 8px 10px;
+            border-radius: 12px;
+            background: rgba(0, 255, 255, 0.05);
+            border: 1px solid rgba(0, 255, 255, 0.12);
+        }
+
+        .queue-meta,
+        .history-meta {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            font-size: 0.62rem;
+            color: var(--text-muted);
+            letter-spacing: 0.05em;
+        }
+
+        .queue-meta strong,
+        .history-meta strong {
+            color: var(--accent);
+            font-size: 0.7rem;
+        }
+
+        .queue-actions,
+        .history-actions {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .queue-empty,
+        .history-empty {
+            font-size: 0.62rem;
+            color: var(--text-muted);
+            letter-spacing: 0.08em;
+        }
+
+        .history-item .badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2px 8px;
+            border-radius: 999px;
+            border: 1px solid rgba(0, 255, 255, 0.18);
+            background: rgba(0, 255, 255, 0.08);
+            font-size: 0.55rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.14em;
+        }
+
+        .chip-grid .chip.muted {
+            opacity: 0.45;
+            border-style: dashed;
+        }
+
+        .scene-control.hidden {
+            display: none;
+        }
+
+        .chip {
+            border-radius: 10px;
+            padding: 10px 12px;
+            text-align: center;
+            background: rgba(0, 255, 255, 0.08);
+            border: 1px solid rgba(0, 255, 255, 0.24);
+            color: var(--text-secondary);
+            font-size: 0.72rem;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: background var(--transition), color var(--transition), border var(--transition);
+        }
+
+        .chip.active {
+            background: rgba(0, 255, 255, 0.25);
+            color: var(--accent);
+            border-color: rgba(0, 255, 255, 0.65);
+            box-shadow: 0 0 18px rgba(0, 255, 255, 0.25);
+        }
+
+        .mode-bar {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin: 14px 0 6px;
+        }
+
+        .mode-bar.compact {
+            margin: 8px 0 4px;
+            gap: 6px;
+        }
+
+        .mode-button {
+            flex: 1 1 80px;
+            border-radius: 14px;
+            border: 1px solid rgba(0, 255, 255, 0.25);
+            background: rgba(0, 255, 255, 0.06);
+            color: var(--text-secondary);
+            font-size: 0.64rem;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            padding: 6px 10px;
+            cursor: pointer;
+            transition: background var(--transition), color var(--transition), border var(--transition), box-shadow var(--transition);
+        }
+
+        .mode-button.active {
+            background: rgba(0, 255, 255, 0.22);
+            color: var(--accent);
+            border-color: rgba(0, 255, 255, 0.55);
+            box-shadow: 0 0 16px rgba(0, 255, 255, 0.22);
+        }
+
+        .cycle-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+            gap: 8px;
+            margin-bottom: 6px;
+        }
+
+        .cycle-chip {
+            border-radius: 10px;
+            padding: 8px 10px;
+            background: rgba(0, 255, 255, 0.04);
+            border: 1px dashed rgba(0, 255, 255, 0.2);
+            color: var(--text-muted);
+            font-size: 0.62rem;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: background var(--transition), border var(--transition), color var(--transition), box-shadow var(--transition);
+        }
+
+        .cycle-chip.active {
+            background: rgba(0, 255, 255, 0.18);
+            color: var(--accent);
+            border-style: solid;
+            border-color: rgba(0, 255, 255, 0.55);
+            box-shadow: 0 0 14px rgba(0, 255, 255, 0.24);
+        }
+
+        .control.compact {
+            margin-top: 6px;
+            padding: 8px 0 0;
+        }
+
+        .control.compact.hidden {
+            display: none;
+        }
+
+        .button-row {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .button-row button {
+            flex: 1 1 120px;
+            border-radius: 10px;
+            border: 1px solid rgba(0, 255, 255, 0.35);
+            background: rgba(0, 255, 255, 0.12);
+            color: var(--accent);
+            font-size: 0.78rem;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+            padding: 10px 12px;
+            cursor: pointer;
+            transition: background var(--transition), color var(--transition), border var(--transition);
+        }
+
+        .button-row button:hover,
+        .button-row button:focus-visible {
+            background: rgba(0, 255, 255, 0.22);
+            border-color: rgba(0, 255, 255, 0.6);
+        }
+
+        .button-row button.secondary {
+            background: rgba(157, 255, 87, 0.12);
+            border-color: rgba(157, 255, 87, 0.4);
+            color: var(--green);
+        }
+
+        .band-bars {
+            display: grid;
+            grid-template-columns: repeat(7, minmax(0, 1fr));
+            gap: 8px;
+            height: 120px;
+        }
+
+        .band-bar {
+            position: relative;
+            background: rgba(0, 0, 0, 0.45);
+            border: 1px solid rgba(0, 255, 255, 0.2);
+            border-radius: 8px;
             overflow: hidden;
-            margin-bottom: 15px;
-            border: 1px solid rgba(0, 255, 255, 0.3);
         }
 
-        .strength-bar {
-            height: 100%;
-            background: linear-gradient(to right, #0f0, #ff0, #f00);
-            transition: width 0.1s;
-            width: 0;
+        .band-bar span {
+            position: absolute;
+            bottom: 8px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 0.6rem;
+            letter-spacing: 0.12em;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+
+        .band-fill {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 0%;
+            background: linear-gradient(180deg, rgba(0, 255, 255, 0.0), rgba(0, 255, 255, 0.6));
+            box-shadow: 0 -4px 18px rgba(0, 255, 255, 0.45);
+            transition: height 120ms ease-out;
+        }
+
+        .timeline {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.75rem;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--text-secondary);
+        }
+
+        .reactivity-meter {
+            position: relative;
+            height: 10px;
+            border-radius: 999px;
+            background: rgba(0, 255, 255, 0.15);
+            overflow: hidden;
+        }
+
+        .reactivity-meter-fill {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            left: 0;
+            width: 35%;
+            border-radius: 999px;
+            background: linear-gradient(90deg, rgba(0, 255, 255, 0.4), rgba(157, 255, 87, 0.6));
+            transition: width 150ms ease-out;
+        }
+
+        @media (min-width: 920px) {
+            #drawer {
+                width: 420px;
+                left: auto;
+                right: 18px;
+                bottom: 18px;
+                border-radius: 22px;
+                transform: translateY(0);
+                max-height: 80vh;
+            }
+
+            #drawer.minimized {
+                transform: translateY(calc(100% - 60px));
+            }
+
+            body.drawer-collapsed #drawer {
+                transform: translateY(calc(100% - 60px));
+            }
+
+            #drawer.open {
+                transform: translateY(0);
+            }
         }
     </style>
 </head>
 <body>
-    <canvas id="canvas"></canvas>
-
-    <div id="drawer" class="minimized">
-        <div id="handle" onclick="toggleDrawer()">
-            <span class="handle-title">VIB34D CONTROLS</span>
-            <span class="handle-icon">▼</span>
-        </div>
-
-        <div id="status-bar">
-            <div class="status-item">
-                <div class="status-dot mock" id="statusDot"></div>
-                <span id="statusText">MOCK AUDIO</span>
+    <div id="appShell">
+        <canvas id="mainCanvas"></canvas>
+        <div id="drawer" class="minimized">
+            <div id="handle">
+                <div class="handle-title">
+                    <span>Mobile Maestro Console</span>
+                    <span>Choreography Control</span>
+                </div>
+                <span class="handle-icon">▲</span>
             </div>
-            <div class="status-item">
-                <span id="fps">60 FPS</span>
-            </div>
-        </div>
-
-        <div id="tabs">
-            <div class="tab active" onclick="switchTab(0)">AUDIO</div>
-            <div class="tab" onclick="switchTab(1)">VISUAL</div>
-            <div class="tab" onclick="switchTab(2)">GEOMETRY</div>
-            <div class="tab" onclick="switchTab(3)">REACTIVE</div>
-        </div>
-
-        <div id="drawer-content">
-            <!-- AUDIO TAB -->
-            <div class="tab-content active">
-                <input type="file" id="audioFile" accept="audio/*">
-                <div class="file-name" id="fileName">No file loaded</div>
-                <div class="btn-grid">
-                    <button id="playBtn">▶ PLAY</button>
-                    <button id="pauseBtn">⏸ PAUSE</button>
+            <div id="statusBar">
+                <div class="status-cluster">
+                    <div class="status-item">
+                        <span id="statusDot" class="status-dot mock"></span>
+                        <span id="statusText">MOCK AUDIO</span>
+                    </div>
+                    <div class="status-item" id="statusFile">NO TRACK</div>
+                </div>
+                <div class="status-cluster">
+                    <div class="status-item"><span id="statusBpm">128 BPM</span></div>
+                    <div class="status-item"><span id="statusBeat">BEAT 1</span></div>
+                    <div class="status-item"><span id="statusMeasure">00:00</span></div>
+                    <div class="status-item"><span id="statusScene">Aurora Orbit</span></div>
+                    <div class="status-item subtle"><span id="statusSceneNext">NEXT: —</span></div>
+                    <div class="status-item subtle"><span id="statusSceneCountdown">IN —</span></div>
                 </div>
             </div>
-
-            <!-- VISUAL TAB -->
-            <div class="tab-content">
-                <div class="section-header">🎨 COLOR</div>
-                <div class="control">
-                    <div class="control-label">
-                        <span>Hue (Color)</span>
-                        <span class="control-value" id="val-hue">180</span>
-                    </div>
-                    <input type="range" id="hue" min="0" max="360" step="1" value="180">
-                </div>
-                <div class="control">
-                    <div class="control-label">
-                        <span>Saturation</span>
-                        <span class="control-value" id="val-saturation">1.0</span>
-                    </div>
-                    <input type="range" id="saturation" min="0" max="1" step="0.01" value="1">
-                </div>
-                <div class="control">
-                    <div class="control-label">
-                        <span>Intensity (Brightness)</span>
-                        <span class="control-value" id="val-intensity">1.0</span>
-                    </div>
-                    <input type="range" id="intensity" min="0" max="3" step="0.1" value="1">
-                </div>
-
-                <div class="section-header">⚙️ GEOMETRY</div>
-                <div class="control">
-                    <div class="control-label">
-                        <span>Grid Density</span>
-                        <span class="control-value" id="val-gridDensity">25</span>
-                    </div>
-                    <input type="range" id="gridDensity" min="5" max="60" step="1" value="25">
-                </div>
-                <div class="control">
-                    <div class="control-label">
-                        <span>Morph Factor</span>
-                        <span class="control-value" id="val-morphFactor">1.0</span>
-                    </div>
-                    <input type="range" id="morphFactor" min="0" max="3" step="0.1" value="1">
-                </div>
-                <div class="control">
-                    <div class="control-label">
-                        <span>Chaos</span>
-                        <span class="control-value" id="val-chaos">0.2</span>
-                    </div>
-                    <input type="range" id="chaos" min="0" max="1" step="0.05" value="0.2">
-                </div>
-                <div class="control">
-                    <div class="control-label">
-                        <span>Speed</span>
-                        <span class="control-value" id="val-speed">1.0</span>
-                    </div>
-                    <input type="range" id="speed" min="0" max="3" step="0.1" value="1">
-                </div>
-                <div class="control">
-                    <div class="control-label">
-                        <span>Dimension</span>
-                        <span class="control-value" id="val-dimension">3.5</span>
-                    </div>
-                    <input type="range" id="dimension" min="3" max="4" step="0.1" value="3.5">
-                </div>
-                <div class="control">
-                    <div class="control-label">
-                        <span>Rotation XW</span>
-                        <span class="control-value" id="val-rot4dXW">0.0</span>
-                    </div>
-                    <input type="range" id="rot4dXW" min="-3.14" max="3.14" step="0.1" value="0">
-                </div>
-                <div class="control">
-                    <div class="control-label">
-                        <span>Rotation YW</span>
-                        <span class="control-value" id="val-rot4dYW">0.0</span>
-                    </div>
-                    <input type="range" id="rot4dYW" min="-3.14" max="3.14" step="0.1" value="0">
-                </div>
-                <div class="control">
-                    <div class="control-label">
-                        <span>Rotation ZW</span>
-                        <span class="control-value" id="val-rot4dZW">0.0</span>
-                    </div>
-                    <input type="range" id="rot4dZW" min="-3.14" max="3.14" step="0.1" value="0">
-                </div>
+            <div id="tabBar">
+                <button class="tab active" data-tab="live">Live</button>
+                <button class="tab" data-tab="visual">Visual</button>
+                <button class="tab" data-tab="audio">Audio</button>
+                <button class="tab" data-tab="scenes">Scenes</button>
             </div>
+            <div id="drawerContent">
+                <div class="tab-panel active" id="panel-live">
+                    <div class="section">
+                        <div class="section-header">
+                            <span class="section-title">Reactivity Engine</span>
+                            <span class="section-hint">Blend audio motion into the lattice</span>
+                        </div>
+                        <div class="control">
+                            <div class="control-label">
+                                <span>Amount</span>
+                                <span class="control-value" id="reactivityValue">1.0</span>
+                            </div>
+                            <input type="range" id="reactivityAmount" min="0" max="2" step="0.05" value="1">
+                        </div>
+                        <div class="pill-row" id="reactivityToggles">
+                            <button class="pill-button active" data-toggle="density">Density</button>
+                            <button class="pill-button active" data-toggle="morph">Morph</button>
+                            <button class="pill-button active" data-toggle="color">Color Orbit</button>
+                            <button class="pill-button active" data-toggle="chaos">Chaos</button>
+                            <button class="pill-button active" data-toggle="rotation">Rotation</button>
+                            <button class="pill-button active" data-toggle="vibrance">Vibrance</button>
+                            <button class="pill-button" data-toggle="glitch">RGB Glitch</button>
+                        </div>
+                        <div class="reactivity-meter">
+                            <div class="reactivity-meter-fill" id="reactivityMeter"></div>
+                        </div>
+                    </div>
 
-            <!-- GEOMETRY TAB -->
-            <div class="tab-content">
-                <div class="section-header">GEOMETRY TYPE</div>
-                <div class="btn-grid">
-                    <button onclick="setGeometry(0)">Tetrahedron</button>
-                    <button onclick="setGeometry(1)">Hypercube</button>
-                    <button onclick="setGeometry(2)">Sphere</button>
-                    <button onclick="setGeometry(3)">Torus</button>
-                    <button onclick="setGeometry(4)">Klein Bottle</button>
-                    <button onclick="setGeometry(5)">Fractal</button>
-                    <button onclick="setGeometry(6)">Wave</button>
-                    <button onclick="setGeometry(7)">Crystal</button>
-                </div>
-                <div class="section-header">VISUALIZER SYSTEM</div>
-                <div class="btn-grid">
-                    <button onclick="setVisualizer('quantum')">Quantum</button>
-                    <button onclick="setVisualizer('faceted')">Faceted</button>
-                    <button onclick="setVisualizer('holographic')">Holographic</button>
-                </div>
-            </div>
-
-            <!-- REACTIVE TAB -->
-            <div class="tab-content">
-                <div class="section-header">REACTIVITY STRENGTH</div>
-                <div class="strength-bar-container">
-                    <div class="strength-bar" id="reactivityBar"></div>
-                </div>
-
-                <div class="control">
-                    <div class="control-label">
-                        <span>Amount (0-3x)</span>
-                        <span class="control-value" id="val-reactivity">1.0</span>
+                    <div class="section">
+                        <div class="section-header">
+                            <span class="section-title">Core Motion</span>
+                            <span class="section-hint">Direct parameter envelopes</span>
+                        </div>
+                        <div class="control">
+                            <div class="control-label"><span>Grid Density</span><span class="control-value" id="value-gridDensity">24</span></div>
+                            <input type="range" id="gridDensity" min="6" max="80" step="1" value="24">
+                        </div>
+                        <div class="control">
+                            <div class="control-label"><span>Morph Factor</span><span class="control-value" id="value-morphFactor">1.00</span></div>
+                            <input type="range" id="morphFactor" min="0" max="2.5" step="0.05" value="1">
+                        </div>
+                        <div class="control">
+                            <div class="control-label"><span>Chaos</span><span class="control-value" id="value-chaos">0.30</span></div>
+                            <input type="range" id="chaos" min="0" max="1.5" step="0.02" value="0.3">
+                        </div>
+                        <div class="control">
+                            <div class="control-label"><span>Speed</span><span class="control-value" id="value-speed">1.00</span></div>
+                            <input type="range" id="speed" min="0.1" max="3" step="0.05" value="1">
+                        </div>
+                        <div class="control">
+                            <div class="control-label"><span>Dimension</span><span class="control-value" id="value-dimension">3.40</span></div>
+                            <input type="range" id="dimension" min="2.5" max="4.5" step="0.05" value="3.4">
+                        </div>
+                        <div class="control">
+                            <div class="control-label"><span>Intensity</span><span class="control-value" id="value-intensity">0.90</span></div>
+                            <input type="range" id="intensity" min="0.1" max="2" step="0.05" value="0.9">
+                        </div>
                     </div>
-                    <input type="range" id="reactivity" min="0" max="3" step="0.1" value="1">
                 </div>
 
-                <div class="section-header">TOGGLE REACTIVITY</div>
-                <div class="btn-grid">
-                    <button class="active" id="toggle-density" onclick="toggleReactivity('density')">Density</button>
-                    <button class="active" id="toggle-morph" onclick="toggleReactivity('morph')">Morph</button>
-                    <button class="active" id="toggle-color" onclick="toggleReactivity('color')">Color</button>
-                    <button class="active" id="toggle-chaos" onclick="toggleReactivity('chaos')">Chaos</button>
-                    <button class="active" id="toggle-rotation" onclick="toggleReactivity('rotation')">Rotation</button>
+                <div class="tab-panel" id="panel-visual">
+                    <div class="section">
+                        <div class="section-header">
+                            <span class="section-title">Visualizer Stack</span>
+                            <span class="section-hint">Swap render engines</span>
+                        </div>
+                        <div class="pill-row" id="visualizerSwitch">
+                            <button class="pill-button active" data-visualizer="quantum">Quantum</button>
+                            <button class="pill-button" data-visualizer="holographic">Holographic</button>
+                            <button class="pill-button" data-visualizer="faceted">Facet Conductor</button>
+                        </div>
+                    </div>
+
+                    <div class="section">
+                        <div class="section-header">
+                            <span class="section-title">Geometry Library</span>
+                            <span class="section-hint">Project the hypershape</span>
+                        </div>
+                        <div class="chip-grid" id="geometryContainer"></div>
+                    </div>
+
+                    <div class="section">
+                        <div class="section-header">
+                            <span class="section-title">Color Journeys</span>
+                            <span class="section-hint">Select palette choreography</span>
+                        </div>
+                        <div class="chip-grid" id="paletteContainer"></div>
+                        <div class="mode-bar" id="paletteModeBar">
+                            <button class="mode-button active" data-palette-mode="reactive">Reactive</button>
+                            <button class="mode-button" data-palette-mode="interval">Interval</button>
+                            <button class="mode-button" data-palette-mode="tempo">Tempo</button>
+                            <button class="mode-button" data-palette-mode="energy">Energy</button>
+                            <button class="mode-button" data-palette-mode="off">Manual</button>
+                        </div>
+                        <div class="cycle-grid" id="paletteCycleGrid"></div>
+                        <div class="control compact" data-mode="interval">
+                            <div class="control-label"><span>Interval (s)</span><span class="control-value" id="value-paletteInterval">32s</span></div>
+                            <input type="range" id="paletteInterval" min="6" max="120" step="1" value="32">
+                        </div>
+                        <div class="control compact" data-mode="tempo">
+                            <div class="control-label"><span>Beats per Shift</span><span class="control-value" id="value-paletteTempo">8</span></div>
+                            <input type="range" id="paletteTempo" min="2" max="32" step="1" value="8">
+                        </div>
+                        <div class="control compact" data-mode="energy">
+                            <div class="control-label"><span>Energy Threshold</span><span class="control-value" id="value-paletteEnergy">0.72</span></div>
+                            <input type="range" id="paletteEnergy" min="0.3" max="0.95" step="0.01" value="0.72">
+                        </div>
+                        <div class="control">
+                            <div class="control-label"><span>Color Vibrance</span><span class="control-value" id="value-colorVibrance">1.20</span></div>
+                            <input type="range" id="colorVibrance" min="0.3" max="2.5" step="0.05" value="1.2">
+                        </div>
+                        <div class="control">
+                            <div class="control-label"><span>Moiré RGB Offset</span><span class="control-value" id="value-moire">0.00</span></div>
+                            <input type="range" id="moireStrength" min="0" max="1" step="0.05" value="0">
+                        </div>
+                    </div>
                 </div>
 
-                <div class="section-header">7-BAND AUDIO</div>
-                <div class="audio-bars">
-                    <div class="bar-container">
-                        <div class="bar" id="bar-sub"></div>
-                        <div class="bar-label">SUB</div>
+                <div class="tab-panel" id="panel-audio">
+                    <div class="section">
+                        <div class="section-header">
+                            <span class="section-title">Audio Transport</span>
+                            <span class="section-hint">Load and drive choreography</span>
+                        </div>
+                        <label class="button-row">
+                            <button id="fileButton" type="button" class="secondary">Select Track</button>
+                            <input type="file" id="audioFile" accept="audio/*" style="display:none">
+                            <button id="playBtn" type="button">Play</button>
+                            <button id="pauseBtn" type="button" class="secondary">Pause</button>
+                        </label>
+                        <div class="timeline">
+                            <span id="timelineCurrent">00:00</span>
+                            <span id="timelineDuration">--:--</span>
+                        </div>
+                        <div class="band-bars" id="bandBars">
+                            <div class="band-bar"><div class="band-fill" id="bar-sub"></div><span>Sub</span></div>
+                            <div class="band-bar"><div class="band-fill" id="bar-bass"></div><span>Bass</span></div>
+                            <div class="band-bar"><div class="band-fill" id="bar-low"></div><span>Low</span></div>
+                            <div class="band-bar"><div class="band-fill" id="bar-mid"></div><span>Mid</span></div>
+                            <div class="band-bar"><div class="band-fill" id="bar-hmid"></div><span>High-M</span></div>
+                            <div class="band-bar"><div class="band-fill" id="bar-high"></div><span>High</span></div>
+                            <div class="band-bar"><div class="band-fill" id="bar-ultra"></div><span>Air</span></div>
+                        </div>
                     </div>
-                    <div class="bar-container">
-                        <div class="bar" id="bar-bass"></div>
-                        <div class="bar-label">BASS</div>
+                </div>
+
+                <div class="tab-panel" id="panel-scenes">
+                    <div class="section">
+                        <div class="section-header">
+                            <span class="section-title">Scene Director</span>
+                            <span class="section-hint">Automate palettes, shapes, and color mood</span>
+                        </div>
+                        <div class="scene-grid" id="sceneDeck"></div>
+                        <div class="mode-bar" id="sceneModeBar">
+                            <button class="mode-button active" data-scene-mode="reactive">Reactive</button>
+                            <button class="mode-button" data-scene-mode="interval">Interval</button>
+                            <button class="mode-button" data-scene-mode="tempo">Tempo</button>
+                            <button class="mode-button" data-scene-mode="energy">Energy</button>
+                            <button class="mode-button" data-scene-mode="off">Manual</button>
+                        </div>
+                        <div class="mode-bar compact" id="sceneOrderBar">
+                            <button class="mode-button active" data-scene-order="forward">In Order</button>
+                            <button class="mode-button" data-scene-order="shuffle">Shuffle</button>
+                        </div>
+                        <div class="scene-transport">
+                            <button class="pill-button secondary" type="button" id="scenePrevMobile">Prev Scene</button>
+                            <button class="pill-button" type="button" id="sceneNextMobile">Next Scene</button>
+                        </div>
+                        <div class="control compact scene-control hidden" data-scene-mode="interval">
+                            <div class="control-label"><span>Interval (s)</span><span class="control-value" id="value-sceneInterval">48s</span></div>
+                            <input type="range" id="sceneInterval" min="12" max="240" step="1" value="48">
+                        </div>
+                        <div class="control compact scene-control hidden" data-scene-mode="tempo">
+                            <div class="control-label"><span>Beats per Scene</span><span class="control-value" id="value-sceneTempo">32</span></div>
+                            <input type="range" id="sceneTempo" min="4" max="128" step="1" value="32">
+                        </div>
+                        <div class="control compact scene-control hidden" data-scene-mode="energy">
+                            <div class="control-label"><span>Energy Trigger</span><span class="control-value" id="value-sceneEnergy">0.78</span></div>
+                            <input type="range" id="sceneEnergy" min="0.4" max="0.95" step="0.01" value="0.78">
+                        </div>
+                        <div class="control compact">
+                            <div class="control-label"><span>Minimum Duration</span><span class="control-value" id="value-sceneMin">6s</span></div>
+                            <input type="range" id="sceneMinDuration" min="2" max="120" step="1" value="6">
+                        </div>
+                        <div class="chip-grid" id="sceneRotationGrid"></div>
+                        <div class="scene-queue-block">
+                            <div class="queue-header">
+                                <span>Scene Queue</span>
+                                <div class="history-actions">
+                                    <button class="mini-button secondary" type="button" id="clearSceneQueue">Clear</button>
+                                </div>
+                            </div>
+                            <ul class="queue-list" id="sceneQueueList" aria-live="polite"></ul>
+                        </div>
+                        <div class="scene-history-block">
+                            <div class="history-header">
+                                <span>Scene History</span>
+                            </div>
+                            <ul class="history-list" id="sceneHistoryList" aria-live="polite"></ul>
+                        </div>
                     </div>
-                    <div class="bar-container">
-                        <div class="bar" id="bar-low"></div>
-                        <div class="bar-label">LOW</div>
+                    <div class="section">
+                        <div class="section-header">
+                            <span class="section-title">Rotation Patterns</span>
+                            <span class="section-hint">Spin through hyperspace</span>
+                        </div>
+                        <div class="chip-grid" id="rotationContainer"></div>
                     </div>
-                    <div class="bar-container">
-                        <div class="bar" id="bar-mid"></div>
-                        <div class="bar-label">MID</div>
-                    </div>
-                    <div class="bar-container">
-                        <div class="bar" id="bar-hmid"></div>
-                        <div class="bar-label">H-MID</div>
-                    </div>
-                    <div class="bar-container">
-                        <div class="bar" id="bar-high"></div>
-                        <div class="bar-label">HIGH</div>
-                    </div>
-                    <div class="bar-container">
-                        <div class="bar" id="bar-ultra"></div>
-                        <div class="bar-label">ULTRA</div>
+                    <div class="section">
+                        <div class="section-header">
+                            <span class="section-title">Sequence Launchers</span>
+                            <span class="section-hint">Trigger timeline scenes</span>
+                        </div>
+                        <div class="chip-grid" id="sequenceContainer"></div>
                     </div>
                 </div>
             </div>
@@ -547,49 +1052,116 @@
     </div>
 
     <script type="module">
+        import { ChoreographyEngine } from '../src/core/ChoreographyEngine.js';
+        import { RotationChoreographer } from '../src/choreographers/RotationChoreographer.js';
+        import { ShaderChoreographer } from '../src/choreographers/ShaderChoreographer.js';
+        import { PaletteDirector } from '../src/choreographers/PaletteDirector.js';
+        import { SceneDirector } from '../src/choreographers/SceneDirector.js';
         import { QuantumHolographicVisualizer } from '../src/visualizers/quantum/QuantumVisualizer.js';
         import { IntegratedHolographicVisualizer } from '../src/visualizers/faceted/FacetedVisualizer.js';
         import { HolographicVisualizer } from '../src/visualizers/holographic/HolographicVisualizer.js';
         import { AudioAnalyzer } from '../src/audio/AudioAnalyzer.js';
         import { GeometryLibrary } from '../src/geometry/GeometryLibrary.js';
 
-        const canvas = document.getElementById('canvas');
-        canvas.width = window.innerWidth * (window.devicePixelRatio || 1);
-        canvas.height = window.innerHeight * (window.devicePixelRatio || 1);
+        const canvas = document.getElementById('mainCanvas');
+        const drawer = document.getElementById('drawer');
+        const handle = document.getElementById('handle');
+        const statusDot = document.getElementById('statusDot');
+        const statusText = document.getElementById('statusText');
+        const statusFile = document.getElementById('statusFile');
+        const statusBpm = document.getElementById('statusBpm');
+        const statusBeat = document.getElementById('statusBeat');
+        const statusMeasure = document.getElementById('statusMeasure');
+        const statusScene = document.getElementById('statusScene');
+        const statusSceneNext = document.getElementById('statusSceneNext');
+        const statusSceneCountdown = document.getElementById('statusSceneCountdown');
+        const timelineCurrent = document.getElementById('timelineCurrent');
+        const timelineDuration = document.getElementById('timelineDuration');
+        const reactivityMeter = document.getElementById('reactivityMeter');
+        const reactivityValue = document.getElementById('reactivityValue');
+        const paletteContainer = document.getElementById('paletteContainer');
+        const paletteModeBar = document.getElementById('paletteModeBar');
+        const paletteCycleGrid = document.getElementById('paletteCycleGrid');
+        const paletteIntervalSlider = document.getElementById('paletteInterval');
+        const paletteTempoSlider = document.getElementById('paletteTempo');
+        const paletteEnergySlider = document.getElementById('paletteEnergy');
+        const paletteIntervalValue = document.getElementById('value-paletteInterval');
+        const paletteTempoValue = document.getElementById('value-paletteTempo');
+        const paletteEnergyValue = document.getElementById('value-paletteEnergy');
+        const colorVibranceValue = document.getElementById('value-colorVibrance');
+        const moireValue = document.getElementById('value-moire');
+        const geometryContainer = document.getElementById('geometryContainer');
+        const rotationContainer = document.getElementById('rotationContainer');
+        const sequenceContainer = document.getElementById('sequenceContainer');
+        const sceneDeck = document.getElementById('sceneDeck');
+        const sceneModeBar = document.getElementById('sceneModeBar');
+        const sceneOrderBar = document.getElementById('sceneOrderBar');
+        const scenePrevButton = document.getElementById('scenePrevMobile');
+        const sceneNextButton = document.getElementById('sceneNextMobile');
+        const sceneRotationGrid = document.getElementById('sceneRotationGrid');
+        const sceneIntervalSlider = document.getElementById('sceneInterval');
+        const sceneTempoSlider = document.getElementById('sceneTempo');
+        const sceneEnergySlider = document.getElementById('sceneEnergy');
+        const sceneIntervalValue = document.getElementById('value-sceneInterval');
+        const sceneTempoValue = document.getElementById('value-sceneTempo');
+        const sceneEnergyValue = document.getElementById('value-sceneEnergy');
+        const sceneQueueList = document.getElementById('sceneQueueList');
+        const sceneHistoryList = document.getElementById('sceneHistoryList');
+        const clearSceneQueueButton = document.getElementById('clearSceneQueue');
+        const sceneMinDurationSlider = document.getElementById('sceneMinDuration');
+        const sceneMinDurationValue = document.getElementById('value-sceneMin');
 
-        // Resize
-        function resize() {
-            canvas.width = window.innerWidth * (window.devicePixelRatio || 1);
-            canvas.height = window.innerHeight * (window.devicePixelRatio || 1);
+        function resizeCanvas() {
+            const dpr = Math.min(window.devicePixelRatio || 1, 2);
+            canvas.width = window.innerWidth * dpr;
+            canvas.height = window.innerHeight * dpr;
         }
-        window.addEventListener('resize', resize);
 
-        // Initialize visualizer - EXACTLY like ultimate-controls.html
-        let visualizer = new QuantumHolographicVisualizer('canvas', 'content', 1.0, 0);
-        window.visualizer = visualizer; // Make globally accessible for debugging
-        visualizer.updateParameter('intensity', 1.0);
-        visualizer.updateParameter('hue', 180);
-        visualizer.updateParameter('saturation', 1.0);
-        visualizer.updateParameter('gridDensity', 25);
+        resizeCanvas();
+        window.addEventListener('resize', resizeCanvas);
 
-        let currentGeometry = 0; // Start with Tetrahedron (index 0)
+        handle.addEventListener('click', () => {
+            const open = !drawer.classList.contains('open');
+            drawer.classList.toggle('open', open);
+            drawer.classList.toggle('minimized', !open);
+            document.body.classList.toggle('drawer-collapsed', !open);
+        });
 
-        // Base parameters - ALL of them like ultimate-controls.html
-        const baseParams = {
-            intensity: 1.0,
-            gridDensity: 25,
-            morphFactor: 1.0,
-            chaos: 0.2,
-            speed: 1.0,
-            hue: 180,
-            saturation: 1.0,
-            dimension: 3.5,
-            rot4dXW: 0,
-            rot4dYW: 0,
-            rot4dZW: 0
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.tab-panel').forEach(panel => panel.classList.remove('active'));
+                tab.classList.add('active');
+                document.getElementById(`panel-${tab.dataset.tab}`).classList.add('active');
+            });
+        });
+
+        const visualizerFactories = {
+            quantum: () => new QuantumHolographicVisualizer('mainCanvas', 'primary', 1.0, 0),
+            holographic: () => new HolographicVisualizer('mainCanvas', 'primary', 1.0, 0),
+            faceted: () => new IntegratedHolographicVisualizer('mainCanvas', 'primary', 1.0, 0)
         };
 
-        // Reactivity
+        const baseParams = {
+            gridDensity: 24,
+            morphFactor: 1.0,
+            chaos: 0.3,
+            speed: 1.0,
+            dimension: 3.4,
+            intensity: 0.9,
+            hue: 200,
+            saturation: 1.0,
+            rot4dXW: 0.0,
+            rot4dYW: 0.0,
+            rot4dZW: 0.0
+        };
+
+        const colorState = {
+            profile: 0,
+            vibrance: 1.2,
+            moire: 0
+        };
+
         const reactivity = {
             amount: 1.0,
             enabled: {
@@ -597,326 +1169,1135 @@
                 morph: true,
                 color: true,
                 chaos: true,
-                rotation: true
+                rotation: true,
+                vibrance: true,
+                glitch: false
             }
         };
 
-        // Audio
+        let currentVisualizer = visualizerFactories.quantum();
+        let currentGeometry = 0;
+
+        const applyBaseParameters = () => {
+            Object.entries(baseParams).forEach(([key, value]) => currentVisualizer.updateParameter(key, value));
+            currentVisualizer.updateParameter('geometry', currentGeometry);
+            currentVisualizer.updateParameter('colorProfile', colorState.profile);
+            currentVisualizer.updateParameter('colorVibrance', colorState.vibrance);
+            currentVisualizer.updateParameter('glitchMoire', colorState.moire);
+        };
+
+        applyBaseParameters();
+
+        const engine = new ChoreographyEngine({ visualizers: [currentVisualizer], bpm: 128 });
+        const rotationChoreographer = new RotationChoreographer();
+        let shaderChoreographer = new ShaderChoreographer(currentVisualizer);
+        await engine.loadSequenceLibrary('../src/sequences/presets/bass-drops.json');
+        engine.start();
+        statusBpm.textContent = `${engine.bpm} BPM`;
+
         let audioContext = null;
         let audioAnalyzer = null;
         let audioElement = null;
+        let audioObjectUrl = null;
 
-        // Setup sliders - EXACTLY like ultimate-controls.html
-        Object.keys(baseParams).forEach(param => {
-            const slider = document.getElementById(param);
-            const display = document.getElementById('val-' + param);
-            if (!slider || !display) return;
+        const bandIds = ['bar-sub', 'bar-bass', 'bar-low', 'bar-mid', 'bar-hmid', 'bar-high', 'bar-ultra'];
+        const bandKeys = ['subBass', 'bass', 'lowMid', 'mid', 'highMid', 'high', 'air'];
 
-            slider.value = baseParams[param];
-            display.textContent = baseParams[param].toFixed(1);
+        const updateSliderDisplay = (id, value, precision = 2) => {
+            const display = document.getElementById(`value-${id}`);
+            if (display) {
+                display.textContent = value.toFixed(precision);
+            }
+        };
 
-            slider.oninput = () => {
-                const val = parseFloat(slider.value);
-                display.textContent = val.toFixed(1);
-                baseParams[param] = val;  // UPDATE BASE
-                // Render loop will apply it every frame
-                console.log(`🎚️ Slider ${param}=${val}`);
-            };
+        const sliderConfig = [
+            { id: 'gridDensity', min: 6, max: 80, step: 1, precision: 0 },
+            { id: 'morphFactor', min: 0, max: 2.5, step: 0.05, precision: 2 },
+            { id: 'chaos', min: 0, max: 1.5, step: 0.02, precision: 2 },
+            { id: 'speed', min: 0.1, max: 3, step: 0.05, precision: 2 },
+            { id: 'dimension', min: 2.5, max: 4.5, step: 0.05, precision: 2 },
+            { id: 'intensity', min: 0.1, max: 2, step: 0.05, precision: 2 }
+        ];
+
+        const sliderElements = new Map();
+
+        sliderConfig.forEach(({ id, min, max, step, precision }) => {
+            const slider = document.getElementById(id);
+            if (!slider) return;
+            slider.min = min;
+            slider.max = max;
+            slider.step = step;
+            slider.value = baseParams[id];
+            updateSliderDisplay(id, baseParams[id], precision);
+            slider.addEventListener('input', () => {
+                const value = parseFloat(slider.value);
+                baseParams[id] = value;
+                updateSliderDisplay(id, value, precision);
+                currentVisualizer.updateParameter(id, value);
+            });
+            sliderElements.set(id, { slider, precision });
         });
 
-        // Reactivity amount
-        document.getElementById('reactivity').oninput = (e) => {
-            reactivity.amount = parseFloat(e.target.value);
-            document.getElementById('val-reactivity').textContent = reactivity.amount.toFixed(1);
+        const setBaseSlider = (id, value) => {
+            const config = sliderElements.get(id);
+            if (!config) return;
+            const { slider, precision } = config;
+            slider.value = value;
+            baseParams[id] = value;
+            updateSliderDisplay(id, value, precision);
+            currentVisualizer.updateParameter(id, value);
         };
 
-        // Toggle drawer
-        window.toggleDrawer = function() {
-            document.getElementById('drawer').classList.toggle('minimized');
+        const colorVibranceSlider = document.getElementById('colorVibrance');
+        const setColorVibrance = (value) => {
+            colorState.vibrance = value;
+            colorVibranceSlider.value = value;
+            colorVibranceValue.textContent = value.toFixed(2);
+            currentVisualizer.updateParameter('colorVibrance', value);
         };
+        colorVibranceSlider.addEventListener('input', () => {
+            setColorVibrance(parseFloat(colorVibranceSlider.value));
+        });
 
-        // Switch tabs
-        window.switchTab = function(index) {
-            const tabs = document.querySelectorAll('.tab');
-            const contents = document.querySelectorAll('.tab-content');
-            tabs.forEach((t, i) => {
-                if (i === index) {
-                    t.classList.add('active');
-                    contents[i].classList.add('active');
-                } else {
-                    t.classList.remove('active');
-                    contents[i].classList.remove('active');
+        const moireSlider = document.getElementById('moireStrength');
+        const setMoire = (value) => {
+            colorState.moire = value;
+            moireSlider.value = value;
+            moireValue.textContent = value.toFixed(2);
+            currentVisualizer.updateParameter('glitchMoire', value);
+        };
+        moireSlider.addEventListener('input', () => {
+            setMoire(parseFloat(moireSlider.value));
+        });
+
+        document.getElementById('reactivityAmount').addEventListener('input', (event) => {
+            reactivity.amount = parseFloat(event.target.value);
+            reactivityValue.textContent = reactivity.amount.toFixed(2);
+        });
+
+        document.querySelectorAll('#reactivityToggles .pill-button').forEach(button => {
+            button.addEventListener('click', () => {
+                const key = button.dataset.toggle;
+                reactivity.enabled[key] = !reactivity.enabled[key];
+                button.classList.toggle('active', reactivity.enabled[key]);
+            });
+        });
+
+        document.querySelectorAll('#visualizerSwitch .pill-button').forEach(button => {
+            button.addEventListener('click', () => {
+                const type = button.dataset.visualizer;
+                if (!visualizerFactories[type]) return;
+                document.querySelectorAll('#visualizerSwitch .pill-button').forEach(b => b.classList.remove('active'));
+                button.classList.add('active');
+                if (currentVisualizer && currentVisualizer.destroy) {
+                    currentVisualizer.destroy();
                 }
+                currentVisualizer = visualizerFactories[type]();
+                applyBaseParameters();
+                engine.visualizers = [currentVisualizer];
+                shaderChoreographer = new ShaderChoreographer(currentVisualizer);
+            });
+        });
+
+        const geometryNames = GeometryLibrary.getGeometryNames();
+        const geometryChips = new Map();
+
+        const setGeometry = (index) => {
+            currentGeometry = index;
+            currentVisualizer.updateParameter('geometry', index);
+            geometryChips.forEach((chip, chipIndex) => {
+                chip.classList.toggle('active', chipIndex === index);
             });
         };
 
-        // Toggle reactivity
-        window.toggleReactivity = function(type) {
-            reactivity.enabled[type] = !reactivity.enabled[type];
-            const btn = document.getElementById('toggle-' + type);
-            btn.classList.toggle('active');
-        };
+        geometryNames.forEach((name, index) => {
+            const chip = document.createElement('button');
+            chip.className = 'chip';
+            chip.textContent = name;
+            chip.addEventListener('click', () => setGeometry(index));
+            geometryContainer.appendChild(chip);
+            geometryChips.set(index, chip);
+        });
 
-        // Geometry - pass index directly
-        window.setGeometry = function(geoIndex) {
-            currentGeometry = geoIndex;
-            const name = GeometryLibrary.getGeometryName(geoIndex);
-            console.log(`🔷 Setting geometry to ${name} (index ${geoIndex})`);
-            visualizer.updateParameter('geometry', geoIndex);
-            console.log(`✅ Geometry set to ${geoIndex}`);
-        };
+        setGeometry(currentGeometry);
 
-        // Visualizer
-        window.setVisualizer = function(type) {
-            if (visualizer.destroy) visualizer.destroy();
+        const palettes = [
+            { id: 0, name: 'Legacy Hypercolor', description: 'Classic multi-spectrum energy' },
+            { id: 1, name: 'Aurora Bloom', description: 'Glacial blues with aurora flares' },
+            { id: 2, name: 'Solar Inferno', description: 'Molten oranges and eclipse reds' },
+            { id: 3, name: 'Midnight Prism', description: 'Nocturnal violets and cobalt' },
+            { id: 4, name: 'Neon Mirage', description: 'Cyan magenta nightclub haze' },
+            { id: 5, name: 'Monochrome Bloom', description: 'Greyscale bloom for filmic mood' },
+            { id: 6, name: 'Luxe Ember', description: 'Gold embers with teal shadows' },
+            { id: 7, name: 'Biolumens', description: 'Deep sea greens with electric blue' },
+            { id: 8, name: 'Cyber Noir', description: 'Violet storms with neon cyan' },
+            { id: 9, name: 'Aurora Cascade', description: 'Prismatic teal and lilac' }
+        ];
 
-            if (type === 'quantum') {
-                visualizer = new QuantumHolographicVisualizer('canvas', 'content', 1.0, 0);
-            } else if (type === 'faceted') {
-                visualizer = new IntegratedHolographicVisualizer('canvas', 'content', 1.0, 0);
-            } else if (type === 'holographic') {
-                visualizer = new HolographicVisualizer('canvas', 'content', 1.0, 0);
-            }
+        const paletteDirector = new PaletteDirector({
+            palettes,
+            intervalSeconds: 32,
+            tempoDivision: 8,
+            energyThreshold: 0.72,
+            mode: 'reactive'
+        });
 
-            window.visualizer = visualizer; // Update global reference
+        const paletteChips = new Map();
+        const cycleChips = new Map();
 
-            // Restore all parameters
-            visualizer.updateParameter('geometry', currentGeometry);
-            Object.keys(baseParams).forEach(k => {
-                visualizer.updateParameter(k, baseParams[k]);
+        const updatePaletteSelectionUI = () => {
+            paletteChips.forEach((chip, id) => {
+                chip.classList.toggle('active', id === colorState.profile);
             });
-
-            console.log('🎨 Visualizer switched to:', type);
         };
 
-        // Audio file
-        document.getElementById('audioFile').onchange = async (e) => {
-            const file = e.target.files[0];
-            if (!file) return;
+        const refreshCycleState = () => {
+            const playlist = new Set(paletteDirector.getState().playlist);
+            cycleChips.forEach((chip, id) => {
+                chip.classList.toggle('active', playlist.has(id));
+            });
+        };
 
-            try {
-                document.getElementById('fileName').textContent = `Loading ${file.name}...`;
+        const setPaletteMode = (mode) => {
+            paletteDirector.setMode(mode);
+            paletteModeBar.querySelectorAll('.mode-button').forEach(button => {
+                button.classList.toggle('active', button.dataset.paletteMode === mode);
+            });
+            document.querySelectorAll('.control.compact').forEach(control => {
+                const target = control.dataset.mode;
+                control.classList.toggle('hidden', target !== mode);
+            });
+        };
 
-                if (audioElement) {
-                    audioElement.pause();
-                    audioElement.src = '';
-                    if (audioElement.parentNode) {
-                        audioElement.parentNode.removeChild(audioElement);
-                    }
+        palettes.forEach((palette) => {
+            const chip = document.createElement('button');
+            chip.className = 'chip';
+            chip.textContent = palette.name;
+            chip.title = palette.description;
+            if (palette.id === colorState.profile) chip.classList.add('active');
+            chip.addEventListener('click', () => {
+                colorState.profile = palette.id;
+                updatePaletteSelectionUI();
+                currentVisualizer.updateParameter('colorProfile', colorState.profile);
+                const elapsedSeconds = (Date.now() - engine.startTime) / 1000;
+                paletteDirector.acknowledgeManualSelection(elapsedSeconds);
+            });
+            paletteContainer.appendChild(chip);
+            paletteChips.set(palette.id, chip);
+
+            const cycleChip = document.createElement('button');
+            cycleChip.className = 'cycle-chip';
+            cycleChip.textContent = palette.name;
+            cycleChip.title = `Include ${palette.name} in auto rotation`;
+            if (paletteDirector.playlist.has(palette.id)) {
+                cycleChip.classList.add('active');
+            }
+            cycleChip.addEventListener('click', () => {
+                paletteDirector.togglePlaylist(palette.id);
+                refreshCycleState();
+            });
+            paletteCycleGrid.appendChild(cycleChip);
+            cycleChips.set(palette.id, cycleChip);
+        });
+
+        paletteModeBar.querySelectorAll('.mode-button').forEach(button => {
+            button.addEventListener('click', () => {
+                const mode = button.dataset.paletteMode;
+                setPaletteMode(mode);
+            });
+        });
+
+        paletteIntervalSlider.addEventListener('input', () => {
+            const seconds = parseInt(paletteIntervalSlider.value, 10);
+            paletteIntervalValue.textContent = `${seconds}s`;
+            paletteDirector.setInterval(seconds);
+        });
+
+        paletteTempoSlider.addEventListener('input', () => {
+            const beats = parseInt(paletteTempoSlider.value, 10);
+            paletteTempoValue.textContent = beats;
+            paletteDirector.setTempoDivision(beats);
+        });
+
+        paletteEnergySlider.addEventListener('input', () => {
+            const threshold = parseFloat(paletteEnergySlider.value);
+            paletteEnergyValue.textContent = threshold.toFixed(2);
+            paletteDirector.setEnergyThreshold(threshold);
+        });
+
+        paletteIntervalValue.textContent = `${paletteIntervalSlider.value}s`;
+        paletteTempoValue.textContent = paletteTempoSlider.value;
+        paletteEnergyValue.textContent = parseFloat(paletteEnergySlider.value).toFixed(2);
+        setPaletteMode('reactive');
+        updatePaletteSelectionUI();
+        refreshCycleState();
+
+        const sceneLibrary = [
+            {
+                id: 'aurora-orbit',
+                name: 'Aurora Orbit',
+                description: 'Teal and lilac ribbons float through orbiting glass.',
+                tags: ['Glide', 'Aurora'],
+                paletteId: 9,
+                geometry: 2,
+                parameters: {
+                    gridDensity: 34,
+                    morphFactor: 1.3,
+                    chaos: 0.26,
+                    speed: 1.18,
+                    dimension: 3.8,
+                    intensity: 1.1,
+                    rot4dXW: 0.62,
+                    rot4dYW: 0.48,
+                    rot4dZW: 0.72,
+                    hue: 210,
+                    saturation: 1.05
+                },
+                color: {
+                    vibrance: 1.42,
+                    moire: 0.28
                 }
+            },
+            {
+                id: 'ember-throttle',
+                name: 'Ember Throttle',
+                description: 'Molten fractals ignite every downbeat hit.',
+                tags: ['Fractal', 'Heat'],
+                paletteId: 6,
+                geometry: 5,
+                parameters: {
+                    gridDensity: 46,
+                    morphFactor: 1.55,
+                    chaos: 0.52,
+                    speed: 1.4,
+                    dimension: 3.35,
+                    intensity: 1.32,
+                    rot4dXW: 0.4,
+                    rot4dYW: 0.82,
+                    rot4dZW: 1.32,
+                    hue: 32,
+                    saturation: 1.2
+                },
+                color: {
+                    vibrance: 1.78,
+                    moire: 0.18
+                }
+            },
+            {
+                id: 'cyber-veil',
+                name: 'Cyber Veil',
+                description: 'Violet hypercube arcs shimmer with neon vapor.',
+                tags: ['Glitch', 'Vapor'],
+                paletteId: 8,
+                geometry: 1,
+                parameters: {
+                    gridDensity: 27,
+                    morphFactor: 0.94,
+                    chaos: 0.24,
+                    speed: 1.08,
+                    dimension: 3.55,
+                    intensity: 1.02,
+                    rot4dXW: 0.92,
+                    rot4dYW: 1.24,
+                    rot4dZW: 0.8,
+                    hue: 288,
+                    saturation: 1.16
+                },
+                color: {
+                    vibrance: 1.36,
+                    moire: 0.44
+                }
+            },
+            {
+                id: 'mono-lens',
+                name: 'Mono Lens',
+                description: 'Filmic bloom and monochrome tilt-shift focus.',
+                tags: ['Filmic', 'Calm'],
+                paletteId: 5,
+                geometry: 3,
+                parameters: {
+                    gridDensity: 22,
+                    morphFactor: 0.84,
+                    chaos: 0.18,
+                    speed: 0.92,
+                    dimension: 3.18,
+                    intensity: 0.92,
+                    rot4dXW: 0.2,
+                    rot4dYW: 0.4,
+                    rot4dZW: 0.58,
+                    hue: 12,
+                    saturation: 0.28
+                },
+                color: {
+                    vibrance: 0.64,
+                    moire: 0.05
+                }
+            },
+            {
+                id: 'neon-surge',
+                name: 'Neon Surge',
+                description: 'Magenta waveforms surge with bass-driven pulses.',
+                tags: ['Wave', 'Hype'],
+                paletteId: 4,
+                geometry: 6,
+                parameters: {
+                    gridDensity: 40,
+                    morphFactor: 1.1,
+                    chaos: 0.34,
+                    speed: 1.7,
+                    dimension: 3.68,
+                    intensity: 1.26,
+                    rot4dXW: 1.52,
+                    rot4dYW: 1.08,
+                    rot4dZW: 1.7,
+                    hue: 330,
+                    saturation: 1.22
+                },
+                color: {
+                    vibrance: 1.58,
+                    moire: 0.52
+                }
+            }
+        ];
 
-                const url = URL.createObjectURL(file);
-                audioElement = new Audio();
-                audioElement.src = url;
-                audioElement.volume = 1.0;
-                audioElement.preload = 'auto';
-                audioElement.crossOrigin = 'anonymous';
-                audioElement.style.display = 'none';
-                document.body.appendChild(audioElement);
+        const sceneDirector = new SceneDirector({
+            scenes: sceneLibrary,
+            intervalSeconds: parseInt(sceneIntervalSlider.value, 10) || 48,
+            tempoDivision: parseInt(sceneTempoSlider.value, 10) || 32,
+            energyThreshold: parseFloat(sceneEnergySlider.value) || 0.78,
+            cooldownSeconds: 7,
+            mode: 'reactive',
+            minDurationSeconds: parseInt(sceneMinDurationSlider?.value, 10) || 6
+        });
 
-                await new Promise((resolve, reject) => {
-                    audioElement.addEventListener('loadeddata', resolve, { once: true });
-                    audioElement.addEventListener('error', reject, { once: true });
-                    setTimeout(() => resolve(), 3000);
-                });
+        const sceneCards = new Map();
+        const sceneCycleChips = new Map();
+        const sceneWeightInputs = new Map();
+        let activeSceneId = sceneLibrary.length ? sceneLibrary[0].id : null;
+        let latestAudioData = null;
+        let latestElapsedSeconds = 0;
 
-                audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                audioAnalyzer = new AudioAnalyzer(audioContext);
+        if (sceneMinDurationSlider && sceneMinDurationValue) {
+            const state = sceneDirector.getState();
+            sceneMinDurationSlider.value = state.minDurationSeconds;
+            sceneMinDurationValue.textContent = `${state.minDurationSeconds}s`;
+        }
 
-                const source = audioContext.createMediaElementSource(audioElement);
-                source.connect(audioAnalyzer.analyser);
-                audioAnalyzer.analyser.connect(audioContext.destination);
-
-                document.getElementById('fileName').textContent = file.name;
-                console.log('✅ Audio loaded:', file.name);
-            } catch (err) {
-                console.error('❌ Audio error:', err);
-                document.getElementById('fileName').textContent = 'Error: ' + err.message;
+        const updateSceneSelectionUI = () => {
+            sceneCards.forEach((card, id) => {
+                card.classList.toggle('active', id === activeSceneId);
+            });
+            if (statusScene) {
+                const activeScene = activeSceneId ? sceneDirector.getSceneById(activeSceneId) : null;
+                statusScene.textContent = activeScene ? activeScene.name : 'Scene';
             }
         };
 
-        // Play
-        document.getElementById('playBtn').onclick = async () => {
-            if (!audioElement) {
-                alert('Load audio file first');
+        const formatWeightValue = (weight) => {
+            if (!Number.isFinite(weight) || weight <= 0) {
+                return 'Off';
+            }
+            return `x${Number(weight).toFixed(2)}`;
+        };
+
+        const formatRelativeTime = (timestamp) => {
+            if (!Number.isFinite(timestamp)) {
+                return '—';
+            }
+            const deltaSeconds = Math.max(0, (Date.now() - timestamp) / 1000);
+            if (deltaSeconds < 5) {
+                return 'Just now';
+            }
+            if (deltaSeconds < 60) {
+                return `${Math.round(deltaSeconds)}s ago`;
+            }
+            if (deltaSeconds < 3600) {
+                const minutes = Math.floor(deltaSeconds / 60);
+                const seconds = Math.round(deltaSeconds % 60);
+                return seconds ? `${minutes}m ${seconds}s ago` : `${minutes}m ago`;
+            }
+            const hours = Math.floor(deltaSeconds / 3600);
+            const minutes = Math.round((deltaSeconds % 3600) / 60);
+            return minutes ? `${hours}h ${minutes}m ago` : `${hours}h ago`;
+        };
+
+        const formatCountdownValue = (seconds) => {
+            if (seconds == null || !Number.isFinite(seconds)) {
+                return '—';
+            }
+            const safe = Math.max(0, seconds);
+            if (safe >= 90) {
+                const minutes = Math.floor(safe / 60);
+                const secs = Math.floor(safe % 60).toString().padStart(2, '0');
+                return `${minutes}:${secs}`;
+            }
+            if (safe >= 10) {
+                return `${Math.round(safe)}s`;
+            }
+            return `${safe.toFixed(1)}s`;
+        };
+
+        const renderSceneQueue = (status = null) => {
+            if (!sceneQueueList) return;
+            sceneQueueList.innerHTML = '';
+            const queue = status?.queue || [];
+            if (!queue.length) {
+                const empty = document.createElement('li');
+                empty.className = 'queue-empty';
+                empty.textContent = 'Queue empty';
+                sceneQueueList.appendChild(empty);
                 return;
             }
 
-            try {
-                if (audioContext && audioContext.state === 'suspended') {
-                    await audioContext.resume();
+            queue.forEach((entry, index) => {
+                const item = document.createElement('li');
+                item.className = 'queue-item';
+
+                const meta = document.createElement('div');
+                meta.className = 'queue-meta';
+                const title = document.createElement('strong');
+                title.textContent = entry.name || sceneDirector.getSceneById(entry.id)?.name || entry.id;
+                const info = document.createElement('span');
+                if (entry.immediate) {
+                    info.textContent = 'Immediate launch';
+                } else {
+                    const min = Math.round(entry.minDuration ?? sceneDirector.getState().minDurationSeconds);
+                    info.textContent = `Min ${min}s window`;
                 }
-                await audioElement.play();
-                console.log('✅ Playing');
-            } catch (err) {
-                console.error('❌ Play error:', err);
-                alert('Playback failed: ' + err.message);
+                meta.appendChild(title);
+                meta.appendChild(info);
+
+                const actions = document.createElement('div');
+                actions.className = 'queue-actions';
+
+                const promote = document.createElement('button');
+                promote.type = 'button';
+                promote.className = 'mini-button secondary';
+                promote.textContent = 'Next';
+                promote.dataset.action = 'promote';
+                promote.dataset.index = index;
+                promote.disabled = index === 0;
+
+                const remove = document.createElement('button');
+                remove.type = 'button';
+                remove.className = 'mini-button danger';
+                remove.textContent = 'Remove';
+                remove.dataset.action = 'remove';
+                remove.dataset.index = index;
+
+                actions.appendChild(promote);
+                actions.appendChild(remove);
+
+                item.appendChild(meta);
+                item.appendChild(actions);
+                sceneQueueList.appendChild(item);
+            });
+        };
+
+        const renderSceneHistory = (status = null) => {
+            if (!sceneHistoryList) return;
+            sceneHistoryList.innerHTML = '';
+            const history = status?.history || [];
+            if (!history.length) {
+                const empty = document.createElement('li');
+                empty.className = 'history-empty';
+                empty.textContent = 'No scenes captured yet';
+                sceneHistoryList.appendChild(empty);
+                return;
+            }
+
+            history.forEach((entry) => {
+                const item = document.createElement('li');
+                item.className = 'history-item';
+
+                const meta = document.createElement('div');
+                meta.className = 'history-meta';
+                const title = document.createElement('strong');
+                title.textContent = entry.name || sceneDirector.getSceneById(entry.id)?.name || entry.id;
+                const timeStamp = document.createElement('span');
+                timeStamp.textContent = formatRelativeTime(entry.timestamp);
+                const badge = document.createElement('span');
+                badge.className = 'badge';
+                badge.textContent = entry.manual ? 'Manual' : 'Auto';
+                meta.appendChild(title);
+                meta.appendChild(timeStamp);
+                meta.appendChild(badge);
+
+                const actions = document.createElement('div');
+                actions.className = 'history-actions';
+                const queueBtn = document.createElement('button');
+                queueBtn.type = 'button';
+                queueBtn.className = 'mini-button';
+                queueBtn.textContent = 'Queue';
+                queueBtn.dataset.action = 'requeue';
+                queueBtn.dataset.sceneId = entry.id;
+                if (!sceneDirector.getSceneById(entry.id)) {
+                    queueBtn.disabled = true;
+                    queueBtn.title = 'Scene not available';
+                }
+                actions.appendChild(queueBtn);
+
+                item.appendChild(meta);
+                item.appendChild(actions);
+                sceneHistoryList.appendChild(item);
+            });
+        };
+
+        const updateSceneWeightDisplays = (weights = {}) => {
+            const state = sceneDirector.getState();
+            sceneWeightInputs.forEach(({ input, valueEl }, id) => {
+                const weight = weights[id] ?? state.weights?.[id] ?? sceneDirector.getSceneWeight(id);
+                if (document.activeElement !== input) {
+                    input.value = weight;
+                }
+                valueEl.textContent = formatWeightValue(weight);
+            });
+            sceneCycleChips.forEach((chip, id) => {
+                const weight = weights[id] ?? state.weights?.[id] ?? sceneDirector.getSceneWeight(id);
+                chip.classList.toggle('muted', !weight || weight <= 0);
+                chip.dataset.weight = Number(weight || 0).toFixed(2);
+            });
+        };
+
+        const updateSceneStatusDisplays = (status = null) => {
+            if (statusSceneNext) {
+                statusSceneNext.textContent = status?.nextSceneName
+                    ? `NEXT: ${status.nextSceneName.toUpperCase()}`
+                    : 'NEXT: —';
+            }
+
+            if (statusSceneCountdown) {
+                const countdownText = status?.countdownSeconds != null && Number.isFinite(status.countdownSeconds)
+                    ? `IN ${formatCountdownValue(status.countdownSeconds).toUpperCase()}`
+                    : 'IN —';
+                statusSceneCountdown.textContent = countdownText;
+            }
+
+            renderSceneQueue(status);
+            renderSceneHistory(status);
+            updateSceneWeightDisplays(status?.weights || {});
+        };
+
+        const updateSceneOrderUI = () => {
+            if (!sceneOrderBar) return;
+            const ordering = sceneDirector.getState().ordering || 'forward';
+            sceneOrderBar.querySelectorAll('.mode-button').forEach((button) => {
+                button.classList.toggle('active', button.dataset.sceneOrder === ordering);
+            });
+        };
+
+        const handleSceneShift = (direction) => {
+            if (direction === 'previous') {
+                const previousId = sceneDirector.getPreviousSceneId(activeSceneId);
+                const previousScene = sceneDirector.getSceneById(previousId);
+                if (previousScene) {
+                    applyScene(previousScene);
+                }
+                return;
+            }
+
+            const nextId = sceneDirector.getNextSceneId(activeSceneId, { preview: false });
+            const nextScene = sceneDirector.getSceneById(nextId);
+            if (nextScene) {
+                applyScene(nextScene);
             }
         };
 
-        // Pause
-        document.getElementById('pauseBtn').onclick = () => {
+        const refreshSceneRotationState = () => {
+            const rotationSet = new Set(sceneDirector.getState().rotationSet);
+            sceneCycleChips.forEach((chip, id) => {
+                chip.classList.toggle('active', rotationSet.has(id));
+            });
+            updateSceneStatusDisplays(sceneDirector.getStatus(latestAudioData, latestElapsedSeconds, activeSceneId));
+        };
+
+        const applyScene = (scene, options = {}) => {
+            if (!scene) return;
+
+            activeSceneId = scene.id;
+            updateSceneSelectionUI();
+
+            const elapsedSeconds = Number.isFinite(latestElapsedSeconds)
+                ? latestElapsedSeconds
+                : (audioElement?.currentTime ?? ((Date.now() - engine.startTime) / 1000));
+            const elapsedBeats = latestAudioData?.rhythmPhases?.elapsedBeats;
+
+            if (typeof scene.geometry === 'number') {
+                setGeometry(scene.geometry);
+            }
+
+            if (scene.parameters) {
+                Object.entries(scene.parameters).forEach(([key, value]) => {
+                    if (sliderElements.has(key)) {
+                        setBaseSlider(key, value);
+                    } else if (key in baseParams) {
+                        baseParams[key] = value;
+                        currentVisualizer.updateParameter(key, value);
+                    } else {
+                        currentVisualizer.updateParameter(key, value);
+                    }
+                });
+            }
+
+            if (scene.color) {
+                if (typeof scene.color.vibrance === 'number') setColorVibrance(scene.color.vibrance);
+                if (typeof scene.color.moire === 'number') setMoire(scene.color.moire);
+            }
+
+            if (typeof scene.paletteId === 'number') {
+                colorState.profile = scene.paletteId;
+                updatePaletteSelectionUI();
+                currentVisualizer.updateParameter('colorProfile', colorState.profile);
+                if (!options.auto) {
+                    paletteDirector.acknowledgeManualSelection(elapsedSeconds);
+                }
+            }
+
+            sceneDirector.noteSceneChange(scene.id, {
+                manual: !options.auto,
+                elapsedSeconds,
+                elapsedBeats
+            });
+
+            updateSceneStatusDisplays(sceneDirector.getStatus(latestAudioData, latestElapsedSeconds, activeSceneId));
+        };
+
+        sceneLibrary.forEach((scene) => {
+            const card = document.createElement('button');
+            card.type = 'button';
+            card.className = 'scene-card';
+
+            const nameEl = document.createElement('span');
+            nameEl.className = 'scene-name';
+            nameEl.textContent = scene.name;
+            card.appendChild(nameEl);
+
+            const metaEl = document.createElement('span');
+            metaEl.className = 'scene-meta';
+            metaEl.textContent = scene.description;
+            card.appendChild(metaEl);
+
+            if (Array.isArray(scene.tags) && scene.tags.length) {
+                const tagsEl = document.createElement('div');
+                tagsEl.className = 'scene-tags';
+                scene.tags.forEach((tag) => {
+                    const tagEl = document.createElement('span');
+                    tagEl.className = 'scene-tag';
+                    tagEl.textContent = tag;
+                    tagsEl.appendChild(tagEl);
+                });
+                card.appendChild(tagsEl);
+            }
+
+            const actionsEl = document.createElement('div');
+            actionsEl.className = 'scene-actions';
+
+            const miniStack = document.createElement('div');
+            miniStack.className = 'mini-stack';
+
+            const queueBtn = document.createElement('button');
+            queueBtn.type = 'button';
+            queueBtn.className = 'mini-button';
+            queueBtn.textContent = 'Queue';
+            queueBtn.addEventListener('click', (event) => {
+                event.stopPropagation();
+                sceneDirector.queueScene(scene.id);
+                updateSceneStatusDisplays(sceneDirector.getStatus(latestAudioData, latestElapsedSeconds, activeSceneId));
+            });
+
+            const queueNextBtn = document.createElement('button');
+            queueNextBtn.type = 'button';
+            queueNextBtn.className = 'mini-button secondary';
+            queueNextBtn.textContent = 'Play Next';
+            queueNextBtn.addEventListener('click', (event) => {
+                event.stopPropagation();
+                sceneDirector.queueScene(scene.id, { immediate: true });
+                updateSceneStatusDisplays(sceneDirector.getStatus(latestAudioData, latestElapsedSeconds, activeSceneId));
+            });
+
+            miniStack.appendChild(queueBtn);
+            miniStack.appendChild(queueNextBtn);
+
+            const weightWrap = document.createElement('label');
+            weightWrap.className = 'scene-weight';
+            weightWrap.setAttribute('for', `scene-weight-${scene.id}`);
+            const weightTitle = document.createElement('span');
+            weightTitle.textContent = 'Weight';
+            const weightInput = document.createElement('input');
+            weightInput.type = 'range';
+            weightInput.min = '0';
+            weightInput.max = '5';
+            weightInput.step = '0.25';
+            weightInput.value = sceneDirector.getSceneWeight(scene.id);
+            weightInput.id = `scene-weight-${scene.id}`;
+            const weightValue = document.createElement('span');
+            weightValue.className = 'scene-weight-value';
+            weightValue.textContent = formatWeightValue(parseFloat(weightInput.value));
+
+            weightInput.addEventListener('input', (event) => {
+                event.stopPropagation();
+                const weight = parseFloat(weightInput.value);
+                sceneDirector.setSceneWeight(scene.id, weight);
+                weightValue.textContent = formatWeightValue(weight);
+                updateSceneStatusDisplays(sceneDirector.getStatus(latestAudioData, latestElapsedSeconds, activeSceneId));
+            });
+
+            weightWrap.appendChild(weightTitle);
+            weightWrap.appendChild(weightInput);
+            weightWrap.appendChild(weightValue);
+
+            actionsEl.appendChild(miniStack);
+            actionsEl.appendChild(weightWrap);
+            card.appendChild(actionsEl);
+
+            sceneWeightInputs.set(scene.id, { input: weightInput, valueEl: weightValue });
+
+            card.addEventListener('click', () => applyScene(scene));
+            sceneDeck.appendChild(card);
+            sceneCards.set(scene.id, card);
+
+            const toggleChip = document.createElement('button');
+            toggleChip.type = 'button';
+            toggleChip.className = 'chip';
+            toggleChip.textContent = scene.name;
+            toggleChip.title = `Include ${scene.name} in automatic rotation`;
+            toggleChip.addEventListener('click', () => {
+                sceneDirector.toggleScene(scene.id);
+                refreshSceneRotationState();
+            });
+            sceneRotationGrid.appendChild(toggleChip);
+            sceneCycleChips.set(scene.id, toggleChip);
+        });
+
+        const setSceneMode = (mode) => {
+            sceneDirector.setMode(mode);
+            sceneModeBar.querySelectorAll('.mode-button').forEach((button) => {
+                button.classList.toggle('active', button.dataset.sceneMode === mode);
+            });
+            document.querySelectorAll('.scene-control').forEach((control) => {
+                const targetMode = control.dataset.sceneMode;
+                control.classList.toggle('hidden', targetMode !== mode);
+            });
+            updateSceneStatusDisplays(sceneDirector.getStatus(latestAudioData, latestElapsedSeconds, activeSceneId));
+        };
+
+        sceneModeBar.querySelectorAll('.mode-button').forEach((button) => {
+            button.addEventListener('click', () => setSceneMode(button.dataset.sceneMode));
+        });
+
+        if (sceneOrderBar) {
+            sceneOrderBar.querySelectorAll('.mode-button').forEach((button) => {
+                button.addEventListener('click', () => {
+                    const ordering = button.dataset.sceneOrder;
+                    sceneDirector.setOrdering(ordering);
+                    updateSceneOrderUI();
+                    updateSceneStatusDisplays(sceneDirector.getStatus(latestAudioData, latestElapsedSeconds, activeSceneId));
+                });
+            });
+        }
+
+        if (scenePrevButton) {
+            scenePrevButton.addEventListener('click', () => handleSceneShift('previous'));
+        }
+
+        if (sceneNextButton) {
+            sceneNextButton.addEventListener('click', () => handleSceneShift('next'));
+        }
+
+        sceneIntervalSlider.addEventListener('input', () => {
+            const seconds = parseInt(sceneIntervalSlider.value, 10);
+            sceneIntervalValue.textContent = `${seconds}s`;
+            sceneDirector.setInterval(seconds);
+            updateSceneStatusDisplays(sceneDirector.getStatus(latestAudioData, latestElapsedSeconds, activeSceneId));
+        });
+
+        sceneTempoSlider.addEventListener('input', () => {
+            const beats = parseInt(sceneTempoSlider.value, 10);
+            sceneTempoValue.textContent = beats;
+            sceneDirector.setTempoDivision(beats);
+            updateSceneStatusDisplays(sceneDirector.getStatus(latestAudioData, latestElapsedSeconds, activeSceneId));
+        });
+
+        sceneEnergySlider.addEventListener('input', () => {
+            const threshold = parseFloat(sceneEnergySlider.value);
+            sceneEnergyValue.textContent = threshold.toFixed(2);
+            sceneDirector.setEnergyThreshold(threshold);
+            updateSceneStatusDisplays(sceneDirector.getStatus(latestAudioData, latestElapsedSeconds, activeSceneId));
+        });
+
+        if (sceneMinDurationSlider) {
+            sceneMinDurationSlider.addEventListener('input', () => {
+                const minimum = parseInt(sceneMinDurationSlider.value, 10);
+                sceneMinDurationValue.textContent = `${minimum}s`;
+                sceneDirector.setMinDuration(minimum);
+                updateSceneStatusDisplays(sceneDirector.getStatus(latestAudioData, latestElapsedSeconds, activeSceneId));
+            });
+        }
+
+        if (sceneQueueList) {
+            sceneQueueList.addEventListener('click', (event) => {
+                const button = event.target.closest('button[data-action]');
+                if (!button) return;
+                const index = parseInt(button.dataset.index, 10);
+                if (Number.isNaN(index)) return;
+                if (button.dataset.action === 'promote') {
+                    sceneDirector.promoteQueuedScene(index);
+                } else if (button.dataset.action === 'remove') {
+                    sceneDirector.removeQueuedScene(index);
+                }
+                updateSceneStatusDisplays(sceneDirector.getStatus(latestAudioData, latestElapsedSeconds, activeSceneId));
+            });
+        }
+
+        if (clearSceneQueueButton) {
+            clearSceneQueueButton.addEventListener('click', () => {
+                sceneDirector.clearQueue();
+                updateSceneStatusDisplays(sceneDirector.getStatus(latestAudioData, latestElapsedSeconds, activeSceneId));
+            });
+        }
+
+        if (sceneHistoryList) {
+            sceneHistoryList.addEventListener('click', (event) => {
+                const button = event.target.closest('button[data-action="requeue"]');
+                if (!button) return;
+                const sceneId = button.dataset.sceneId;
+                if (!sceneId) return;
+                sceneDirector.queueScene(sceneId);
+                updateSceneStatusDisplays(sceneDirector.getStatus(latestAudioData, latestElapsedSeconds, activeSceneId));
+            });
+        }
+
+        sceneIntervalValue.textContent = `${sceneIntervalSlider.value}s`;
+        sceneTempoValue.textContent = sceneTempoSlider.value;
+        sceneEnergyValue.textContent = parseFloat(sceneEnergySlider.value).toFixed(2);
+        setSceneMode('reactive');
+        updateSceneOrderUI();
+        refreshSceneRotationState();
+
+        if (sceneLibrary.length > 0) {
+            applyScene(sceneLibrary[0], { auto: true });
+            updateSceneStatusDisplays(sceneDirector.getStatus(latestAudioData, latestElapsedSeconds, activeSceneId));
+        } else {
+            updateSceneStatusDisplays();
+        }
+
+
+        rotationChoreographer.getPatternNames().forEach((pattern, index) => {
+            const chip = document.createElement('button');
+            chip.className = 'chip';
+            chip.textContent = pattern.replace(/_/g, ' ');
+            if (index === 0) chip.classList.add('active');
+            chip.addEventListener('click', () => {
+                rotationContainer.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+                chip.classList.add('active');
+                rotationChoreographer.setPattern(pattern);
+            });
+            rotationContainer.appendChild(chip);
+        });
+
+        engine.sequences.forEach((sequence, name) => {
+            const chip = document.createElement('button');
+            chip.className = 'chip';
+            chip.textContent = name.replace(/_/g, ' ').replace(/^sequence\s*/i, '').trim();
+            chip.addEventListener('click', () => engine.startSequence(name, Date.now()));
+            sequenceContainer.appendChild(chip);
+        });
+
+        const audioFileInput = document.getElementById('audioFile');
+        const fileButton = document.getElementById('fileButton');
+        fileButton.addEventListener('click', () => audioFileInput.click());
+
+        audioFileInput.addEventListener('change', (event) => {
+            const file = event.target.files?.[0];
+            if (!file) return;
+
             if (audioElement) {
                 audioElement.pause();
-                console.log('⏸️ Paused');
+                audioElement.src = '';
+                if (audioElement.parentNode) audioElement.parentNode.removeChild(audioElement);
             }
-        };
 
-        // Render loop
-        let lastTime = Date.now();
-        let frameCount = 0;
-        let logCounter = 0;
+            if (audioObjectUrl) {
+                URL.revokeObjectURL(audioObjectUrl);
+                audioObjectUrl = null;
+            }
+
+            audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            audioAnalyzer = new AudioAnalyzer(audioContext);
+
+            audioElement = new Audio();
+            audioElement.crossOrigin = 'anonymous';
+            audioElement.loop = false;
+            audioElement.preload = 'auto';
+            audioObjectUrl = URL.createObjectURL(file);
+            audioElement.src = audioObjectUrl;
+            audioElement.style.display = 'none';
+            document.body.appendChild(audioElement);
+
+            const source = audioContext.createMediaElementSource(audioElement);
+            source.connect(audioAnalyzer.analyser);
+            audioAnalyzer.analyser.connect(audioContext.destination);
+            engine.audioAnalyzer = audioAnalyzer;
+
+            statusFile.textContent = file.name;
+            audioElement.addEventListener('loadedmetadata', () => {
+                const minutes = Math.floor(audioElement.duration / 60);
+                const seconds = Math.floor(audioElement.duration % 60).toString().padStart(2, '0');
+                timelineDuration.textContent = `${minutes}:${seconds}`;
+            });
+        });
+
+        document.getElementById('playBtn').addEventListener('click', async () => {
+            if (!audioElement) return;
+            try {
+                if (audioContext?.state === 'suspended') await audioContext.resume();
+                await audioElement.play();
+            } catch (error) {
+                console.error('Playback error', error);
+            }
+        });
+
+        document.getElementById('pauseBtn').addEventListener('click', () => {
+            if (audioElement) audioElement.pause();
+        });
+
+        let lastBeatUpdate = 0;
 
         function render() {
             const now = Date.now();
-            const dt = now - lastTime;
-            lastTime = now;
+            const audioPlaying = audioAnalyzer && audioElement && !audioElement.paused;
+            let audioData = audioAnalyzer ? audioAnalyzer.analyze() : engine.getMockAudioData();
 
-            // FPS
-            frameCount++;
-            if (frameCount >= 60) {
-                document.getElementById('fps').textContent = '60 FPS';
-                frameCount = 0;
+            if (!audioData || !audioData.bands) {
+                audioData = engine.getMockAudioData();
             }
 
-            // Get audio data - ALWAYS (like ultimate-controls.html)
-            let audioData;
-            const audioPlaying = audioAnalyzer && audioElement && !audioElement.paused;
+            latestAudioData = audioData;
+            currentVisualizer.setAudioChoreography(audioData);
 
             if (audioPlaying) {
-                audioData = audioAnalyzer.analyze();
-                document.getElementById('statusDot').className = 'status-dot real';
-                document.getElementById('statusText').textContent = 'REAL AUDIO';
-
-                logCounter++;
-                if (logCounter >= 60) {
-                    console.log('🎵 REAL:', audioData.bands);
-                    logCounter = 0;
-                }
+                statusDot.classList.remove('mock');
+                statusDot.classList.add('real');
+                statusText.textContent = 'REAL AUDIO';
             } else {
-                // No real audio - use empty data
-                audioData = {
-                    bands: {
-                        subBass: 0, bass: 0, lowMid: 0, mid: 0,
-                        highMid: 0, high: 0, ultraHigh: 0
-                    },
-                    rms: 0
-                };
-                document.getElementById('statusDot').className = 'status-dot mock';
-                document.getElementById('statusText').textContent = 'MOCK AUDIO';
+                statusDot.classList.remove('real');
+                statusDot.classList.add('mock');
+                statusText.textContent = audioAnalyzer ? 'PAUSED' : 'MOCK AUDIO';
             }
 
-            // Update bars - AudioAnalyzer returns bands as objects with .value property
-            const bands = audioData.bands || {};
-            const bandKeys = ['subBass', 'bass', 'lowMid', 'mid', 'highMid', 'high', 'air'];
-            const barIds = ['bar-sub', 'bar-bass', 'bar-low', 'bar-mid', 'bar-hmid', 'bar-high', 'bar-ultra'];
+            const beat = engine.currentBeat;
+            if (now - lastBeatUpdate > 120) {
+                statusBeat.textContent = `BEAT ${(beat % engine.beatsPerMeasure) + 1}`;
+                lastBeatUpdate = now;
+            }
 
-            barIds.forEach((id, i) => {
-                const bar = document.getElementById(id);
-                const bandData = bands[bandKeys[i]];
-                const val = bandData?.value || 0;  // CRITICAL: bands are objects with .value
-                if (bar) bar.style.height = (val * 100) + '%';
+            const elapsedSeconds = audioElement?.currentTime ?? ((now - engine.startTime) / 1000);
+            latestElapsedSeconds = elapsedSeconds;
+            const minutes = Math.floor(elapsedSeconds / 60);
+            const seconds = Math.floor(elapsedSeconds % 60).toString().padStart(2, '0');
+            timelineCurrent.textContent = `${minutes}:${seconds}`;
+            statusMeasure.textContent = timelineCurrent.textContent;
+
+            const suggestedScene = sceneDirector.update(audioData, elapsedSeconds, activeSceneId);
+            if (suggestedScene && suggestedScene.id !== activeSceneId) {
+                applyScene(suggestedScene, { auto: true });
+            }
+
+            const suggestedPalette = paletteDirector.update(audioData, elapsedSeconds, colorState.profile);
+            if (suggestedPalette !== null && suggestedPalette !== colorState.profile) {
+                colorState.profile = suggestedPalette;
+                updatePaletteSelectionUI();
+                currentVisualizer.updateParameter('colorProfile', colorState.profile);
+            }
+
+            updateSceneStatusDisplays(sceneDirector.getStatus(audioData, elapsedSeconds, activeSceneId));
+
+            const bands = audioData.bands || {};
+            const bandValues = bandKeys.map(key => Math.max(0, Math.min(1, bands[key] ?? 0)));
+            bandValues.forEach((value, index) => {
+                const bar = document.getElementById(bandIds[index]);
+                if (bar) bar.style.height = `${(value * 100).toFixed(1)}%`;
             });
 
-            // Strength - sum all band values
-            const bandValues = Object.values(bands).map(b => b?.value || 0);
-            const avgReactivity = bandValues.reduce((a, b) => a + b, 0) / bandValues.length;
-            document.getElementById('reactivityBar').style.width = (avgReactivity * 100) + '%';
+            const avgEnergy = bandValues.reduce((acc, val) => acc + val, 0) / Math.max(1, bandValues.length);
+            reactivityMeter.style.width = `${Math.min(100, (avgEnergy * reactivity.amount * 100)).toFixed(1)}%`;
 
-            // APPLY PARAMETERS - bands are OBJECTS with .value property!
-            if (audioPlaying) {
-                // Audio is playing - apply base + modulation
-                const mult = reactivity.amount;
-                const b = audioData.bands || {};
+            const bass = bands.bass ?? 0;
+            const mid = bands.mid ?? 0;
+            const high = bands.high ?? 0;
+            const air = bands.air ?? 0;
+            const rms = audioData.rms ?? 0;
+            const onset = audioData.onset ?? 0;
+            const beatPhase = audioData.rhythmPhases?.beatPhase ?? 0;
 
-                // CRITICAL FIX: Extract .value from band objects
-                const bassVal = b.bass?.value || 0;
-                const midVal = b.mid?.value || 0;
-                const lowMidVal = b.lowMid?.value || 0;
-                const highVal = b.high?.value || 0;
-                const rmsVal = audioData.rms || 0;
+            const rotationValues = rotationChoreographer.update(audioData, (now - engine.startTime) / 1000, beat, engine.deltaTime || 16);
 
-                // Log once per second
-                if (frameCount % 60 === 0) {
-                    console.log(`🎵 AUDIO: bass=${bassVal.toFixed(2)} mid=${midVal.toFixed(2)} high=${highVal.toFixed(2)} mult=${mult}`);
-                }
-
-                // Apply ALL parameters with modulation
-                if (reactivity.enabled.density) {
-                    const modded = Math.min(80, baseParams.gridDensity + bassVal * 40 * mult);
-                    visualizer.updateParameter('gridDensity', modded);
-                } else {
-                    visualizer.updateParameter('gridDensity', baseParams.gridDensity);
-                }
-
-                if (reactivity.enabled.morph) {
-                    visualizer.updateParameter('morphFactor', Math.min(3.0, baseParams.morphFactor + midVal * 1.5 * mult));
-                } else {
-                    visualizer.updateParameter('morphFactor', baseParams.morphFactor);
-                }
-
-                if (reactivity.enabled.color) {
-                    visualizer.updateParameter('hue', (baseParams.hue + highVal * 120 * mult) % 360);
-                    visualizer.updateParameter('saturation', Math.min(1.0, baseParams.saturation + midVal * 0.3 * mult));
-                } else {
-                    visualizer.updateParameter('hue', baseParams.hue);
-                    visualizer.updateParameter('saturation', baseParams.saturation);
-                }
-
-                if (reactivity.enabled.chaos) {
-                    visualizer.updateParameter('chaos', Math.min(1.0, baseParams.chaos + rmsVal * 0.6 * mult));
-                } else {
-                    visualizer.updateParameter('chaos', baseParams.chaos);
-                }
-
-                visualizer.updateParameter('speed', Math.min(3.0, baseParams.speed + ((bassVal + rmsVal) * 0.8 * mult)));
-                visualizer.updateParameter('intensity', baseParams.intensity);
-                visualizer.updateParameter('dimension', baseParams.dimension);
-
-                // Apply 4D rotations with audio modulation if enabled
-                if (reactivity.enabled.rotation) {
-                    visualizer.updateParameter('rot4dXW', baseParams.rot4dXW + lowMidVal * 0.5 * mult);
-                    visualizer.updateParameter('rot4dYW', baseParams.rot4dYW + midVal * 0.6 * mult);
-                    visualizer.updateParameter('rot4dZW', baseParams.rot4dZW + highVal * 0.8 * mult);
-                } else {
-                    visualizer.updateParameter('rot4dXW', baseParams.rot4dXW);
-                    visualizer.updateParameter('rot4dYW', baseParams.rot4dYW);
-                    visualizer.updateParameter('rot4dZW', baseParams.rot4dZW);
-                }
+            if (reactivity.enabled.density) {
+                const density = Math.min(120, baseParams.gridDensity + bass * 50 * reactivity.amount);
+                currentVisualizer.updateParameter('gridDensity', density);
             } else {
-                // NO audio playing - still need to apply base params every frame
-                // This makes sliders work even without audio
-                visualizer.updateParameter('gridDensity', baseParams.gridDensity);
-                visualizer.updateParameter('morphFactor', baseParams.morphFactor);
-                visualizer.updateParameter('hue', baseParams.hue);
-                visualizer.updateParameter('saturation', baseParams.saturation);
-                visualizer.updateParameter('chaos', baseParams.chaos);
-                visualizer.updateParameter('speed', baseParams.speed);
-                visualizer.updateParameter('intensity', baseParams.intensity);
-                visualizer.updateParameter('dimension', baseParams.dimension);
-                visualizer.updateParameter('rot4dXW', baseParams.rot4dXW);
-                visualizer.updateParameter('rot4dYW', baseParams.rot4dYW);
-                visualizer.updateParameter('rot4dZW', baseParams.rot4dZW);
+                currentVisualizer.updateParameter('gridDensity', baseParams.gridDensity);
             }
 
-            // Render
-            if (visualizer.render) {
-                visualizer.render();
+            if (reactivity.enabled.morph) {
+                const morph = Math.min(2.5, baseParams.morphFactor + mid * 1.6 * reactivity.amount);
+                currentVisualizer.updateParameter('morphFactor', morph);
+            } else {
+                currentVisualizer.updateParameter('morphFactor', baseParams.morphFactor);
             }
+
+            if (reactivity.enabled.chaos) {
+                const chaos = Math.min(1.5, baseParams.chaos + rms * 0.7 * reactivity.amount + onset * 0.4);
+                currentVisualizer.updateParameter('chaos', chaos);
+            } else {
+                currentVisualizer.updateParameter('chaos', baseParams.chaos);
+            }
+
+            currentVisualizer.updateParameter('speed', Math.min(3.0, baseParams.speed + (bass + rms) * 0.7 * reactivity.amount));
+            currentVisualizer.updateParameter('intensity', baseParams.intensity + rms * 0.2);
+            currentVisualizer.updateParameter('dimension', baseParams.dimension + (audioData.extremeDynamics?.dimensionLift ?? 0));
+
+            if (reactivity.enabled.rotation) {
+                currentVisualizer.updateParameter('rot4dXW', baseParams.rot4dXW + rotationValues.rot4dXW * 0.18);
+                currentVisualizer.updateParameter('rot4dYW', baseParams.rot4dYW + rotationValues.rot4dYW * 0.18);
+                currentVisualizer.updateParameter('rot4dZW', baseParams.rot4dZW + rotationValues.rot4dZW * 0.22);
+            } else {
+                currentVisualizer.updateParameter('rot4dXW', baseParams.rot4dXW);
+                currentVisualizer.updateParameter('rot4dYW', baseParams.rot4dYW);
+                currentVisualizer.updateParameter('rot4dZW', baseParams.rot4dZW);
+            }
+
+            if (reactivity.enabled.color) {
+                const hue = (baseParams.hue + (high * 260 + beatPhase * 140) * reactivity.amount) % 360;
+                const saturation = Math.min(1.4, baseParams.saturation + mid * 0.4 * reactivity.amount);
+                currentVisualizer.updateParameter('hue', hue);
+                currentVisualizer.updateParameter('saturation', saturation);
+            } else {
+                currentVisualizer.updateParameter('hue', baseParams.hue);
+                currentVisualizer.updateParameter('saturation', baseParams.saturation);
+            }
+
+            if (reactivity.enabled.vibrance) {
+                const vibrance = Math.min(2.5, colorState.vibrance + (high * 0.8 + onset * 0.6) * reactivity.amount);
+                currentVisualizer.updateParameter('colorVibrance', vibrance);
+            } else {
+                currentVisualizer.updateParameter('colorVibrance', colorState.vibrance);
+            }
+
+            if (reactivity.enabled.glitch) {
+                const glitch = Math.min(1, colorState.moire + (onset * 0.7 + air * 0.5) * reactivity.amount);
+                currentVisualizer.updateParameter('glitchMoire', glitch);
+            } else {
+                currentVisualizer.updateParameter('glitchMoire', colorState.moire);
+            }
+
+            shaderChoreographer.update(audioData, beatPhase, beat, engine.currentMeasure, now);
+            currentVisualizer.render();
 
             requestAnimationFrame(render);
         }
 
-        // Initialize - set base params AND geometry
-        visualizer.updateParameter('geometry', currentGeometry);
-        Object.keys(baseParams).forEach(key => {
-            visualizer.updateParameter(key, baseParams[key]);
-        });
-
         render();
-        console.log('🌌 VIB34D Mobile Smart initialized');
-        console.log('📱 Tap handle to open/close drawer');
-        console.log('🎵 Load audio and play to see reactivity');
     </script>
 </body>
 </html>
