@@ -1095,7 +1095,8 @@
             padding: 6px 12px;
         }
 
-        .deck-status {
+        .deck-status,
+        .panel-status {
             font-size: 0.64rem;
             letter-spacing: 0.1em;
             text-transform: uppercase;
@@ -1103,11 +1104,13 @@
             min-height: 1em;
         }
 
-        .deck-status[data-tone="success"] {
+        .deck-status[data-tone="success"],
+        .panel-status[data-tone="success"] {
             color: #47ffcd;
         }
 
-        .deck-status[data-tone="warn"] {
+        .deck-status[data-tone="warn"],
+        .panel-status[data-tone="warn"] {
             color: #ff8a3d;
         }
 
@@ -2219,6 +2222,23 @@
                                 <div class="button-stack compact" id="audioCalibrationPresetStack"></div>
                                 <span class="status-pill" id="audioCalibrationProfileStatus" data-state="default">System Default</span>
                             </div>
+                            <div class="control-row button-row compact" id="audioCalibrationProfileTools">
+                                <div class="button-stack compact">
+                                    <button type="button" id="audioCalibrationCopyProfile" class="pill-button secondary small">Copy Profile</button>
+                                    <button type="button" id="audioCalibrationPasteProfile" class="pill-button secondary small">Paste Profile</button>
+                                    <button type="button" id="audioCalibrationCopyBundle" class="pill-button secondary small">Copy Bundle</button>
+                                    <button type="button" id="audioCalibrationDownloadBundle" class="pill-button secondary small">Download Bundle</button>
+                                </div>
+                            </div>
+                            <div class="control-row button-row compact" id="audioCalibrationBundleTools">
+                                <div class="button-stack compact">
+                                    <button type="button" id="audioCalibrationUploadBundle" class="pill-button secondary small">Upload Bundle</button>
+                                    <button type="button" id="audioCalibrationResetCurrent" class="pill-button secondary small">Reset Current</button>
+                                    <button type="button" id="audioCalibrationResetAll" class="pill-button danger small">Reset All</button>
+                                </div>
+                            </div>
+                            <input type="file" id="audioCalibrationFile" class="deck-file-input" accept="application/json" hidden>
+                            <div class="panel-status" id="audioCalibrationToolsStatus" aria-live="polite">Ready.</div>
                             <div class="note-card" id="audioCalibrationStatus">Floor 0.08 · Ceiling 0.96 · Gain 1.25× · Smooth 35% · Bass 1.20× · Mid 1.00× · High 1.10× · Energy 1.00× · Onset +12%</div>
                         </div>
                     </div>
@@ -2687,6 +2707,17 @@
         const audioCalibrationPresetRow = document.getElementById('audioCalibrationPresetRow');
         const audioCalibrationPresetStack = document.getElementById('audioCalibrationPresetStack');
         const audioCalibrationProfileStatus = document.getElementById('audioCalibrationProfileStatus');
+        const audioCalibrationCopyProfileButton = document.getElementById('audioCalibrationCopyProfile');
+        const audioCalibrationPasteProfileButton = document.getElementById('audioCalibrationPasteProfile');
+        const audioCalibrationCopyBundleButton = document.getElementById('audioCalibrationCopyBundle');
+        const audioCalibrationDownloadBundleButton = document.getElementById('audioCalibrationDownloadBundle');
+        const audioCalibrationUploadBundleButton = document.getElementById('audioCalibrationUploadBundle');
+        const audioCalibrationResetCurrentButton = document.getElementById('audioCalibrationResetCurrent');
+        const audioCalibrationResetAllButton = document.getElementById('audioCalibrationResetAll');
+        const audioCalibrationToolsStatus = document.getElementById('audioCalibrationToolsStatus');
+        const audioCalibrationFileInput = document.getElementById('audioCalibrationFile');
+        const audioCalibrationToolsReadyMessage = audioCalibrationToolsStatus ? (audioCalibrationToolsStatus.textContent || 'Ready.') : 'Ready.';
+        let audioCalibrationToolsStatusTimer = null;
 
         const colorValueRefs = {
             primary: document.getElementById('colorPrimaryValue'),
@@ -2727,6 +2758,9 @@
         const AUDIO_CALIBRATION_STORAGE_KEY = 'vib34dAudioCalibrationState';
         const AUDIO_CALIBRATION_STORAGE_VERSION = 1;
         const AUDIO_CALIBRATION_PERSIST_DELAY = 350;
+        const AUDIO_CALIBRATION_PROFILE_TYPE = 'vib34d-audio-calibration-profile';
+        const AUDIO_CALIBRATION_BUNDLE_TYPE = 'vib34d-audio-calibration-bundle';
+        const AUDIO_CALIBRATION_DOWNLOAD_PREFIX = 'vib34d-audio-calibration';
         const audioCalibrationPresets = [
             { key: AUDIO_CALIBRATION_PRESET_SYSTEM, label: 'System Default', system: true },
             {
@@ -3059,6 +3093,376 @@
                 audioCalibrationPersistTimer = null;
                 persistAudioCalibrationState();
             }, AUDIO_CALIBRATION_PERSIST_DELAY);
+        }
+
+        function setAudioCalibrationToolsStatus(message, tone = 'default', options = {}) {
+            if (!audioCalibrationToolsStatus) {
+                return;
+            }
+            const textValue = message === undefined || message === null
+                ? audioCalibrationToolsReadyMessage
+                : String(message);
+            const normalized = textValue.trim();
+            audioCalibrationToolsStatus.textContent = normalized || audioCalibrationToolsReadyMessage;
+            if (!tone || tone === 'default') {
+                audioCalibrationToolsStatus.removeAttribute('data-tone');
+            } else {
+                audioCalibrationToolsStatus.dataset.tone = tone;
+            }
+            if (audioCalibrationToolsStatusTimer) {
+                clearTimeout(audioCalibrationToolsStatusTimer);
+                audioCalibrationToolsStatusTimer = null;
+            }
+            const resetDelay = Number.isFinite(options.resetDelay) ? options.resetDelay : 5200;
+            if (resetDelay > 0 && options.persist !== true) {
+                audioCalibrationToolsStatusTimer = setTimeout(() => {
+                    audioCalibrationToolsStatusTimer = null;
+                    if (audioCalibrationToolsStatus) {
+                        audioCalibrationToolsStatus.textContent = audioCalibrationToolsReadyMessage;
+                        audioCalibrationToolsStatus.removeAttribute('data-tone');
+                    }
+                }, resetDelay);
+            }
+        }
+
+        function sanitizeAudioCalibrationState(rawState, fallback = audioCalibrationDefaults) {
+            const baseline = { ...(fallback || audioCalibrationDefaults) };
+            const result = { ...baseline };
+            if (rawState && typeof rawState === 'object') {
+                Object.entries(rawState).forEach(([key, value]) => {
+                    if (!Object.prototype.hasOwnProperty.call(audioCalibrationDefaults, key)) {
+                        return;
+                    }
+                    const numeric = Number(value);
+                    if (Number.isFinite(numeric)) {
+                        result[key] = numeric;
+                    }
+                });
+            }
+            result.floor = clamp(result.floor, 0, 0.95);
+            result.ceiling = clamp(result.ceiling, result.floor + MIN_AUDIO_CALIBRATION_GAP, 1);
+            result.smoothing = clamp(result.smoothing, 0, 0.95);
+            result.gain = clamp(result.gain, 0.2, 4);
+            result.bassWeight = clamp(result.bassWeight, 0.2, 3);
+            result.midWeight = clamp(result.midWeight, 0.2, 3);
+            result.highWeight = clamp(result.highWeight, 0.2, 3);
+            result.energyWeight = clamp(result.energyWeight, 0.2, 3);
+            result.onsetBoost = clamp(result.onsetBoost, 0, 1);
+            return result;
+        }
+
+        function createAudioCalibrationProfileSnapshot(systemKey = currentSystemKey) {
+            if (!systemKey || !systemDescriptors[systemKey]) {
+                return null;
+            }
+            const descriptor = systemDescriptors[systemKey];
+            const entry = systemKey === currentSystemKey
+                ? { state: { ...audioCalibrationState }, preset: currentAudioCalibrationPresetKey }
+                : audioCalibrationStateBySystem.get(systemKey);
+            const baseline = getSystemCalibrationBaseline(systemKey);
+            const sanitized = sanitizeAudioCalibrationState(entry?.state || baseline, baseline);
+            const presetKey = entry?.preset || (systemKey === currentSystemKey ? currentAudioCalibrationPresetKey : AUDIO_CALIBRATION_PRESET_CUSTOM);
+            return {
+                type: AUDIO_CALIBRATION_PROFILE_TYPE,
+                version: AUDIO_CALIBRATION_STORAGE_VERSION,
+                exportedAt: new Date().toISOString(),
+                system: systemKey,
+                label: descriptor?.label || systemKey,
+                preset: presetKey || AUDIO_CALIBRATION_PRESET_CUSTOM,
+                state: sanitized,
+                defaults: { ...audioCalibrationDefaults }
+            };
+        }
+
+        function createAudioCalibrationBundleSnapshot() {
+            const systems = {};
+            let count = 0;
+            audioCalibrationStateBySystem.forEach((entry, systemKey) => {
+                if (!systemDescriptors[systemKey]) {
+                    return;
+                }
+                const descriptor = systemDescriptors[systemKey];
+                const baseline = getSystemCalibrationBaseline(systemKey);
+                const sanitized = sanitizeAudioCalibrationState(entry?.state || baseline, baseline);
+                systems[systemKey] = {
+                    state: sanitized,
+                    preset: entry?.preset || AUDIO_CALIBRATION_PRESET_CUSTOM,
+                    label: descriptor?.label || systemKey,
+                    updatedAt: entry?.updatedAt || Date.now()
+                };
+                count += 1;
+            });
+            if (!count) {
+                return null;
+            }
+            return {
+                type: AUDIO_CALIBRATION_BUNDLE_TYPE,
+                version: AUDIO_CALIBRATION_STORAGE_VERSION,
+                exportedAt: new Date().toISOString(),
+                activeSystem: currentSystemKey,
+                activePreset: currentAudioCalibrationPresetKey,
+                defaults: { ...audioCalibrationDefaults },
+                systems
+            };
+        }
+
+        async function copyAudioCalibrationProfileSnapshot(systemKey = currentSystemKey) {
+            const snapshot = createAudioCalibrationProfileSnapshot(systemKey);
+            if (!snapshot) {
+                return { success: false, reason: 'missing' };
+            }
+            const payload = JSON.stringify(snapshot, null, 2);
+            const success = await writeTextToClipboard(payload);
+            return { success, snapshot };
+        }
+
+        async function copyAudioCalibrationBundleSnapshot() {
+            const bundle = createAudioCalibrationBundleSnapshot();
+            if (!bundle) {
+                return { success: false, reason: 'empty' };
+            }
+            const payload = JSON.stringify(bundle, null, 2);
+            const success = await writeTextToClipboard(payload);
+            return { success, bundle };
+        }
+
+        function createAudioCalibrationDownloadFilename(prefix = AUDIO_CALIBRATION_DOWNLOAD_PREFIX) {
+            const now = new Date();
+            const pad = (value) => String(value).padStart(2, '0');
+            const stamp = `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+            return `${prefix}-${stamp}.json`;
+        }
+
+        function downloadAudioCalibrationBundleSnapshot(options = {}) {
+            if (typeof document === 'undefined' || typeof window === 'undefined') {
+                return { success: false, reason: 'environment' };
+            }
+            if (!window.Blob || !window.URL || typeof window.URL.createObjectURL !== 'function') {
+                return { success: false, reason: 'unsupported' };
+            }
+            const bundle = createAudioCalibrationBundleSnapshot();
+            if (!bundle) {
+                return { success: false, reason: 'empty' };
+            }
+            const payload = JSON.stringify(bundle, null, 2);
+            const filename = options.filename || createAudioCalibrationDownloadFilename();
+            try {
+                const blob = new Blob([payload], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const anchor = document.createElement('a');
+                anchor.href = url;
+                anchor.download = filename;
+                anchor.style.display = 'none';
+                document.body.appendChild(anchor);
+                anchor.click();
+                setTimeout(() => {
+                    document.body.removeChild(anchor);
+                    URL.revokeObjectURL(url);
+                }, 0);
+                return { success: true, filename };
+            } catch (error) {
+                console.warn('Failed to download audio calibration bundle:', error);
+                return { success: false, reason: 'error' };
+            }
+        }
+
+        function parseAudioCalibrationPayload(text) {
+            if (typeof text !== 'string') {
+                return null;
+            }
+            const trimmed = text.trim();
+            if (!trimmed) {
+                return null;
+            }
+            let parsed;
+            try {
+                parsed = JSON.parse(trimmed);
+            } catch (error) {
+                return null;
+            }
+            if (!parsed) {
+                return null;
+            }
+            const resolve = (payload, kind) => ({ kind, payload });
+            if (Array.isArray(parsed)) {
+                if (!parsed.length) {
+                    return null;
+                }
+                const first = parsed.find(item => item && typeof item === 'object');
+                if (!first) {
+                    return null;
+                }
+                parsed = first;
+            }
+            if (typeof parsed !== 'object') {
+                return null;
+            }
+            const type = typeof parsed.type === 'string' ? parsed.type : '';
+            if (type === AUDIO_CALIBRATION_PROFILE_TYPE) {
+                return resolve(parsed, 'profile');
+            }
+            if (type === AUDIO_CALIBRATION_BUNDLE_TYPE) {
+                return resolve(parsed, 'bundle');
+            }
+            if (parsed.systems && typeof parsed.systems === 'object') {
+                return resolve({
+                    type: AUDIO_CALIBRATION_BUNDLE_TYPE,
+                    version: parsed.version || AUDIO_CALIBRATION_STORAGE_VERSION,
+                    systems: parsed.systems,
+                    defaults: parsed.defaults,
+                    activeSystem: parsed.activeSystem,
+                    activePreset: parsed.activePreset,
+                    exportedAt: parsed.exportedAt
+                }, 'bundle');
+            }
+            if (parsed.state && typeof parsed.state === 'object') {
+                return resolve({
+                    type: AUDIO_CALIBRATION_PROFILE_TYPE,
+                    version: parsed.version || AUDIO_CALIBRATION_STORAGE_VERSION,
+                    system: parsed.system,
+                    preset: parsed.preset,
+                    state: parsed.state,
+                    label: parsed.label,
+                    defaults: parsed.defaults,
+                    exportedAt: parsed.exportedAt
+                }, 'profile');
+            }
+            return null;
+        }
+
+        function applyImportedAudioCalibrationProfile(payload, options = {}) {
+            if (!payload || typeof payload !== 'object' || !payload.state) {
+                return { success: false, reason: 'invalid' };
+            }
+            const desiredSystem = typeof options.systemKey === 'string' && systemDescriptors[options.systemKey]
+                ? options.systemKey
+                : null;
+            const inferredSystem = typeof payload.system === 'string' && systemDescriptors[payload.system]
+                ? payload.system
+                : null;
+            const systemKey = desiredSystem || inferredSystem || currentSystemKey;
+            if (!systemDescriptors[systemKey]) {
+                return { success: false, reason: 'system' };
+            }
+            const baseline = getSystemCalibrationBaseline(systemKey);
+            const sanitized = sanitizeAudioCalibrationState(payload.state, baseline);
+            const presetKey = typeof payload.preset === 'string' ? payload.preset : AUDIO_CALIBRATION_PRESET_CUSTOM;
+            audioCalibrationStateBySystem.set(systemKey, {
+                state: sanitized,
+                preset: presetKey,
+                updatedAt: Date.now()
+            });
+            if (systemKey === currentSystemKey) {
+                restoreAudioCalibrationForSystem(systemKey, {
+                    syncUI: options.syncUI !== false,
+                    updateStatus: options.updateStatus !== false,
+                    resetMemory: options.resetMemory !== false,
+                    seed: options.seed,
+                    skipPersist: true,
+                    skipStore: false
+                });
+            }
+            if (options.deferPersist === true) {
+                return { success: true, system: systemKey, preset: presetKey };
+            }
+            scheduleAudioCalibrationPersist({ immediate: options.immediatePersist === true });
+            return { success: true, system: systemKey, preset: presetKey };
+        }
+
+        function applyImportedAudioCalibrationBundle(payload, options = {}) {
+            if (!payload || typeof payload !== 'object' || !payload.systems || typeof payload.systems !== 'object') {
+                return { success: false, reason: 'invalid', applied: 0 };
+            }
+            const systems = payload.systems;
+            const applied = [];
+            Object.entries(systems).forEach(([systemKey, entry]) => {
+                if (!systemDescriptors[systemKey] || !entry || typeof entry !== 'object') {
+                    return;
+                }
+                const result = applyImportedAudioCalibrationProfile({
+                    system: systemKey,
+                    state: entry.state || {},
+                    preset: entry.preset
+                }, {
+                    syncUI: options.syncUI !== false && systemKey === currentSystemKey,
+                    updateStatus: options.updateStatus !== false && systemKey === currentSystemKey,
+                    resetMemory: options.resetMemory !== false,
+                    seed: options.seed,
+                    deferPersist: true
+                });
+                if (result.success) {
+                    applied.push({ system: systemKey, preset: result.preset });
+                }
+            });
+            if (applied.length) {
+                scheduleAudioCalibrationPersist({ immediate: options.immediatePersist === true || options.syncUI === true });
+            }
+            return {
+                success: applied.length > 0,
+                applied: applied.length,
+                systems: applied.map(entry => entry.system)
+            };
+        }
+
+        async function importAudioCalibrationFromText(text, options = {}) {
+            const parsed = parseAudioCalibrationPayload(text);
+            if (!parsed) {
+                return { success: false, reason: 'invalid' };
+            }
+            if (parsed.kind === 'profile') {
+                const result = applyImportedAudioCalibrationProfile(parsed.payload, options);
+                return { ...result, kind: 'profile' };
+            }
+            if (parsed.kind === 'bundle') {
+                const result = applyImportedAudioCalibrationBundle(parsed.payload, options);
+                return { ...result, kind: 'bundle' };
+            }
+            return { success: false, reason: 'unsupported' };
+        }
+
+        async function importAudioCalibrationFromFile(file, options = {}) {
+            if (!file) {
+                return { success: false, reason: 'empty' };
+            }
+            try {
+                const text = await file.text();
+                return importAudioCalibrationFromText(text, options);
+            } catch (error) {
+                console.warn('Failed to read audio calibration file:', error);
+                return { success: false, reason: 'error' };
+            }
+        }
+
+        async function pasteAudioCalibrationFromClipboard(options = {}) {
+            const { text, available } = await readTextFromClipboard();
+            if (!available && (!text || !text.trim())) {
+                return { success: false, reason: 'unavailable' };
+            }
+            if (!text || !text.trim()) {
+                return { success: false, reason: 'empty' };
+            }
+            return importAudioCalibrationFromText(text, options);
+        }
+
+        function resetAllAudioCalibrations(options = {}) {
+            const systems = Object.keys(systemDescriptors || {});
+            let updated = 0;
+            systems.forEach(systemKey => {
+                const result = applySystemDefaultAudioCalibration(systemKey, {
+                    syncUI: systemKey === currentSystemKey && options.syncUI !== false,
+                    updateStatus: systemKey === currentSystemKey && options.updateStatus !== false,
+                    resetMemory: options.resetMemory !== false,
+                    seed: options.seed,
+                    skipPersist: true
+                });
+                if (result) {
+                    updated += 1;
+                }
+            });
+            if (updated) {
+                scheduleAudioCalibrationPersist({ immediate: true });
+            }
+            return updated;
         }
 
         function applySystemDefaultAudioCalibration(systemKey = currentSystemKey, options = {}) {
@@ -4803,6 +5207,225 @@
 
         resetAudioCalibrationMemory();
         updateAudioCalibrationStatus();
+
+        if (audioCalibrationCopyProfileButton) {
+            const idleLabel = audioCalibrationCopyProfileButton.textContent || 'Copy Profile';
+            audioCalibrationCopyProfileButton.dataset.baseLabel = idleLabel;
+            audioCalibrationCopyProfileButton.addEventListener('click', async () => {
+                const { success, snapshot } = await copyAudioCalibrationProfileSnapshot();
+                flashButtonState(audioCalibrationCopyProfileButton, success ? 'Copied!' : 'Copy Failed', idleLabel);
+                if (success) {
+                    const systemLabel = snapshot?.label || systemDescriptors[currentSystemKey]?.label || 'Profile';
+                    setAudioCalibrationToolsStatus(`Copied ${systemLabel} calibration to clipboard.`, 'success');
+                } else {
+                    setAudioCalibrationToolsStatus('Unable to copy calibration profile.', 'warn');
+                }
+            });
+        }
+
+        if (audioCalibrationPasteProfileButton) {
+            const idleLabel = audioCalibrationPasteProfileButton.textContent || 'Paste Profile';
+            audioCalibrationPasteProfileButton.dataset.baseLabel = idleLabel;
+            audioCalibrationPasteProfileButton.addEventListener('click', async () => {
+                if (audioCalibrationPasteProfileButton.dataset.busy === 'true') {
+                    return;
+                }
+                audioCalibrationPasteProfileButton.dataset.busy = 'true';
+                audioCalibrationPasteProfileButton.disabled = true;
+                audioCalibrationPasteProfileButton.textContent = 'Pasting…';
+                let message = 'No calibration data found in clipboard.';
+                let tone = 'warn';
+                try {
+                    const result = await pasteAudioCalibrationFromClipboard({
+                        syncUI: true,
+                        updateStatus: true,
+                        resetMemory: true,
+                        immediatePersist: true
+                    });
+                    if (result.success) {
+                        tone = 'success';
+                        if (result.kind === 'bundle') {
+                            const count = result.applied || (Array.isArray(result.systems) ? result.systems.length : 0);
+                            message = count
+                                ? `Applied calibration bundle for ${count} system${count === 1 ? '' : 's'}.`
+                                : 'Calibration bundle parsed with no applicable systems.';
+                            if (!count) tone = 'warn';
+                        } else {
+                            const systemKey = result.system || currentSystemKey;
+                            const label = systemDescriptors[systemKey]?.label || systemKey || 'Visualizer';
+                            message = `Applied calibration profile to ${label}.`;
+                        }
+                    } else if (result.reason === 'unavailable') {
+                        message = 'Clipboard access is not available in this environment.';
+                    } else if (result.reason === 'empty') {
+                        message = 'Clipboard did not contain calibration data.';
+                    } else if (result.reason === 'system') {
+                        message = 'Calibration data does not match any known visualizer.';
+                    } else if (result.reason === 'invalid') {
+                        message = 'Clipboard data could not be parsed as calibration JSON.';
+                    } else if (result.reason === 'unsupported') {
+                        message = 'Clipboard data was not a calibration profile or bundle.';
+                    }
+                } catch (error) {
+                    console.warn('Failed to paste audio calibration from clipboard:', error);
+                    message = 'Clipboard read failed—check browser permissions.';
+                } finally {
+                    audioCalibrationPasteProfileButton.disabled = false;
+                    delete audioCalibrationPasteProfileButton.dataset.busy;
+                    audioCalibrationPasteProfileButton.textContent = idleLabel;
+                }
+                flashButtonState(audioCalibrationPasteProfileButton, tone === 'success' ? 'Applied' : 'No Data', idleLabel);
+                setAudioCalibrationToolsStatus(message, tone);
+            });
+        }
+
+        if (audioCalibrationCopyBundleButton) {
+            const idleLabel = audioCalibrationCopyBundleButton.textContent || 'Copy Bundle';
+            audioCalibrationCopyBundleButton.dataset.baseLabel = idleLabel;
+            audioCalibrationCopyBundleButton.addEventListener('click', async () => {
+                const { success, bundle } = await copyAudioCalibrationBundleSnapshot();
+                flashButtonState(audioCalibrationCopyBundleButton, success ? 'Copied!' : 'Copy Failed', idleLabel);
+                if (success) {
+                    const count = bundle && bundle.systems ? Object.keys(bundle.systems).length : 0;
+                    setAudioCalibrationToolsStatus(`Copied calibration bundle for ${count} system${count === 1 ? '' : 's'}.`, 'success');
+                } else {
+                    setAudioCalibrationToolsStatus('No calibration bundle available to copy.', 'warn');
+                }
+            });
+        }
+
+        if (audioCalibrationDownloadBundleButton) {
+            const idleLabel = audioCalibrationDownloadBundleButton.textContent || 'Download Bundle';
+            audioCalibrationDownloadBundleButton.dataset.baseLabel = idleLabel;
+            audioCalibrationDownloadBundleButton.addEventListener('click', () => {
+                const result = downloadAudioCalibrationBundleSnapshot({});
+                if (result.success) {
+                    flashButtonState(audioCalibrationDownloadBundleButton, 'Saved', idleLabel);
+                    setAudioCalibrationToolsStatus(`Calibration bundle downloaded as ${result.filename}.`, 'success');
+                } else {
+                    let message = 'Unable to download calibration bundle.';
+                    let flashLabel = 'Failed';
+                    if (result.reason === 'empty') {
+                        message = 'No calibration data available to download.';
+                        flashLabel = 'Empty';
+                    } else if (result.reason === 'unsupported') {
+                        message = 'Downloads unsupported—copy the bundle instead.';
+                        flashLabel = 'Unsupported';
+                    } else if (result.reason === 'environment') {
+                        message = 'Downloads unavailable in this environment.';
+                        flashLabel = 'Unavailable';
+                    }
+                    flashButtonState(audioCalibrationDownloadBundleButton, flashLabel, idleLabel, 2200);
+                    setAudioCalibrationToolsStatus(message, 'warn');
+                }
+            });
+        }
+
+        if (audioCalibrationUploadBundleButton) {
+            const idleLabel = audioCalibrationUploadBundleButton.textContent || 'Upload Bundle';
+            audioCalibrationUploadBundleButton.dataset.baseLabel = idleLabel;
+            audioCalibrationUploadBundleButton.addEventListener('click', () => {
+                if (audioCalibrationUploadBundleButton.dataset.busy === 'true') {
+                    return;
+                }
+                if (audioCalibrationFileInput) {
+                    audioCalibrationFileInput.value = '';
+                    audioCalibrationFileInput.click();
+                } else {
+                    flashButtonState(audioCalibrationUploadBundleButton, 'Unavailable', idleLabel, 2200);
+                    setAudioCalibrationToolsStatus('File uploads unavailable in this environment.', 'warn');
+                }
+            });
+        }
+
+        if (audioCalibrationFileInput) {
+            audioCalibrationFileInput.addEventListener('change', async (event) => {
+                const file = event?.target?.files && event.target.files[0];
+                if (!file) {
+                    return;
+                }
+                if (audioCalibrationUploadBundleButton) {
+                    audioCalibrationUploadBundleButton.dataset.busy = 'true';
+                    audioCalibrationUploadBundleButton.disabled = true;
+                    audioCalibrationUploadBundleButton.textContent = 'Uploading…';
+                }
+                let message = 'Calibration file could not be processed.';
+                let tone = 'warn';
+                try {
+                    const result = await importAudioCalibrationFromFile(file, {
+                        syncUI: true,
+                        updateStatus: true,
+                        resetMemory: true,
+                        immediatePersist: true
+                    });
+                    if (result.success) {
+                        tone = 'success';
+                        if (result.kind === 'bundle') {
+                            const count = result.applied || (Array.isArray(result.systems) ? result.systems.length : 0);
+                            message = count
+                                ? `Imported calibration bundle for ${count} system${count === 1 ? '' : 's'}.`
+                                : 'Calibration bundle parsed with no applicable systems.';
+                            if (!count) tone = 'warn';
+                        } else {
+                            const systemKey = result.system || currentSystemKey;
+                            const label = systemDescriptors[systemKey]?.label || systemKey || 'Visualizer';
+                            message = `Imported calibration profile for ${label}.`;
+                        }
+                    } else if (result.reason === 'invalid') {
+                        message = 'Calibration file is not valid JSON.';
+                    } else if (result.reason === 'empty') {
+                        message = 'No calibration data found in file.';
+                    }
+                } catch (error) {
+                    console.warn('Failed to import audio calibration file:', error);
+                    message = 'Calibration file import failed—check console for details.';
+                } finally {
+                    if (audioCalibrationUploadBundleButton) {
+                        audioCalibrationUploadBundleButton.disabled = false;
+                        audioCalibrationUploadBundleButton.textContent = audioCalibrationUploadBundleButton.dataset.baseLabel || 'Upload Bundle';
+                        delete audioCalibrationUploadBundleButton.dataset.busy;
+                    }
+                    audioCalibrationFileInput.value = '';
+                }
+                flashButtonState(audioCalibrationUploadBundleButton, tone === 'success' ? 'Imported' : 'No Import', audioCalibrationUploadBundleButton?.dataset?.baseLabel || 'Upload Bundle');
+                setAudioCalibrationToolsStatus(message, tone);
+            });
+        }
+
+        if (audioCalibrationResetCurrentButton) {
+            const idleLabel = audioCalibrationResetCurrentButton.textContent || 'Reset Current';
+            audioCalibrationResetCurrentButton.dataset.baseLabel = idleLabel;
+            audioCalibrationResetCurrentButton.addEventListener('click', () => {
+                applySystemDefaultAudioCalibration(currentSystemKey, {
+                    syncUI: true,
+                    updateStatus: true,
+                    resetMemory: true,
+                    seed: window.audioReactive ?? null
+                });
+                const label = systemDescriptors[currentSystemKey]?.label || 'Visualizer';
+                flashButtonState(audioCalibrationResetCurrentButton, 'Reset', idleLabel);
+                setAudioCalibrationToolsStatus(`${label} calibration reset to defaults.`, 'success');
+            });
+        }
+
+        if (audioCalibrationResetAllButton) {
+            const idleLabel = audioCalibrationResetAllButton.textContent || 'Reset All';
+            audioCalibrationResetAllButton.dataset.baseLabel = idleLabel;
+            audioCalibrationResetAllButton.addEventListener('click', () => {
+                const count = resetAllAudioCalibrations({
+                    syncUI: true,
+                    updateStatus: true,
+                    resetMemory: true,
+                    seed: window.audioReactive ?? null
+                });
+                flashButtonState(audioCalibrationResetAllButton, count ? 'Reset' : 'No Reset', idleLabel);
+                if (count) {
+                    setAudioCalibrationToolsStatus(`Reset calibration defaults for ${count} system${count === 1 ? '' : 's'}.`, 'success');
+                } else {
+                    setAudioCalibrationToolsStatus('No systems required resetting.', 'warn');
+                }
+            });
+        }
 
         seedRotationBaseState(currentVisualizer, { systemKey: currentSystemKey });
 
@@ -8600,6 +9223,27 @@
                     skipPersist: options.skipPersist === true
                 });
             },
+            exportProfile: (systemKey = currentSystemKey) => createAudioCalibrationProfileSnapshot(systemKey),
+            exportBundle: () => createAudioCalibrationBundleSnapshot(),
+            copyProfile: (systemKey = currentSystemKey) => copyAudioCalibrationProfileSnapshot(systemKey),
+            copyBundle: () => copyAudioCalibrationBundleSnapshot(),
+            downloadBundle: (options = {}) => downloadAudioCalibrationBundleSnapshot(options),
+            pasteFromClipboard: (options = {}) => pasteAudioCalibrationFromClipboard(options),
+            importBundle: async (payload, options = {}) => {
+                if (typeof payload === 'string') {
+                    return importAudioCalibrationFromText(payload, options);
+                }
+                if (payload && typeof payload === 'object') {
+                    if (payload.type === AUDIO_CALIBRATION_BUNDLE_TYPE || payload.systems) {
+                        return applyImportedAudioCalibrationBundle(payload, options);
+                    }
+                    if (payload.state) {
+                        return applyImportedAudioCalibrationProfile(payload, options);
+                    }
+                }
+                return { success: false, reason: 'invalid' };
+            },
+            importFile: (file, options = {}) => importAudioCalibrationFromFile(file, options),
             getSystemState: (systemKey = currentSystemKey) => {
                 const entry = audioCalibrationStateBySystem.get(systemKey);
                 if (!entry) {
@@ -8656,7 +9300,8 @@
                 persistAudioCalibrationState();
                 return true;
             },
-            apply: (audioFrame) => applyAudioCalibration(audioFrame)
+            apply: (audioFrame) => applyAudioCalibration(audioFrame),
+            resetAll: (options = {}) => resetAllAudioCalibrations(options)
         };
 
         window.colorDiagnostics = {
