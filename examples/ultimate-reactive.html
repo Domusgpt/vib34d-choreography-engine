@@ -546,6 +546,94 @@
             border-color: rgba(255, 138, 61, 0.35);
         }
 
+        .calibration-history {
+            margin-top: 12px;
+            border-radius: 12px;
+            border: 1px solid rgba(0, 255, 255, 0.12);
+            background: rgba(0, 30, 40, 0.4);
+            max-height: 220px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .calibration-history[data-empty="true"] {
+            border-style: dashed;
+            border-color: rgba(0, 255, 255, 0.08);
+            background: rgba(0, 20, 30, 0.35);
+        }
+
+        .calibration-history .history-empty {
+            padding: 16px 18px;
+            text-align: center;
+            font-size: 0.78rem;
+            color: var(--text-tertiary);
+            letter-spacing: 0.04em;
+        }
+
+        .calibration-history-entry {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 6px 12px;
+            padding: 12px 16px;
+            border-bottom: 1px solid rgba(0, 255, 255, 0.08);
+            background: linear-gradient(135deg, rgba(0, 40, 50, 0.18) 0%, rgba(0, 24, 32, 0.24) 100%);
+        }
+
+        .calibration-history-entry:last-child {
+            border-bottom: none;
+        }
+
+        .calibration-history-meta {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.72rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--text-tertiary);
+        }
+
+        .calibration-history-label {
+            color: var(--accent);
+            font-weight: 600;
+        }
+
+        .calibration-history-time {
+            color: rgba(180, 255, 245, 0.6);
+        }
+
+        .calibration-history-preset {
+            color: rgba(180, 255, 245, 0.75);
+        }
+
+        .calibration-history-metrics {
+            display: flex;
+            gap: 8px;
+            font-size: 0.7rem;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: rgba(180, 255, 245, 0.6);
+        }
+
+        .calibration-history-summary {
+            grid-column: 1 / -1;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            letter-spacing: 0.03em;
+        }
+
+        .calibration-history-actions {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .calibration-history-actions .pill-button.small {
+            padding: 6px 10px;
+            font-size: 0.7rem;
+        }
+
         .diagnostics-log {
             margin-top: 12px;
             padding: 12px;
@@ -2240,6 +2328,20 @@
                             <input type="file" id="audioCalibrationFile" class="deck-file-input" accept="application/json" hidden>
                             <div class="panel-status" id="audioCalibrationToolsStatus" aria-live="polite">Ready.</div>
                             <div class="note-card" id="audioCalibrationStatus">Floor 0.08 · Ceiling 0.96 · Gain 1.25× · Smooth 35% · Bass 1.20× · Mid 1.00× · High 1.10× · Energy 1.00× · Onset +12%</div>
+                            <div class="control-divider"></div>
+                            <div class="control-subtitle">Calibration Assistant</div>
+                            <div class="control-description">Let the analyzer listen, auto-balance bands, and keep calibrated profiles on deck for each system.</div>
+                            <div class="control-row button-row compact" id="audioCalibrationAssistantRow">
+                                <div class="button-stack compact">
+                                    <button type="button" id="audioCalibrationAutoBalance" class="pill-button small">Auto Balance</button>
+                                    <button type="button" id="audioCalibrationCapture" class="pill-button secondary small">Capture Snapshot</button>
+                                </div>
+                                <span class="status-pill" id="audioCalibrationAssistantStatus" data-state="default">Listening</span>
+                            </div>
+                            <div class="note-card" id="audioCalibrationAssistantHint">Snapshots store the calibrated profile, preset metadata, and live analysis stats so you can recall or share tunings instantly.</div>
+                            <div class="calibration-history" id="audioCalibrationHistory" data-empty="true">
+                                <div class="history-empty">No calibration snapshots captured yet.</div>
+                            </div>
                         </div>
                     </div>
                 </section>
@@ -2718,6 +2820,14 @@
         const audioCalibrationFileInput = document.getElementById('audioCalibrationFile');
         const audioCalibrationToolsReadyMessage = audioCalibrationToolsStatus ? (audioCalibrationToolsStatus.textContent || 'Ready.') : 'Ready.';
         let audioCalibrationToolsStatusTimer = null;
+        const audioCalibrationAutoBalanceButton = document.getElementById('audioCalibrationAutoBalance');
+        const audioCalibrationCaptureButton = document.getElementById('audioCalibrationCapture');
+        const audioCalibrationAssistantStatus = document.getElementById('audioCalibrationAssistantStatus');
+        const audioCalibrationAssistantHint = document.getElementById('audioCalibrationAssistantHint');
+        const audioCalibrationHistoryContainer = document.getElementById('audioCalibrationHistory');
+        const audioCalibrationAssistantReadyMessage = audioCalibrationAssistantStatus ? (audioCalibrationAssistantStatus.textContent || 'Listening') : 'Listening';
+        let audioCalibrationAssistantStatusTimer = null;
+        let audioCalibrationAssistantLastUpdate = 0;
 
         const colorValueRefs = {
             primary: document.getElementById('colorPrimaryValue'),
@@ -2761,6 +2871,9 @@
         const AUDIO_CALIBRATION_PROFILE_TYPE = 'vib34d-audio-calibration-profile';
         const AUDIO_CALIBRATION_BUNDLE_TYPE = 'vib34d-audio-calibration-bundle';
         const AUDIO_CALIBRATION_DOWNLOAD_PREFIX = 'vib34d-audio-calibration';
+        const AUDIO_CALIBRATION_ANALYSIS_LIMIT = 240;
+        const AUDIO_CALIBRATION_MIN_ANALYSIS_FRAMES = 36;
+        const AUDIO_CALIBRATION_HISTORY_LIMIT = 24;
         const audioCalibrationPresets = [
             { key: AUDIO_CALIBRATION_PRESET_SYSTEM, label: 'System Default', system: true },
             {
@@ -2811,6 +2924,8 @@
         ];
         const audioCalibrationStateBySystem = new Map();
         const audioCalibrationPresetButtons = new Map();
+        const audioCalibrationAnalysisBySystem = new Map();
+        const audioCalibrationHistory = [];
         let currentAudioCalibrationPresetKey = AUDIO_CALIBRATION_PRESET_SYSTEM;
         let audioCalibrationPersistTimer = null;
         let audioCalibrationRestoring = false;
@@ -3123,6 +3238,481 @@
                     }
                 }, resetDelay);
             }
+        }
+
+        function setAudioCalibrationAssistantStatus(message, state = 'default', options = {}) {
+            if (!audioCalibrationAssistantStatus) {
+                return;
+            }
+            const textValue = message === undefined || message === null
+                ? audioCalibrationAssistantReadyMessage
+                : String(message);
+            const normalized = textValue.trim();
+            audioCalibrationAssistantStatus.textContent = normalized || audioCalibrationAssistantReadyMessage;
+            const tone = state || 'default';
+            audioCalibrationAssistantStatus.dataset.state = tone;
+            if (audioCalibrationAssistantStatusTimer) {
+                clearTimeout(audioCalibrationAssistantStatusTimer);
+                audioCalibrationAssistantStatusTimer = null;
+            }
+            const resetDelay = Number.isFinite(options.resetDelay) ? options.resetDelay : 6200;
+            if (resetDelay > 0 && options.persist !== true) {
+                audioCalibrationAssistantStatusTimer = setTimeout(() => {
+                    audioCalibrationAssistantStatusTimer = null;
+                    if (audioCalibrationAssistantStatus) {
+                        audioCalibrationAssistantStatus.textContent = audioCalibrationAssistantReadyMessage;
+                        audioCalibrationAssistantStatus.dataset.state = 'default';
+                    }
+                }, resetDelay);
+            }
+        }
+
+        function getAudioCalibrationAnalysis(systemKey = currentSystemKey, options = {}) {
+            if (!systemKey) {
+                return null;
+            }
+            let entry = audioCalibrationAnalysisBySystem.get(systemKey);
+            if (!entry && options.create !== false) {
+                entry = {
+                    frames: [],
+                    limit: AUDIO_CALIBRATION_ANALYSIS_LIMIT,
+                    firstTimestamp: 0,
+                    lastTimestamp: 0,
+                    updatedAt: 0,
+                    samplesCaptured: 0
+                };
+                audioCalibrationAnalysisBySystem.set(systemKey, entry);
+            }
+            return entry || null;
+        }
+
+        function recordAudioCalibrationSample(systemKey, sample = {}) {
+            if (!systemKey) {
+                return;
+            }
+            const analysis = getAudioCalibrationAnalysis(systemKey);
+            if (!analysis) {
+                return;
+            }
+            const timestamp = Number.isFinite(sample.timestamp) ? sample.timestamp : Date.now();
+            const frame = {
+                bands: {
+                    bass: clamp01(sample?.bands?.bass ?? 0),
+                    mid: clamp01(sample?.bands?.mid ?? 0),
+                    high: clamp01(sample?.bands?.high ?? 0)
+                },
+                energy: clamp01(sample.energy ?? 0),
+                onset: clamp01(sample.onset ?? 0),
+                timestamp
+            };
+            analysis.frames.push(frame);
+            const limit = analysis.limit || AUDIO_CALIBRATION_ANALYSIS_LIMIT;
+            if (analysis.frames.length > limit) {
+                analysis.frames.splice(0, analysis.frames.length - limit);
+            }
+            if (!analysis.firstTimestamp || analysis.frames.length === 1) {
+                analysis.firstTimestamp = timestamp;
+            }
+            analysis.lastTimestamp = timestamp;
+            analysis.updatedAt = timestamp;
+            analysis.samplesCaptured = (analysis.samplesCaptured || 0) + 1;
+            const now = Date.now();
+            if (!audioCalibrationAssistantLastUpdate || now - audioCalibrationAssistantLastUpdate >= 900) {
+                audioCalibrationAssistantLastUpdate = now;
+                refreshAudioCalibrationListeningStatus();
+            }
+        }
+
+        function formatRelativeTimeShort(timestamp) {
+            if (!Number.isFinite(timestamp)) {
+                return '';
+            }
+            const diff = Math.max(0, Date.now() - timestamp);
+            const seconds = Math.round(diff / 1000);
+            if (seconds <= 4) return 'just now';
+            if (seconds < 60) return `${seconds}s ago`;
+            const minutes = Math.round(seconds / 60);
+            if (minutes < 60) return `${minutes}m ago`;
+            const hours = Math.round(minutes / 60);
+            if (hours < 24) return `${hours}h ago`;
+            const days = Math.round(hours / 24);
+            return `${days}d ago`;
+        }
+
+        function refreshAudioCalibrationListeningStatus() {
+            if (!audioCalibrationAssistantStatus) {
+                return;
+            }
+            const analysis = getAudioCalibrationAnalysis(currentSystemKey, { create: false });
+            if (!analysis || !Array.isArray(analysis.frames) || !analysis.frames.length) {
+                setAudioCalibrationAssistantStatus('Waiting for audio…', 'warn', { persist: true, resetDelay: 0 });
+                return;
+            }
+            const frames = analysis.frames.length;
+            const first = analysis.firstTimestamp || Date.now();
+            const last = analysis.lastTimestamp || first;
+            const seconds = Math.max(0, Math.round((last - first) / 1000));
+            const detail = seconds >= 5 ? `${seconds}s captured` : `${frames} frames`;
+            setAudioCalibrationAssistantStatus(`Listening · ${detail}`, 'default', { persist: true, resetDelay: 0 });
+        }
+
+        function summarizeAudioCalibrationState(state = audioCalibrationState) {
+            const source = state || {};
+            const floor = Number.isFinite(source.floor) ? source.floor : audioCalibrationDefaults.floor;
+            const ceiling = Number.isFinite(source.ceiling) ? source.ceiling : audioCalibrationDefaults.ceiling;
+            const smoothing = Number.isFinite(source.smoothing) ? source.smoothing : audioCalibrationDefaults.smoothing;
+            const gain = Number.isFinite(source.gain) ? source.gain : audioCalibrationDefaults.gain;
+            const bass = Number.isFinite(source.bassWeight) ? source.bassWeight : audioCalibrationDefaults.bassWeight;
+            const mid = Number.isFinite(source.midWeight) ? source.midWeight : audioCalibrationDefaults.midWeight;
+            const high = Number.isFinite(source.highWeight) ? source.highWeight : audioCalibrationDefaults.highWeight;
+            const energy = Number.isFinite(source.energyWeight) ? source.energyWeight : audioCalibrationDefaults.energyWeight;
+            const onsetBoost = Number.isFinite(source.onsetBoost) ? source.onsetBoost : audioCalibrationDefaults.onsetBoost;
+            const smoothingPercent = Math.round(clamp01(smoothing) * 100);
+            const onsetPercent = Math.round(Math.max(0, onsetBoost) * 100);
+            return `Floor ${floor.toFixed(2)} · Ceiling ${ceiling.toFixed(2)} · Gain ${gain.toFixed(2)}× · Smooth ${smoothingPercent}% · Bass ${bass.toFixed(2)}× · Mid ${mid.toFixed(2)}× · High ${high.toFixed(2)}× · Energy ${energy.toFixed(2)}× · Onset +${onsetPercent}%`;
+        }
+
+        function computeAudioCalibrationSuggestion(systemKey = currentSystemKey) {
+            const analysis = getAudioCalibrationAnalysis(systemKey, { create: false });
+            if (!analysis || !Array.isArray(analysis.frames) || analysis.frames.length < AUDIO_CALIBRATION_MIN_ANALYSIS_FRAMES) {
+                return null;
+            }
+            const bandSamples = { bass: [], mid: [], high: [] };
+            const energySamples = [];
+            const onsetSamples = [];
+            analysis.frames.forEach(frame => {
+                if (!frame) return;
+                bandSamples.bass.push(clamp01(frame?.bands?.bass ?? 0));
+                bandSamples.mid.push(clamp01(frame?.bands?.mid ?? 0));
+                bandSamples.high.push(clamp01(frame?.bands?.high ?? 0));
+                energySamples.push(clamp01(frame.energy ?? 0));
+                onsetSamples.push(clamp01(frame.onset ?? 0));
+            });
+            const combined = [...bandSamples.bass, ...bandSamples.mid, ...bandSamples.high, ...energySamples];
+            if (combined.length < AUDIO_CALIBRATION_MIN_ANALYSIS_FRAMES) {
+                return null;
+            }
+            const percentile = (arr, ratio) => {
+                if (!arr.length) return 0;
+                const sorted = [...arr].sort((a, b) => a - b);
+                const index = Math.max(0, Math.min(sorted.length - 1, (sorted.length - 1) * ratio));
+                const lower = Math.floor(index);
+                const upper = Math.min(sorted.length - 1, Math.ceil(index));
+                if (lower === upper) {
+                    return sorted[lower];
+                }
+                const weight = index - lower;
+                return sorted[lower] + (sorted[upper] - sorted[lower]) * weight;
+            };
+            const average = arr => arr.length ? arr.reduce((acc, value) => acc + value, 0) / arr.length : 0;
+            const floor = clamp(percentile(combined, 0.08) * 0.9, 0.01, 0.6);
+            let ceiling = clamp(percentile(combined, 0.98) * 1.02, floor + MIN_AUDIO_CALIBRATION_GAP, 1);
+            if (ceiling - floor < MIN_AUDIO_CALIBRATION_GAP) {
+                ceiling = clamp(floor + MIN_AUDIO_CALIBRATION_GAP, 0.2, 1);
+            }
+            const range = Math.max(MIN_AUDIO_CALIBRATION_GAP, ceiling - floor);
+            const combinedAvg = average(combined);
+            const normalizedAvg = Math.max(0.05, (combinedAvg - floor) / range);
+            const normalizedValues = combined.map(value => clamp01((value - floor) / range));
+            const normalizedMean = average(normalizedValues);
+            const variance = average(normalizedValues.map(value => Math.pow(value - normalizedMean, 2)));
+            const stdDev = Math.sqrt(Math.max(0, variance));
+            const smoothing = clamp(0.58 - stdDev * 0.38, 0.18, 0.65);
+            const gain = normalizedAvg > 0 ? clamp(0.7 / normalizedAvg, 0.6, 2.8) : 1.25;
+            const bandWeights = {};
+            ['bass', 'mid', 'high'].forEach(name => {
+                const avg = average(bandSamples[name]);
+                const normalizedBand = Math.max(0.05, (avg - floor) / range);
+                bandWeights[name] = clamp(normalizedAvg / normalizedBand, 0.55, 1.75);
+            });
+            const energyAvg = average(energySamples);
+            const normalizedEnergy = Math.max(0.05, (energyAvg - floor) / range);
+            const energyWeight = clamp(0.68 / normalizedEnergy, 0.55, 1.6);
+            const onsetAvg = average(onsetSamples);
+            const onsetPeak = percentile(onsetSamples, 0.9);
+            const onsetBoost = clamp((0.55 - onsetPeak) * 1.2 + Math.max(0, 0.45 - onsetAvg) * 0.8, 0, 0.45);
+            const seconds = Math.max(1, Math.round(((analysis.lastTimestamp || Date.now()) - (analysis.firstTimestamp || Date.now())) / 1000));
+            const state = {
+                floor,
+                ceiling,
+                smoothing,
+                gain,
+                bassWeight: bandWeights.bass,
+                midWeight: bandWeights.mid,
+                highWeight: bandWeights.high,
+                energyWeight,
+                onsetBoost
+            };
+            const summary = summarizeAudioCalibrationState(state);
+            return {
+                state,
+                summary,
+                stats: {
+                    system: systemKey,
+                    frames: analysis.frames.length,
+                    seconds,
+                    floor,
+                    ceiling,
+                    range,
+                    gain,
+                    smoothing,
+                    bandAverages: {
+                        bass: average(bandSamples.bass),
+                        mid: average(bandSamples.mid),
+                        high: average(bandSamples.high)
+                    },
+                    energyAverage: energyAvg,
+                    onsetAverage: onsetAvg,
+                    onsetPeak
+                }
+            };
+        }
+
+        function autoBalanceAudioCalibration(options = {}) {
+            const targetSystem = options.systemKey || currentSystemKey;
+            const suggestion = computeAudioCalibrationSuggestion(targetSystem);
+            if (!suggestion) {
+                if (options.notify !== false && targetSystem === currentSystemKey) {
+                    setAudioCalibrationAssistantStatus('Need more audio to auto-balance.', 'warn');
+                }
+                return { success: false, reason: 'insufficient-data' };
+            }
+            if (targetSystem !== currentSystemKey) {
+                const baseline = getSystemCalibrationBaseline(targetSystem);
+                const merged = sanitizeAudioCalibrationState({ ...baseline, ...suggestion.state }, baseline);
+                audioCalibrationStateBySystem.set(targetSystem, {
+                    state: merged,
+                    preset: AUDIO_CALIBRATION_PRESET_CUSTOM,
+                    updatedAt: Date.now()
+                });
+                scheduleAudioCalibrationPersist({ immediate: options.immediatePersist === true });
+                if (options.capture !== false) {
+                    captureAudioCalibrationHistoryEntry({
+                        systemKey: targetSystem,
+                        source: 'auto',
+                        label: options.label || 'Auto Balance',
+                        summary: suggestion.summary,
+                        stats: suggestion.stats
+                    });
+                }
+                return { success: true, suggestion, system: targetSystem };
+            }
+            if (options.notify !== false) {
+                setAudioCalibrationAssistantStatus('Applying auto-balance…', 'running', { persist: true, resetDelay: 0 });
+            }
+            audioCalibrationRestoring = true;
+            applyAudioCalibrationPatch(suggestion.state, {
+                syncUI: options.syncUI !== false,
+                updateStatus: options.updateStatus !== false,
+                resetMemory: options.resetMemory !== false,
+                seed: options.seed ?? window.audioReactive ?? null,
+                updateProfile: true,
+                skipStore: true,
+                skipPersist: true
+            });
+            audioCalibrationRestoring = false;
+            storeCurrentAudioCalibrationState({ skipPersist: options.skipPersist === true });
+            setCurrentAudioCalibrationPreset(AUDIO_CALIBRATION_PRESET_CUSTOM);
+            if (options.capture !== false) {
+                captureAudioCalibrationHistoryEntry({
+                    source: 'auto',
+                    label: options.label || 'Auto Balance',
+                    summary: suggestion.summary,
+                    stats: suggestion.stats
+                });
+            }
+            if (options.notify !== false) {
+                setAudioCalibrationAssistantStatus('Auto balance applied', 'ok');
+            }
+            return { success: true, suggestion, system: targetSystem };
+        }
+
+        function cloneAudioCalibrationProfileSnapshot(snapshot) {
+            if (!snapshot || typeof snapshot !== 'object') {
+                return null;
+            }
+            return {
+                type: snapshot.type,
+                version: snapshot.version,
+                exportedAt: snapshot.exportedAt,
+                system: snapshot.system,
+                label: snapshot.label,
+                preset: snapshot.preset,
+                state: { ...(snapshot.state || {}) },
+                defaults: { ...(snapshot.defaults || {}) }
+            };
+        }
+
+        function captureAudioCalibrationHistoryEntry(options = {}) {
+            const systemKey = options.systemKey || currentSystemKey;
+            const snapshot = options.snapshot || createAudioCalibrationProfileSnapshot(systemKey);
+            if (!snapshot) {
+                return null;
+            }
+            const entry = {
+                id: options.id || `ach-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`,
+                system: systemKey,
+                label: options.label || (options.source === 'auto' ? 'Auto Balance' : 'Manual Snapshot'),
+                source: options.source || 'manual',
+                preset: snapshot.preset || AUDIO_CALIBRATION_PRESET_CUSTOM,
+                timestamp: options.timestamp || Date.now(),
+                summary: options.summary || summarizeAudioCalibrationState(snapshot.state),
+                snapshot: cloneAudioCalibrationProfileSnapshot(snapshot),
+                stats: options.stats ? { ...options.stats } : null
+            };
+            audioCalibrationHistory.unshift(entry);
+            if (audioCalibrationHistory.length > AUDIO_CALIBRATION_HISTORY_LIMIT) {
+                audioCalibrationHistory.length = AUDIO_CALIBRATION_HISTORY_LIMIT;
+            }
+            renderAudioCalibrationHistory();
+            return entry;
+        }
+
+        function findAudioCalibrationHistoryEntry(id) {
+            if (!id) {
+                return null;
+            }
+            return audioCalibrationHistory.find(entry => entry?.id === id) || null;
+        }
+
+        function renderAudioCalibrationHistory() {
+            if (!audioCalibrationHistoryContainer) {
+                return;
+            }
+            audioCalibrationHistoryContainer.innerHTML = '';
+            const entries = audioCalibrationHistory.filter(entry => entry?.system === currentSystemKey);
+            if (!entries.length) {
+                audioCalibrationHistoryContainer.dataset.empty = 'true';
+                const empty = document.createElement('div');
+                empty.className = 'history-empty';
+                empty.textContent = 'No calibration snapshots captured yet.';
+                audioCalibrationHistoryContainer.appendChild(empty);
+                return;
+            }
+            audioCalibrationHistoryContainer.dataset.empty = 'false';
+            entries.forEach(entry => {
+                const wrapper = document.createElement('div');
+                wrapper.className = 'calibration-history-entry';
+                wrapper.dataset.id = entry.id;
+                wrapper.dataset.source = entry.source || 'manual';
+
+                const meta = document.createElement('div');
+                meta.className = 'calibration-history-meta';
+                const label = document.createElement('span');
+                label.className = 'calibration-history-label';
+                label.textContent = entry.label || 'Snapshot';
+                meta.appendChild(label);
+                const preset = document.createElement('span');
+                preset.className = 'calibration-history-preset';
+                preset.textContent = entry.preset === AUDIO_CALIBRATION_PRESET_SYSTEM ? 'System Default' : (entry.preset || 'Custom');
+                meta.appendChild(preset);
+                const time = document.createElement('span');
+                time.className = 'calibration-history-time';
+                time.textContent = formatRelativeTimeShort(entry.timestamp);
+                meta.appendChild(time);
+                wrapper.appendChild(meta);
+
+                if (entry.stats && Number.isFinite(entry.stats.frames)) {
+                    const metrics = document.createElement('div');
+                    metrics.className = 'calibration-history-metrics';
+                    const frames = document.createElement('span');
+                    frames.textContent = `${entry.stats.frames} frames`;
+                    metrics.appendChild(frames);
+                    const seconds = document.createElement('span');
+                    const secondsValue = Math.max(1, Math.round(entry.stats.seconds || 0));
+                    seconds.textContent = `${secondsValue}s`;
+                    metrics.appendChild(seconds);
+                    if (Number.isFinite(entry.stats.range)) {
+                        const range = document.createElement('span');
+                        range.textContent = `Δ${entry.stats.range.toFixed(2)}`;
+                        metrics.appendChild(range);
+                    }
+                    wrapper.appendChild(metrics);
+                }
+
+                const summary = document.createElement('div');
+                summary.className = 'calibration-history-summary';
+                summary.textContent = entry.summary || summarizeAudioCalibrationState(entry.snapshot?.state || {});
+                wrapper.appendChild(summary);
+
+                const actions = document.createElement('div');
+                actions.className = 'calibration-history-actions';
+                const applyBtn = document.createElement('button');
+                applyBtn.type = 'button';
+                applyBtn.className = 'pill-button small';
+                applyBtn.dataset.role = 'history-apply';
+                applyBtn.textContent = 'Apply';
+                actions.appendChild(applyBtn);
+                const copyBtn = document.createElement('button');
+                copyBtn.type = 'button';
+                copyBtn.className = 'pill-button secondary small';
+                copyBtn.dataset.role = 'history-copy';
+                copyBtn.textContent = 'Copy';
+                actions.appendChild(copyBtn);
+                wrapper.appendChild(actions);
+
+                audioCalibrationHistoryContainer.appendChild(wrapper);
+            });
+        }
+
+        function applyAudioCalibrationHistoryEntry(entry, options = {}) {
+            if (!entry || !entry.snapshot) {
+                return { success: false, reason: 'invalid' };
+            }
+            const result = applyImportedAudioCalibrationProfile(entry.snapshot, {
+                systemKey: options.systemKey || currentSystemKey,
+                syncUI: options.syncUI !== false,
+                updateStatus: options.updateStatus !== false,
+                resetMemory: options.resetMemory !== false,
+                seed: options.seed
+            });
+            if (result?.success && entry.system === currentSystemKey) {
+                setAudioCalibrationAssistantStatus('Snapshot applied', 'ok');
+            }
+            return result;
+        }
+
+        async function copyAudioCalibrationHistoryEntry(entry) {
+            if (!entry || !entry.snapshot) {
+                return { success: false, reason: 'invalid' };
+            }
+            const payload = JSON.stringify(entry.snapshot, null, 2);
+            const success = await writeTextToClipboard(payload);
+            return { success };
+        }
+
+        function clearAudioCalibrationHistory(options = {}) {
+            const targetSystem = options.systemKey || null;
+            if (!targetSystem) {
+                audioCalibrationHistory.length = 0;
+            } else {
+                for (let index = audioCalibrationHistory.length - 1; index >= 0; index -= 1) {
+                    if (audioCalibrationHistory[index]?.system === targetSystem) {
+                        audioCalibrationHistory.splice(index, 1);
+                    }
+                }
+            }
+            renderAudioCalibrationHistory();
+            return true;
+        }
+
+        function getAudioCalibrationHistoryEntries(options = {}) {
+            const systemKey = options.systemKey === 'all'
+                ? null
+                : (typeof options.systemKey === 'string' ? options.systemKey : currentSystemKey);
+            return audioCalibrationHistory
+                .filter(entry => !systemKey || entry.system === systemKey)
+                .map(entry => ({
+                    id: entry.id,
+                    system: entry.system,
+                    label: entry.label,
+                    source: entry.source,
+                    preset: entry.preset,
+                    timestamp: entry.timestamp,
+                    summary: entry.summary,
+                    stats: entry.stats ? { ...entry.stats } : null,
+                    snapshot: options.includeSnapshot ? cloneAudioCalibrationProfileSnapshot(entry.snapshot) : undefined
+                }));
         }
 
         function sanitizeAudioCalibrationState(rawState, fallback = audioCalibrationDefaults) {
@@ -3838,18 +4428,7 @@
 
         function updateAudioCalibrationStatus() {
             if (!audioCalibrationStatus) return;
-            const floor = Number(audioCalibrationState.floor ?? audioCalibrationDefaults.floor);
-            const ceiling = Number(audioCalibrationState.ceiling ?? audioCalibrationDefaults.ceiling);
-            const smoothing = Number(audioCalibrationState.smoothing ?? audioCalibrationDefaults.smoothing);
-            const gain = Number(audioCalibrationState.gain ?? audioCalibrationDefaults.gain);
-            const bass = Number(audioCalibrationState.bassWeight ?? audioCalibrationDefaults.bassWeight);
-            const mid = Number(audioCalibrationState.midWeight ?? audioCalibrationDefaults.midWeight);
-            const high = Number(audioCalibrationState.highWeight ?? audioCalibrationDefaults.highWeight);
-            const energy = Number(audioCalibrationState.energyWeight ?? audioCalibrationDefaults.energyWeight);
-            const onsetBoost = Number(audioCalibrationState.onsetBoost ?? audioCalibrationDefaults.onsetBoost);
-            const smoothingPercent = Math.round(clamp01(smoothing) * 100);
-            const onsetPercent = Math.round(Math.max(0, onsetBoost) * 100);
-            audioCalibrationStatus.textContent = `Floor ${floor.toFixed(2)} · Ceiling ${ceiling.toFixed(2)} · Gain ${gain.toFixed(2)}× · Smooth ${smoothingPercent}% · Bass ${bass.toFixed(2)}× · Mid ${mid.toFixed(2)}× · High ${high.toFixed(2)}× · Energy ${energy.toFixed(2)}× · Onset +${onsetPercent}%`;
+            audioCalibrationStatus.textContent = summarizeAudioCalibrationState(audioCalibrationState);
         }
 
         function setAudioCalibrationValue(key, rawValue, options = {}) {
@@ -4015,6 +4594,13 @@
                     onset: rawOnset
                 }
             };
+
+            recordAudioCalibrationSample(currentSystemKey, {
+                bands: rawBands,
+                energy: rawEnergy,
+                onset: rawOnset,
+                timestamp: Date.now()
+            });
 
             return result;
         }
@@ -5208,6 +5794,87 @@
         resetAudioCalibrationMemory();
         updateAudioCalibrationStatus();
 
+        renderAudioCalibrationHistory();
+        refreshAudioCalibrationListeningStatus();
+
+        if (audioCalibrationAutoBalanceButton) {
+            const idleLabel = audioCalibrationAutoBalanceButton.textContent || 'Auto Balance';
+            audioCalibrationAutoBalanceButton.dataset.baseLabel = idleLabel;
+            audioCalibrationAutoBalanceButton.addEventListener('click', () => {
+                const result = autoBalanceAudioCalibration({ notify: true });
+                const label = result.success ? 'Balanced' : 'No Data';
+                flashButtonState(audioCalibrationAutoBalanceButton, label, idleLabel, result.success ? 1800 : 2200);
+            });
+        }
+
+        if (audioCalibrationCaptureButton) {
+            const idleLabel = audioCalibrationCaptureButton.textContent || 'Capture Snapshot';
+            audioCalibrationCaptureButton.dataset.baseLabel = idleLabel;
+            audioCalibrationCaptureButton.addEventListener('click', () => {
+                const analysis = getAudioCalibrationAnalysis(currentSystemKey, { create: false });
+                const stats = analysis && Array.isArray(analysis.frames) && analysis.frames.length
+                    ? {
+                        frames: analysis.frames.length,
+                        seconds: Math.max(1, Math.round(((analysis.lastTimestamp || Date.now()) - (analysis.firstTimestamp || Date.now())) / 1000)),
+                        range: Math.max(
+                            MIN_AUDIO_CALIBRATION_GAP,
+                            (audioCalibrationState.ceiling ?? audioCalibrationDefaults.ceiling) - (audioCalibrationState.floor ?? audioCalibrationDefaults.floor)
+                        )
+                    }
+                    : null;
+                const entry = captureAudioCalibrationHistoryEntry({
+                    source: 'manual',
+                    label: 'Manual Snapshot',
+                    summary: summarizeAudioCalibrationState(audioCalibrationState),
+                    stats
+                });
+                flashButtonState(audioCalibrationCaptureButton, entry ? 'Captured' : 'No Data', idleLabel, entry ? 1800 : 2200);
+                if (entry) {
+                    setAudioCalibrationAssistantStatus('Snapshot captured', 'ok');
+                } else {
+                    setAudioCalibrationAssistantStatus('Unable to capture snapshot.', 'warn');
+                }
+            });
+        }
+
+        if (audioCalibrationHistoryContainer) {
+            audioCalibrationHistoryContainer.addEventListener('click', async (event) => {
+                const actionButton = event.target.closest('[data-role^="history-"]');
+                if (!actionButton || !audioCalibrationHistoryContainer.contains(actionButton)) {
+                    return;
+                }
+                const entryElement = actionButton.closest('.calibration-history-entry');
+                if (!entryElement) {
+                    return;
+                }
+                const entry = findAudioCalibrationHistoryEntry(entryElement.dataset.id);
+                if (!entry) {
+                    return;
+                }
+                const role = actionButton.dataset.role;
+                if (role === 'history-apply') {
+                    const result = applyAudioCalibrationHistoryEntry(entry, {
+                        syncUI: true,
+                        updateStatus: true,
+                        resetMemory: true,
+                        seed: window.audioReactive ?? null
+                    });
+                    flashButtonState(actionButton, result.success ? 'Applied' : 'Failed', 'Apply');
+                    if (!result.success) {
+                        setAudioCalibrationAssistantStatus('Snapshot apply failed', 'warn');
+                    }
+                } else if (role === 'history-copy') {
+                    const { success } = await copyAudioCalibrationHistoryEntry(entry);
+                    flashButtonState(actionButton, success ? 'Copied' : 'Failed', 'Copy');
+                    if (success) {
+                        setAudioCalibrationAssistantStatus('Snapshot copied', 'ok');
+                    } else {
+                        setAudioCalibrationAssistantStatus('Copy failed', 'warn');
+                    }
+                }
+            });
+        }
+
         if (audioCalibrationCopyProfileButton) {
             const idleLabel = audioCalibrationCopyProfileButton.textContent || 'Copy Profile';
             audioCalibrationCopyProfileButton.dataset.baseLabel = idleLabel;
@@ -5825,6 +6492,9 @@
                 skipPersist: true,
                 skipStore: true
             });
+
+            renderAudioCalibrationHistory();
+            refreshAudioCalibrationListeningStatus();
 
             sliderDefinitions.forEach(def => {
                 const slider = sliderElements.get(def.id);
@@ -9203,6 +9873,8 @@
             })),
             getActivePreset: () => currentAudioCalibrationPresetKey,
             applyPreset: (key, options = {}) => applyAudioCalibrationPresetKey(key, options),
+            analyze: (systemKey = currentSystemKey) => computeAudioCalibrationSuggestion(systemKey),
+            autoBalance: (options = {}) => autoBalanceAudioCalibration(options),
             setState: (patch = {}, options = {}) => {
                 const shouldUpdateProfile = options.updateProfile === true || typeof options.presetKey === 'string';
                 return applyAudioCalibrationPatch(patch, {
@@ -9301,7 +9973,24 @@
                 return true;
             },
             apply: (audioFrame) => applyAudioCalibration(audioFrame),
-            resetAll: (options = {}) => resetAllAudioCalibrations(options)
+            resetAll: (options = {}) => resetAllAudioCalibrations(options),
+            captureSnapshot: (options = {}) => captureAudioCalibrationHistoryEntry(options),
+            getHistory: (options = {}) => getAudioCalibrationHistoryEntries(options),
+            applyHistory: (id, options = {}) => {
+                const entry = findAudioCalibrationHistoryEntry(id);
+                if (!entry) {
+                    return { success: false, reason: 'missing' };
+                }
+                return applyAudioCalibrationHistoryEntry(entry, options);
+            },
+            copyHistory: async (id) => {
+                const entry = findAudioCalibrationHistoryEntry(id);
+                if (!entry) {
+                    return { success: false, reason: 'missing' };
+                }
+                return copyAudioCalibrationHistoryEntry(entry);
+            },
+            clearHistory: (options = {}) => clearAudioCalibrationHistory(options)
         };
 
         window.colorDiagnostics = {
