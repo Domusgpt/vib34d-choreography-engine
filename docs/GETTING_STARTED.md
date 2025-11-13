@@ -23,13 +23,26 @@ python3 -m http.server 8080
 npx http-server
 ```
 
-Then open `http://localhost:8080/examples/basic-choreography.html`
+Then open `http://localhost:8080/examples/INDEX.html`
+
+> 💡 The root `index.html` already redirects to the atlas, so pointing your browser at `http://localhost:8080/` is enough once the dev server is running.
+
+## 🗺️ Master Demo Atlas
+
+The repository now ships with a searchable “Demo Atlas” at [`examples/INDEX.html`](../examples/INDEX.html). It lists every active HTML entry point, including production-ready canvases, analyzer harnesses, diagnostics, and archival demos. Use it to:
+
+- Jump straight to the **Final Ultimate** cinematic showcase or other flagship experiences.
+- Launch **properly-reactive.html** to validate the looping groove, analyzer telemetry, and audio permissions before testing other surfaces.
+- Filter by category (Production Suites, Reactive Harnesses, Diagnostics, Legacy Archives, or Quick Links) or search by tags such as `audio`, `macro`, `mobile`, or `ci`.
+
+Because the atlas renders from a JavaScript dataset, totals for demos, visualizer systems, reactivity modes, and macro harnesses stay accurate as we add or retire HTML entry points.
 
 ## 🎯 Quick Start Example
 
 ```javascript
 import { ChoreographyEngine } from './src/core/ChoreographyEngine.js';
 import { RotationChoreographer } from './src/choreographers/RotationChoreographer.js';
+import { AudioAnalyzer } from './src/audio/AudioAnalyzer.js';
 
 // Create your visualizer (must have updateParameter method)
 const visualizer = {
@@ -39,10 +52,19 @@ const visualizer = {
     }
 };
 
+// Hook up real audio (file, microphone, etc.)
+const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+const audioElement = document.querySelector('audio');
+const sourceNode = audioContext.createMediaElementSource(audioElement);
+const audioAnalyzer = new AudioAnalyzer(audioContext, { fftSize: 2048 });
+
+sourceNode.connect(audioAnalyzer.analyser);
+audioAnalyzer.analyser.connect(audioContext.destination);
+
 // Initialize choreography engine
 const engine = new ChoreographyEngine({
     visualizers: [visualizer],
-    audioAnalyzer: yourAudioAnalyzer,  // or null for mock data
+    audioAnalyzer,
     bpm: 128
 });
 
@@ -77,6 +99,16 @@ function render() {
 }
 render();
 ```
+
+## 🎨 Palette Styles Across Visualizers
+
+The unified console at [`examples/ultimate-reactive.html`](../examples/ultimate-reactive.html) (and the `mobile-smart.html` alias, which now redirects to the same experience) surfaces a **Hypercolor ↔ Uniform** toggle that applies to Quantum, Holographic, and Faceted visualizers alike. A few tips when testing the new colour flow:
+
+- **Hypercolor** keeps the original multi-spectrum gradients alive, leaning on the Hypercolor engine for evolving highlights, shadows, and glass refraction.
+- **Uniform** locks each system to curated palette families from `src/color/UniformPaletteLibrary.js`, perfect for brandable or monochromatic looks.
+- The `colorStyle`, `colorProfile`, and `colorVibrance` sliders are wired through the shared control bus, so manual picks, auto-rotating playlists, and scene presets stay synced even while audio choreography is modulating density, hue orbit, and accent pulses.
+- Audio reactivity is still in charge—bass, mid, and high bands continue to push vibrance, shimmer, and lattice motion in both styles, so switching palettes never mutes the groove.
+- Need the touch-optimized layout on desktop? Append `?layout=mobile` to the URL to force the bottom-sheet presentation while debugging.
 
 ## 🎼 Creating Custom Sequences
 
@@ -133,22 +165,59 @@ rotationChoreographer.setPattern('hyperspace_spiral');
 
 ## 📊 Audio Data Format
 
-Your audio analyzer should provide:
+The built-in analyzer (and any custom analyzer) should provide:
 
 ```javascript
 {
-    bands: {
-        bass: 0.0-1.0,
-        mid: 0.0-1.0,
-        high: 0.0-1.0
+    bands: {                 // Normalized energy per band (0-1)
+        subBass: 0.34,
+        bass: 0.51,
+        lowMid: 0.22,
+        mid: 0.40,
+        highMid: 0.28,
+        high: 0.18,
+        air: 0.09,
+        ultraHigh: 0.09      // Auto-filled from "air" when absent
     },
-    rms: 0.0-1.0,              // Overall energy
-    onset: 0.0-1.0,            // Onset detection
-    spectralCentroid: number,  // Hz (optional)
-    spectralRolloff: number,   // Hz (optional)
-    bpm: number                // Detected BPM (optional)
+    bandDetails: {           // Optional metadata for UI / analysis tools
+        bass: { low: 60, high: 250, value: 0.51 },
+        mid: { low: 500, high: 2000, value: 0.40 },
+        // ...remaining bands
+    },
+    rms: 0.0-1.0,            // Overall loudness
+    onset: 0.0-1.0,          // Onset strength this frame
+    onsetEvent: {            // Detailed onset event information
+        detected: true|false,
+        strength: 0.0-1.0,
+        time: Date.now()
+    },
+    spectralCentroid: 0.0-1.0,
+    spectralRolloff: 0.0-1.0,
+    spectralFlux: 0.0-1.0,
+    bpm: number              // Optional BPM estimate
 }
 ```
+
+## 🎥 Cinematic Camera Channels
+
+The shared `CameraLightingSystem` now outputs a richer state so you can render filmic depth directly in your shaders. Alongside orbit, elevation, dolly, roll, exposure, shutter, bloom, and key/fill/rim/ambient/vignette, every update includes:
+
+- `parallax` – Stereo-style warp amount that follows pointer gestures, chaos bursts, and macro overrides.
+- `focus` / `focusSpread` – A beat-aware focal distance plus falloff curve you can feed into depth-of-field math or intensity envelopes.
+- `chromaticAberration` – Music-driven chroma separation intensity for prismatic fringes.
+- `lightTemperature` – Warm ↔ cool tilt derived from palette orbit and energy for colour grading.
+- `shadowContrast` – Accent-weighted contrast multiplier for shadow mixing or gamma tweaks.
+- `fogDensity` – Bass + dimensional lift aware volumetric haze strength.
+- `godrayIntensity` – Downbeat and accent luma surge mapped to volumetric beam highlights.
+- `filmGrain` – Noise amplitude that follows chaos surges and macros for grit-on-demand.
+- `lensDistortion` – Radial warp offset tied to dimensional lift for subtle anamorphic pulls.
+- `frameBlend` – Motion streak blend factor that tightens during accents and motion velocity spikes.
+- `lightWrap` – Edge wrap intensity blending scene lighting back onto silhouettes.
+- `colorBleed` – Palette bleed ratio pushing channel cross-talk during high-energy passages.
+
+All fields are smoothed inside the camera system, so you can read them every frame via `system.getCameraState()` or from your visualizer's `setCameraLighting(state)` hook without extra easing.
+
+> **Tip:** When no audio is available, the engine automatically provides a silent frame with all values set to 0 so visualizers can handle the transition gracefully.
 
 ## 🎨 Parameter Names
 
@@ -186,6 +255,28 @@ trigger: (audioData, memory) => {
     return audioData.bands.bass > 0.7 && memory.energyTrend === "building";
 }
 ```
+
+## 🎞️ Capture Macro Gestures
+
+Want to replay a pointer solo or share an expressive modulation pass?
+
+```javascript
+// Begin recording colour + lighting channels and quantize to eighth-notes
+polychoraSystem.startMacroRecording('sunriseSweep', {
+  tags: ['color', 'lighting'],
+  quantizeBeats: 0.5
+});
+
+// ...perform gestures for two measures...
+
+const macro = polychoraSystem.stopMacroRecording();
+console.log(`Captured ${macro.frames.length} frames over ${macro.duration}s`);
+
+// Loop it back with a soft blend
+polychoraSystem.playMacro('sunriseSweep', { blend: 0.5, loop: true });
+```
+
+`BaseSystem` automatically routes pointer/touch gestures to the active visualizer during playback, and macros can be exported/imported as JSON for collaborating with other performers.
 
 ## 📚 Next Steps
 
