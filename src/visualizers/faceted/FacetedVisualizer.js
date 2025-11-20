@@ -4,6 +4,43 @@
  */
 
 import { GeometryLibrary } from '../../geometry/GeometryLibrary.js';
+import { getUniformPalette, lerpColor, applyVibrance, clampColor } from '../../color/UniformPaletteLibrary.js';
+
+const clamp01 = (value) => Math.min(1, Math.max(0, Number.isFinite(value) ? value : 0));
+
+function rgbToHsl(color = [0, 0, 0]) {
+    const r = clamp01(color[0]);
+    const g = clamp01(color[1]);
+    const b = clamp01(color[2]);
+    const max = Math.max(r, g, b);
+    const min = Math.min(r, g, b);
+    let h = 0;
+    let s = 0;
+    const l = (max + min) / 2;
+
+    if (max !== min) {
+        const d = max - min;
+        s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+        switch (max) {
+            case r:
+                h = (g - b) / d + (g < b ? 6 : 0);
+                break;
+            case g:
+                h = (b - r) / d + 2;
+                break;
+            default:
+                h = (r - g) / d + 4;
+                break;
+        }
+        h /= 6;
+    }
+
+    return {
+        h: clamp01(h),
+        s: clamp01(s),
+        l: clamp01(l)
+    };
+}
 
 export class IntegratedHolographicVisualizer {
     constructor(canvasId, role, reactivity, variant) {
@@ -53,9 +90,36 @@ export class IntegratedHolographicVisualizer {
             dimension: 3.5,
             rot4dXW: 0.0,
             rot4dYW: 0.0,
-            rot4dZW: 0.0
+            rot4dZW: 0.0,
+            colorStyle: 0,
+            colorProfile: 0,
+            colorVibrance: 1.0
         };
-        
+
+        this.colorStyle = 0;
+        this.colorProfile = 0;
+        this.colorVibrance = 1.0;
+        this.colorState = {
+            primary: [0.48, 0.56, 0.86],
+            secondary: [0.28, 0.32, 0.52],
+            accent: [0.92, 0.52, 0.74],
+            highlight: [0.98, 0.82, 0.94],
+            shadow: [0.08, 0.07, 0.12]
+        };
+        this.audioState = {
+            bass: 0,
+            mid: 0,
+            high: 0,
+            energy: 0,
+            onset: 0,
+            accent: 0,
+            orbit: 0,
+            saturation: 0,
+            ribbon: 0,
+            measurePhase: 0,
+            active: false
+        };
+
         // Initialization now happens in ensureCanvasSizedThenInitWebGL after sizing
         // this.init(); // MOVED
     }
@@ -527,6 +591,17 @@ void main() {
      * Update visualization parameters
      */
     updateParameters(params) {
+        if (params) {
+            if (typeof params.colorStyle === 'number') {
+                this.colorStyle = params.colorStyle;
+            }
+            if (typeof params.colorProfile === 'number') {
+                this.colorProfile = params.colorProfile;
+            }
+            if (typeof params.colorVibrance === 'number') {
+                this.colorVibrance = params.colorVibrance;
+            }
+        }
         this.params = { ...this.params, ...params };
     }
 
@@ -534,7 +609,100 @@ void main() {
      * Update a single parameter
      */
     updateParameter(name, value) {
+        if (name === 'colorStyle') {
+            this.colorStyle = value;
+        } else if (name === 'colorProfile') {
+            this.colorProfile = value;
+        } else if (name === 'colorVibrance') {
+            this.colorVibrance = value;
+        }
         this.params[name] = value;
+    }
+
+    setParameters(params) {
+        this.updateParameters(params);
+    }
+
+    setColor(color) {
+        if (!color) {
+            return;
+        }
+
+        const primary = clampColor(color.primary || color.base || color.main || color);
+        const secondary = clampColor(color.secondary || color.alt);
+        const accent = clampColor(color.accent || color.highlight || color.emphasis);
+        const shadow = clampColor(color.shadow || color.depth);
+        const highlight = clampColor(color.highlight || color.glow);
+
+        if (primary) {
+            this.colorState.primary = primary;
+        }
+        if (secondary) {
+            this.colorState.secondary = secondary;
+        }
+        if (accent) {
+            this.colorState.accent = accent;
+        }
+        if (shadow) {
+            this.colorState.shadow = shadow;
+        }
+        if (highlight) {
+            this.colorState.highlight = highlight;
+        } else {
+            this.colorState.highlight = lerpColor(this.colorState.accent, [1, 1, 1], 0.25);
+        }
+
+        if (!this.colorState.secondary) {
+            this.colorState.secondary = lerpColor(this.colorState.primary, this.colorState.shadow, 0.3);
+        }
+    }
+
+    setAudioData(audioData) {
+        const smoothing = 0.78;
+        if (!audioData) {
+            this.audioState = {
+                bass: 0,
+                mid: 0,
+                high: 0,
+                energy: 0,
+                onset: 0,
+                accent: 0,
+                orbit: 0,
+                saturation: 0,
+                ribbon: 0,
+                measurePhase: 0,
+                active: false
+            };
+            return;
+        }
+
+        const bands = audioData.bands || {};
+        const color = audioData.colorChoreography || {};
+        const rhythm = audioData.rhythmPhases || {};
+        const dynamics = audioData.extremeDynamics || {};
+        const onset = Math.max(
+            0,
+            audioData.onset || 0,
+            audioData.onsetEvent?.strength || 0,
+            dynamics.transientBurst || 0
+        );
+
+        const blend = (key, value) => {
+            const current = this.audioState[key] ?? 0;
+            this.audioState[key] = current * smoothing + value * (1 - smoothing);
+        };
+
+        blend('bass', clamp01(bands.bass || 0));
+        blend('mid', clamp01(bands.mid || 0));
+        blend('high', clamp01(bands.high || 0));
+        blend('energy', clamp01(audioData.rms ?? audioData.energy ?? 0));
+        blend('accent', clamp01(color.accentLuma || 0));
+        blend('orbit', clamp01(color.orbit || 0));
+        blend('saturation', clamp01(color.saturationPulse ?? 0.5));
+        blend('ribbon', clamp01(color.ribbon || 0));
+        this.audioState.measurePhase = clamp01(rhythm.measurePhase || 0);
+        this.audioState.onset = (this.audioState.onset ?? 0) * 0.6 + onset * 0.4;
+        this.audioState.active = true;
     }
     
     /**
@@ -594,41 +762,93 @@ void main() {
             return;
         }
         
-        // Role-specific intensity (ORIGINAL FACETED VALUES)
         const roleIntensities = {
-            'background': 0.3,
-            'shadow': 0.5,
-            'content': 0.8,
-            'highlight': 1.0,
-            'accent': 1.2
+            background: 0.3,
+            shadow: 0.5,
+            content: 0.8,
+            highlight: 1.0,
+            accent: 1.2
         };
-        
+
         const time = Date.now() - this.startTime;
-        
-        // Set uniforms
+        const audio = this.audioState || {};
+        const audioActive = !!audio.active;
+
+        const style = Math.round(this.colorStyle ?? (this.params.colorStyle || 0));
+        const profileIndex = Math.max(0, Math.floor(this.colorProfile ?? (this.params.colorProfile || 0)));
+        const vibrance = Math.min(3, Math.max(0.2, this.colorVibrance ?? (this.params.colorVibrance || 1)));
+
+        let gridDensity = this.params.gridDensity ?? 15;
+        let hueValue = this.params.hue ?? 200;
+        let intensityValue = this.params.intensity ?? 0.5;
+        let saturationValue = this.params.saturation ?? 0.8;
+        let speedValue = this.params.speed ?? 1.0;
+        let chaosValue = this.params.chaos ?? 0.2;
+
+        if (audioActive) {
+            gridDensity += audio.bass * 28;
+            hueValue += audio.mid * 70 + audio.orbit * 160;
+            intensityValue += audio.high * 0.35 + audio.energy * 0.3 + audio.onset * 0.18;
+            saturationValue += audio.saturation * 0.35 + audio.accent * 0.25;
+            speedValue += audio.energy * 0.4 + audio.mid * 0.2;
+            chaosValue += audio.high * 0.45 + audio.ribbon * 0.3;
+        }
+
+        const pointerBoost = clamp01(this.mouseIntensity * 0.35);
+        intensityValue += pointerBoost * 0.2;
+        saturationValue += pointerBoost * 0.15;
+
+        let rgbColor;
+        if (style <= 0) {
+            const palette = this.colorState;
+            const orbitMix = clamp01((audio.orbit || 0) * 0.6 + (audio.saturation || 0) * 0.3 + pointerBoost * 0.15);
+            const accentMix = clamp01((audio.accent || 0) * 0.7 + (audio.onset || 0) * 0.55);
+            const energyMix = clamp01((audio.energy || 0) * 0.65 + (audio.high || 0) * 0.35);
+            let baseColor = lerpColor(palette.primary, palette.secondary, orbitMix);
+            baseColor = lerpColor(baseColor, palette.accent, accentMix);
+            baseColor = applyVibrance(lerpColor(baseColor, palette.highlight, energyMix), vibrance);
+            const shadowMix = clamp01((audio.ribbon || 0) * 0.4);
+            rgbColor = clampColor(lerpColor(baseColor, palette.shadow, shadowMix * 0.25));
+        } else {
+            const palette = getUniformPalette(profileIndex);
+            const orbitMix = clamp01((audio.orbit || 0) * 0.65 + (audio.measurePhase || 0) * 0.2);
+            const accentMix = clamp01((audio.accent || 0) * 0.7 + (audio.onset || 0) * 0.55);
+            const energyMix = clamp01((audio.energy || 0) * 0.7 + (audio.high || 0) * 0.35);
+            let baseColor = lerpColor(palette.base, palette.mid, orbitMix);
+            baseColor = lerpColor(baseColor, palette.accent, accentMix);
+            baseColor = applyVibrance(lerpColor(baseColor, palette.highlight, energyMix), vibrance);
+            const shadowMix = clamp01((audio.ribbon || 0) * 0.35);
+            rgbColor = clampColor(lerpColor(baseColor, palette.shadow, shadowMix * 0.25));
+        }
+
+        const { h, s, l } = rgbToHsl(rgbColor);
+        hueValue = h * 360;
+        const saturationBoost = audioActive ? Math.max(audio.saturation || 0, audio.accent || 0) : 0;
+        saturationValue = clamp01(s * (0.75 + (vibrance - 1) * 0.35) + saturationBoost * 0.25);
+        intensityValue = Math.max(
+            0.12,
+            Math.min(
+                1.2,
+                intensityValue * 0.5 + l * (0.9 + (audio.energy || 0) * 0.35) + (audio.onset || 0) * 0.2
+            )
+        );
+
+        const hueNormalized = ((hueValue % 360) + 360) % 360;
+        const gridDensityClamped = Math.min(100, Math.max(4, gridDensity));
+        const chaosClamped = Math.min(1.6, Math.max(0, chaosValue));
+        const speedClamped = Math.max(0.1, speedValue);
+
         this.gl.uniform2f(this.uniforms.resolution, this.canvas.width, this.canvas.height);
         this.gl.uniform1f(this.uniforms.time, time);
         this.gl.uniform2f(this.uniforms.mouse, this.mouseX, this.mouseY);
         this.gl.uniform1f(this.uniforms.geometry, this.params.geometry);
-        // 🎵 DIRECT AUDIO REACTIVITY - Simple and works
-        let gridDensity = this.params.gridDensity;
-        let hue = this.params.hue;
-        let intensity = this.params.intensity;
-        
-        if (window.audioEnabled && window.audioReactive) {
-            // Faceted audio mapping: Bass affects grid density, Mid affects hue, High affects intensity
-            gridDensity += window.audioReactive.bass * 30;  // Bass makes patterns denser
-            hue += window.audioReactive.mid * 60;           // Mid frequencies shift colors
-            intensity += window.audioReactive.high * 0.4;   // High frequencies brighten
-        }
-        
-        this.gl.uniform1f(this.uniforms.gridDensity, Math.min(100, gridDensity));
+        this.gl.uniform1f(this.uniforms.gridDensity, gridDensityClamped);
         this.gl.uniform1f(this.uniforms.morphFactor, this.params.morphFactor);
-        this.gl.uniform1f(this.uniforms.chaos, this.params.chaos);
-        this.gl.uniform1f(this.uniforms.speed, this.params.speed);
-        this.gl.uniform1f(this.uniforms.hue, hue % 360);
-        this.gl.uniform1f(this.uniforms.intensity, Math.min(1, intensity));
-        this.gl.uniform1f(this.uniforms.saturation, this.params.saturation);
+        this.gl.uniform1f(this.uniforms.chaos, chaosClamped);
+        this.gl.uniform1f(this.uniforms.speed, speedClamped);
+        this.gl.uniform1f(this.uniforms.hue, hueNormalized);
+        this.gl.uniform1f(this.uniforms.intensity, Math.min(1.2, intensityValue));
+        this.gl.uniform1f(this.uniforms.saturation, saturationValue);
         this.gl.uniform1f(this.uniforms.dimension, this.params.dimension);
         this.gl.uniform1f(this.uniforms.rot4dXW, this.params.rot4dXW);
         this.gl.uniform1f(this.uniforms.rot4dYW, this.params.rot4dYW);
@@ -712,3 +932,6 @@ void main() {
         }
     }
 }
+
+// Preserve the historic FacetedVisualizer name for legacy demos that still import it directly.
+export { IntegratedHolographicVisualizer as FacetedVisualizer };
