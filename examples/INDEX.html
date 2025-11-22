@@ -3,525 +3,797 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VIB34D Choreography Engine - Demo Index</title>
+    <title>VIB34D Choreography Engine · Demo Atlas</title>
     <style>
+        :root {
+            color-scheme: dark;
+            --bg: radial-gradient(circle at top, rgba(0, 40, 60, 0.6), rgba(0, 0, 0, 0.96));
+            --card-bg: rgba(0, 25, 35, 0.85);
+            --card-border: rgba(0, 255, 255, 0.45);
+            --card-border-accent: rgba(0, 255, 120, 0.8);
+            --primary: #0ff;
+            --accent: #7dfc7d;
+            --muted: rgba(180, 255, 255, 0.72);
+            --shadow: 0 18px 40px rgba(0, 180, 255, 0.22);
+            --transition: 220ms ease;
+            --font: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace;
+        }
+
         * {
-            margin: 0;
-            padding: 0;
             box-sizing: border-box;
         }
 
         body {
-            background: linear-gradient(135deg, #000 0%, #001a1a 50%, #000 100%);
-            color: #0ff;
-            font-family: 'Courier New', monospace;
-            padding: 40px 20px;
+            margin: 0;
             min-height: 100vh;
+            font-family: var(--font);
+            background: var(--bg);
+            color: var(--muted);
+            padding: 48px 20px 80px;
         }
 
-        .container {
-            max-width: 1200px;
+        .frame {
+            max-width: 1280px;
             margin: 0 auto;
         }
 
-        h1 {
-            font-size: 3em;
+        header {
             text-align: center;
-            color: #0ff;
-            text-shadow:
-                0 0 20px #0ff,
-                0 0 40px #0ff,
-                0 0 60px #0ff;
-            margin-bottom: 20px;
-            animation: pulse 3s infinite;
+            margin-bottom: 36px;
         }
 
-        @keyframes pulse {
-            0%, 100% { opacity: 1; text-shadow: 0 0 20px #0ff, 0 0 40px #0ff, 0 0 60px #0ff; }
-            50% { opacity: 0.8; text-shadow: 0 0 10px #0ff, 0 0 20px #0ff, 0 0 30px #0ff; }
+        header h1 {
+            margin: 0 0 12px;
+            font-size: clamp(2.6rem, 4vw, 3.2rem);
+            color: var(--primary);
+            text-shadow: 0 0 18px rgba(0, 255, 255, 0.65);
+            letter-spacing: 0.04em;
         }
 
-        .subtitle {
-            text-align: center;
-            color: #0f0;
-            font-size: 1.2em;
-            margin-bottom: 50px;
-            text-shadow: 0 0 10px #0f0;
-        }
-
-        .version-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
-            gap: 30px;
-            margin-bottom: 50px;
-        }
-
-        .version-card {
-            background: rgba(0, 40, 40, 0.8);
-            border: 2px solid #0ff;
-            border-radius: 10px;
-            padding: 25px;
-            transition: all 0.3s;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .version-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(0, 255, 255, 0.2), transparent);
-            transition: left 0.5s;
-        }
-
-        .version-card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 10px 30px rgba(0, 255, 255, 0.5);
-            border-color: #0f0;
-        }
-
-        .version-card:hover::before {
-            left: 100%;
-        }
-
-        .version-card.primary {
-            border: 3px solid #f0f;
-            background: rgba(80, 0, 80, 0.8);
-        }
-
-        .version-card.primary .version-title {
-            color: #f0f;
-            text-shadow: 0 0 15px #f0f;
-        }
-
-        .version-title {
-            font-size: 1.5em;
-            color: #0ff;
-            margin-bottom: 15px;
-            text-shadow: 0 0 10px #0ff;
-        }
-
-        .version-badge {
-            display: inline-block;
-            background: #0f0;
-            color: #000;
-            padding: 5px 10px;
-            border-radius: 5px;
-            font-size: 0.7em;
-            font-weight: bold;
-            margin-bottom: 10px;
-            text-transform: uppercase;
-        }
-
-        .version-badge.primary {
-            background: #f0f;
-            animation: badge-pulse 2s infinite;
-        }
-
-        @keyframes badge-pulse {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.05); }
-        }
-
-        .version-description {
-            color: #0f0;
-            line-height: 1.6;
-            margin-bottom: 15px;
-            font-size: 0.95em;
-        }
-
-        .version-features {
-            list-style: none;
-            margin: 15px 0;
-        }
-
-        .version-features li {
-            color: #0ff;
-            padding: 5px 0;
-            font-size: 0.9em;
-        }
-
-        .version-features li::before {
-            content: '⚡ ';
-            color: #ff0;
-        }
-
-        .version-link {
-            display: inline-block;
-            background: #0f0;
-            color: #000;
-            text-decoration: none;
-            padding: 12px 25px;
-            border-radius: 5px;
-            font-weight: bold;
-            margin-top: 15px;
-            transition: all 0.3s;
-            text-transform: uppercase;
-        }
-
-        .version-link:hover {
-            background: #0ff;
-            box-shadow: 0 0 20px #0ff;
-            transform: scale(1.05);
-        }
-
-        .version-card.primary .version-link {
-            background: #f0f;
-        }
-
-        .version-card.primary .version-link:hover {
-            background: #ff0;
-            box-shadow: 0 0 20px #ff0;
-        }
-
-        .status-section {
-            background: rgba(0, 60, 0, 0.8);
-            border: 2px solid #0f0;
-            border-radius: 10px;
-            padding: 25px;
-            margin-bottom: 50px;
-        }
-
-        .status-section h2 {
-            color: #0f0;
-            font-size: 1.8em;
-            margin-bottom: 20px;
-            text-shadow: 0 0 10px #0f0;
+        header p {
+            margin: 4px 0;
+            font-size: clamp(0.95rem, 1.6vw, 1.1rem);
+            color: rgba(200, 255, 255, 0.75);
         }
 
         .status-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 16px;
+            margin: 36px 0 18px;
+        }
+
+        .status {
+            padding: 18px 20px;
+            border-radius: 16px;
+            background: linear-gradient(145deg, rgba(0, 45, 50, 0.85), rgba(0, 15, 20, 0.65));
+            border: 1px solid rgba(0, 255, 200, 0.2);
+            box-shadow: 0 10px 30px rgba(0, 200, 255, 0.15);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .status::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(circle at top right, rgba(0, 255, 200, 0.18), transparent 55%);
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        .status span {
+            display: block;
+            font-size: 0.75rem;
+            letter-spacing: 0.24em;
+            text-transform: uppercase;
+            color: rgba(180, 255, 230, 0.6);
+        }
+
+        .status strong {
+            display: block;
+            margin-top: 6px;
+            font-size: 1.6rem;
+            color: var(--accent);
+            text-shadow: 0 0 14px rgba(125, 252, 125, 0.6);
+        }
+
+        .filters {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 14px;
+            margin: 24px 0 36px;
+            align-items: center;
+        }
+
+        .filters input[type="search"],
+        .filters select {
+            background: rgba(0, 25, 35, 0.88);
+            border: 1px solid rgba(0, 255, 255, 0.25);
+            color: var(--primary);
+            padding: 10px 14px;
+            border-radius: 12px;
+            font-family: var(--font);
+            font-size: 0.95rem;
+            min-width: 220px;
+            transition: border var(--transition), box-shadow var(--transition);
+        }
+
+        .filters input[type="search"]:focus,
+        .filters select:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(0, 255, 180, 0.15);
+        }
+
+        .quick-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 48px;
+            background: rgba(0, 22, 30, 0.88);
+            border-radius: 18px;
+            overflow: hidden;
+            border: 1px solid rgba(0, 255, 255, 0.16);
+            box-shadow: var(--shadow);
+        }
+
+        .quick-table thead {
+            background: rgba(0, 120, 160, 0.45);
+            color: #e9ffff;
+            text-transform: uppercase;
+            letter-spacing: 0.24em;
+            font-size: 0.72rem;
+        }
+
+        .quick-table th,
+        .quick-table td {
+            padding: 14px 18px;
+            text-align: left;
+        }
+
+        .quick-table tbody tr {
+            border-top: 1px solid rgba(0, 255, 255, 0.12);
+            transition: background var(--transition);
+        }
+
+        .quick-table tbody tr:hover {
+            background: rgba(0, 160, 220, 0.14);
+        }
+
+        .quick-table a {
+            color: var(--accent);
+            text-decoration: none;
+        }
+
+        .quick-table a:hover {
+            text-decoration: underline;
+        }
+
+        h2.section-title {
+            color: var(--primary);
+            text-shadow: 0 0 18px rgba(0, 255, 255, 0.4);
+            margin: 48px 0 18px;
+            font-size: clamp(1.6rem, 3vw, 2rem);
+        }
+
+        .category {
+            margin-bottom: 32px;
+        }
+
+        .category > h3 {
+            color: var(--accent);
+            font-size: 1.3rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            margin: 0 0 18px;
+        }
+
+        .cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
             gap: 20px;
         }
 
-        .status-item {
-            background: rgba(0, 0, 0, 0.5);
-            padding: 15px;
-            border-left: 4px solid #0f0;
+        .card {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 18px;
+            padding: 22px;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            transition: transform var(--transition), border var(--transition), box-shadow var(--transition);
         }
 
-        .status-item .label {
-            color: #0ff;
-            font-weight: bold;
-            margin-bottom: 8px;
+        .card:hover {
+            transform: translateY(-6px);
+            border-color: var(--card-border-accent);
+            box-shadow: var(--shadow);
         }
 
-        .status-item .value {
-            color: #0f0;
-            font-size: 1.2em;
+        .card .status-badge {
+            align-self: flex-start;
+            padding: 6px 12px;
+            border-radius: 999px;
+            font-size: 0.7rem;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            background: rgba(0, 255, 200, 0.12);
+            border: 1px solid rgba(0, 255, 200, 0.45);
+            color: rgba(210, 255, 240, 0.85);
         }
 
-        .tech-stack {
-            background: rgba(0, 40, 60, 0.8);
-            border: 2px solid #0ff;
-            border-radius: 10px;
-            padding: 25px;
-            margin-bottom: 50px;
+        .card h4 {
+            margin: 0;
+            font-size: 1.25rem;
+            color: var(--primary);
         }
 
-        .tech-stack h2 {
-            color: #0ff;
-            font-size: 1.8em;
-            margin-bottom: 20px;
-            text-shadow: 0 0 10px #0ff;
+        .card p {
+            margin: 0;
+            font-size: 0.92rem;
+            line-height: 1.55;
+            color: rgba(210, 255, 255, 0.78);
         }
 
-        .tech-tags {
+        .card ul {
+            margin: 0;
+            padding-left: 20px;
+            color: rgba(175, 240, 255, 0.82);
+            font-size: 0.9rem;
+        }
+
+        .card ul li {
+            margin-bottom: 4px;
+        }
+
+        .meta {
             display: flex;
             flex-wrap: wrap;
-            gap: 10px;
+            gap: 8px;
+            margin-top: auto;
         }
 
-        .tech-tag {
-            background: rgba(0, 255, 255, 0.2);
-            border: 1px solid #0ff;
-            color: #0ff;
-            padding: 8px 15px;
-            border-radius: 20px;
-            font-size: 0.9em;
-            transition: all 0.3s;
-        }
-
-        .tech-tag:hover {
-            background: rgba(0, 255, 255, 0.4);
-            transform: scale(1.05);
-        }
-
-        .signature {
-            text-align: center;
-            margin-top: 60px;
-            padding: 30px;
-            background: rgba(0, 0, 0, 0.7);
-            border: 2px solid #0f0;
+        .meta span {
             border-radius: 10px;
+            padding: 6px 10px;
+            font-size: 0.72rem;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            background: rgba(0, 255, 255, 0.12);
+            border: 1px solid rgba(0, 255, 255, 0.22);
         }
 
-        .signature h3 {
-            color: #0ff;
-            font-size: 1.5em;
-            margin-bottom: 15px;
-            text-shadow: 0 0 10px #0ff;
-        }
-
-        .signature p {
-            color: #0f0;
-            margin: 10px 0;
-            font-size: 1.1em;
-        }
-
-        .signature a {
-            color: #0ff;
+        .card a {
+            align-self: flex-start;
             text-decoration: none;
-            border-bottom: 2px solid #0ff;
-            transition: all 0.3s;
+            padding: 10px 16px;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            letter-spacing: 0.18em;
+            text-transform: uppercase;
+            background: linear-gradient(120deg, rgba(0, 255, 200, 0.25), rgba(0, 160, 255, 0.35));
+            border: 1px solid rgba(0, 255, 200, 0.4);
+            color: rgba(10, 20, 20, 0.95);
+            font-weight: bold;
+            transition: transform var(--transition), box-shadow var(--transition);
         }
 
-        .signature a:hover {
-            color: #ff0;
-            border-bottom-color: #ff0;
-            text-shadow: 0 0 10px #ff0;
+        .card a:hover {
+            transform: translateY(-2px) scale(1.02);
+            box-shadow: 0 12px 26px rgba(0, 255, 200, 0.35);
         }
 
-        .signature .quote {
-            font-style: italic;
-            color: #f0f;
-            margin: 20px 0;
-            font-size: 1.2em;
-            text-shadow: 0 0 10px #f0f;
+        footer {
+            margin-top: 72px;
+            padding-top: 28px;
+            border-top: 1px solid rgba(0, 120, 140, 0.4);
+            color: rgba(165, 230, 255, 0.7);
+            font-size: 0.85rem;
+            display: grid;
+            gap: 12px;
         }
 
-        .copyright {
-            color: #0ff;
-            margin-top: 20px;
-            font-size: 0.9em;
+        footer a {
+            color: var(--accent);
+        }
+
+        footer strong {
+            color: rgba(255, 255, 255, 0.9);
+        }
+
+        @media (max-width: 720px) {
+            body {
+                padding: 28px 14px 60px;
+            }
+
+            header h1 {
+                font-size: 2.1rem;
+            }
+
+            .status-grid {
+                grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            }
+
+            .filters {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .filters input,
+            .filters select {
+                width: 100%;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>🌌 VIB34D Choreography Engine</h1>
-        <div class="subtitle">Audio-Reactive 4D Geometric Visualization System</div>
+<div class="frame">
+    <header>
+        <h1>VIB34D Demo Atlas</h1>
+        <p>Every active HTML entry point for the choreography engine, curated with status, capabilities, and recommended use.</p>
+        <p>Use the live search or category selector to jump directly into the scenario you need to verify.</p>
 
-        <div class="status-section">
-            <h2>📊 System Status</h2>
-            <div class="status-grid">
-                <div class="status-item">
-                    <div class="label">Production Status</div>
-                    <div class="value">✅ READY</div>
-                </div>
-                <div class="status-item">
-                    <div class="label">Total Demos</div>
-                    <div class="value">8 Versions</div>
-                </div>
-                <div class="status-item">
-                    <div class="label">Visualizer Systems</div>
-                    <div class="value">3 Engines</div>
-                </div>
-                <div class="status-item">
-                    <div class="label">Parameters</div>
-                    <div class="value">12 Controls</div>
-                </div>
-                <div class="status-item">
-                    <div class="label">Geometry Types</div>
-                    <div class="value">8 Shapes</div>
-                </div>
-                <div class="status-item">
-                    <div class="label">Performance</div>
-                    <div class="value">60fps WebGL</div>
-                </div>
+        <div class="status-grid">
+            <div class="status">
+                <span>Total Demos</span>
+                <strong data-stat="demo-count">0</strong>
+            </div>
+            <div class="status">
+                <span>Visualizer Systems</span>
+                <strong data-stat="system-count">0</strong>
+            </div>
+            <div class="status">
+                <span>Audio Reactivity Modes</span>
+                <strong data-stat="reactivity-count">0</strong>
+            </div>
+            <div class="status">
+                <span>Macro / Control Scenarios</span>
+                <strong data-stat="macro-count">0</strong>
             </div>
         </div>
+    </header>
 
-        <h2 style="color: #0ff; font-size: 2em; margin-bottom: 30px; text-align: center; text-shadow: 0 0 10px #0ff;">
-            🎨 Demo Versions
-        </h2>
+    <section class="filters">
+        <label>
+            <span style="display:none">Search</span>
+            <input type="search" id="search" placeholder="Search demos, tags, or notes…" autocomplete="off">
+        </label>
+        <label>
+            <span style="display:none">Category</span>
+            <select id="category-filter">
+                <option value="all">All Categories</option>
+            </select>
+        </label>
+    </section>
 
-        <div class="version-grid">
-            <!-- PRIMARY VERSION - FINAL ULTIMATE -->
-            <div class="version-card primary">
-                <span class="version-badge primary">⭐ PRIMARY DEMO</span>
-                <h3 class="version-title">Final Ultimate</h3>
-                <p class="version-description">
-                    Complete production demo with REAL audio reactivity, collapsible UI, mobile-responsive design, and ALL 12 visual parameter controls. Status indicators show MOCK vs REAL audio state.
-                </p>
-                <ul class="version-features">
-                    <li>✅ Collapsible organized sections</li>
-                    <li>✅ Perfect scrolling (mobile + desktop)</li>
-                    <li>✅ REAL audio reactivity with status indicator</li>
-                    <li>✅ ALL 12 visual parameter sliders</li>
-                    <li>✅ 7-band audio visualization (SUB/BASS/LOW/MID/H-MID/HIGH/ULTRA)</li>
-                    <li>✅ Reactivity strength indicator</li>
-                    <li>✅ 8 geometry types + 3 visualizer systems</li>
-                    <li>✅ Reactivity toggles + amount slider</li>
-                    <li>✅ Mobile-first responsive design</li>
-                    <li>✅ Console logs proving real audio</li>
-                </ul>
-                <a href="final-ultimate.html" class="version-link">Launch Final Ultimate →</a>
-            </div>
+    <table class="quick-table" aria-label="Quick index of demos">
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Title</th>
+                <th>Category</th>
+                <th>Status</th>
+                <th>Highlights</th>
+                <th>Link</th>
+            </tr>
+        </thead>
+        <tbody id="quick-index"></tbody>
+    </table>
 
-            <!-- ULTIMATE REACTIVE -->
-            <div class="version-card">
-                <span class="version-badge">Enhanced</span>
-                <h3 class="version-title">Ultimate Reactive</h3>
-                <p class="version-description">
-                    Enhanced version with improved UI and audio reactivity. Collapsible sections, all visual controls, and choreography engine integration.
-                </p>
-                <ul class="version-features">
-                    <li>Collapsible UI sections</li>
-                    <li>ALL 12 visual parameter sliders</li>
-                    <li>Audio reactivity layer</li>
-                    <li>8 geometry types</li>
-                    <li>3 visualizer systems</li>
-                    <li>Choreography sequences</li>
-                </ul>
-                <a href="ultimate-reactive.html" class="version-link">Launch Ultimate Reactive →</a>
-            </div>
+    <h2 class="section-title">Curated Collections</h2>
+    <div id="category-sections"></div>
 
-            <!-- ULTIMATE CONTROLS -->
-            <div class="version-card">
-                <span class="version-badge">Complete</span>
-                <h3 class="version-title">Ultimate Controls</h3>
-                <p class="version-description">
-                    Complete production-ready demo with features, parameters, and controls.
-                    Full choreography engine, 8 geometry types, 11+ parameter controls.
-                </p>
-                <ul class="version-features">
-                    <li>All 11+ parameters with sliders</li>
-                    <li>8 geometry type buttons</li>
-                    <li>Color controls (hue/saturation)</li>
-                    <li>Audio level visualization</li>
-                    <li>3 visualizer systems</li>
-                    <li>8 rotation patterns</li>
-                    <li>5 bass drop sequences</li>
-                    <li>Threshold controls</li>
-                </ul>
-                <a href="ultimate-controls.html" class="version-link">Launch Ultimate Controls →</a>
-            </div>
+    <footer>
+        <div><strong>Tip:</strong> Load <a href="properly-reactive.html">properly-reactive.html</a> to validate audio input, groove harness, and analyzer telemetry before jumping into cinematic canvases.</div>
+        <div>The atlas updates the counts above automatically from the dataset below – no more stale totals when we add or retire demos.</div>
+        <div>Looking for the legacy landing page? The repository root (<code>/index.html</code>) redirects here and still links to the Ultimate controls showcase.</div>
+    </footer>
+</div>
 
-            <!-- ENHANCED VISUALIZERS -->
-            <div class="version-card">
-                <span class="version-badge">Enhanced</span>
-                <h3 class="version-title">Enhanced Visualizers</h3>
-                <p class="version-description">
-                    Production demo with threshold controls and bulletproof audio playback.
-                    Real VIB34D visualizers with onset/bass detection tuning.
-                </p>
-                <ul class="version-features">
-                    <li>Onset threshold control</li>
-                    <li>Bass threshold control</li>
-                    <li>Bulletproof audio system</li>
-                    <li>All 3 visualizer systems</li>
-                    <li>Live event logging</li>
-                </ul>
-                <a href="enhanced-visualizers.html" class="version-link">Launch Enhanced →</a>
-            </div>
+<script>
+const demos = [
+    {
+        slug: 'final-ultimate.html',
+        title: 'Final Ultimate',
+        category: 'Production Suites',
+        status: 'Primary Showcase',
+        summary: 'Flagship immersive experience with full-screen coverage, cinematic camera rails, advanced post-FX, and synchronized palette control.',
+        highlights: [
+            'Quantum, Holographic, and Polychora engines sharing choreography metadata',
+            'VisualizerControlBus macros, gesture capture, and preset blending',
+            'Hypercolor palette engine with Lab blending and audio-triggered swaps'
+        ],
+        tags: ['production', 'cinematic', 'audio-reactive'],
+        systems: ['Quantum', 'Holographic', 'Polychora'],
+        reactivity: ['Full Spectrum']
+    },
+    {
+        slug: 'ultimate-reactive.html',
+        title: 'Ultimate Reactive',
+        category: 'Production Suites',
+        status: 'Unified Console',
+        summary: 'Super-console that blends the desktop control deck and Mobile Maestro experience with multi-band analyzers, reactivity macros, and palette playlists in one responsive surface.',
+        highlights: [
+            'Seven-band transport HUD with timeline, track status, and energy meter',
+            'Reactivity slider + per-channel toggles that blend base parameters with live choreography',
+            'Palette quick picks with hypercolor/uniform style sync across desktop and mobile layouts'
+        ],
+        tags: ['production', 'ui', 'mobile'],
+        systems: ['Quantum', 'Holographic', 'Polychora'],
+        reactivity: ['Full Spectrum']
+    },
+    {
+        slug: 'ultimate-controls.html',
+        title: 'Ultimate Controls',
+        category: 'Production Suites',
+        status: 'Controls Focus',
+        summary: 'Control-forward layout for validating parameter wiring without the macro recorder or cinematic rails.',
+        highlights: [
+            'Per-parameter sliders for geometry, morph, color, and speed',
+            'Live spectrum meters and reactivity status readout',
+            'Ideal for onboarding collaborators to the parameter stack'
+        ],
+        tags: ['controls', 'ui'],
+        systems: ['Quantum', 'Holographic', 'Polychora'],
+        reactivity: ['Layered Reactivity']
+    },
+    {
+        slug: 'bezel-ultimate.html',
+        title: 'Bezel Ultimate',
+        category: 'Production Suites',
+        status: 'Touch Optimized',
+        summary: 'Mobile-first touch bezel controls with simplified macro hooks for kiosk or performance tablet setups.',
+        highlights: [
+            'Adaptive layout with large format sliders and toggles',
+            'Pointer + touch gestures flow into the shared control bus',
+            'Great for live tweaking on stage or gallery floors'
+        ],
+        tags: ['mobile', 'touch'],
+        systems: ['Quantum', 'Holographic', 'Polychora'],
+        reactivity: ['Layered Reactivity']
+    },
+    {
+        slug: 'advanced-reactive.html',
+        title: 'Advanced Reactive',
+        category: 'Reactive Harnesses',
+        status: 'Analyzer Demo',
+        summary: 'Seven-band analyzer monitor with beat-synced geometry cycling, palette orbits, and annotated reactivity channels.',
+        highlights: [
+            'Detailed telemetry overlay for sub/bass/mid/high bands',
+            'Auto geometry rotation every measure with onset overrides',
+            'Great baseline for inspecting raw analyzer output'
+        ],
+        tags: ['analyzer', 'telemetry'],
+        systems: ['Quantum'],
+        reactivity: ['Full Spectrum']
+    },
+    {
+        slug: 'properly-reactive.html',
+        title: 'Properly Reactive',
+        category: 'Reactive Harnesses',
+        status: 'Verification Loop',
+        summary: 'Self-contained verification harness with looping demo groove, analyzer injection options, and console telemetry.',
+        highlights: [
+            'Runs without external audio by default but accepts live input',
+            'Displays normalized band frames, onset detection, and BPM pulses',
+            'Primary smoke test before validating other demos'
+        ],
+        tags: ['testing', 'audio'],
+        systems: ['Analyzer'],
+        reactivity: ['Analyzer Bench']
+    },
+    {
+        slug: 'real-visualizers.html',
+        title: 'Real Visualizers',
+        category: 'Reactive Harnesses',
+        status: 'System Bridge',
+        summary: 'Direct bridge into the production visualizers with minimal UI for quick sanity checks against the shared control bus.',
+        highlights: [
+            'Loads Quantum, Holographic, and Polychora simultaneously',
+            'Reflects live camera + color system values in overlays',
+            'Useful for checking cross-visualizer synchronization'
+        ],
+        tags: ['integration', 'sanity-check'],
+        systems: ['Quantum', 'Holographic', 'Polychora'],
+        reactivity: ['Layered Reactivity']
+    },
+    {
+        slug: 'enhanced-visualizers.html',
+        title: 'Enhanced Visualizers',
+        category: 'Reactive Harnesses',
+        status: 'Legacy Bridge',
+        summary: 'Transitional playground highlighting the move from mock to real audio reactivity with simplified overlays.',
+        highlights: [
+            'Good midpoint between legacy demos and the modern atlas',
+            'Hooks into the shared ParameterManager and control bus',
+            'Retains toggles for staged rollouts'
+        ],
+        tags: ['legacy', 'integration'],
+        systems: ['Quantum', 'Holographic', 'Polychora'],
+        reactivity: ['Layered Reactivity']
+    },
+    {
+        slug: 'auto-test.html',
+        title: 'Auto Test',
+        category: 'Diagnostics',
+        status: 'Automation Harness',
+        summary: 'Headless-friendly loop that drives macros, parameter sweeps, and timing assertions for CI pipelines.',
+        highlights: [
+            'Macro playback validation for the VisualizerControlBus',
+            'Camera preset cycling with cooldown enforcement',
+            'Console-driven assertions for non-visual verification'
+        ],
+        tags: ['ci', 'automation'],
+        systems: ['Control Bus'],
+        reactivity: ['Macro Harness']
+    },
+    {
+        slug: 'debug-visualizer.html',
+        title: 'Debug Visualizer',
+        category: 'Diagnostics',
+        status: 'Developer HUD',
+        summary: 'Instrumented view with overlays for internal vector fields, shader uniforms, and easing envelopes.',
+        highlights: [
+            'Displays camera, lighting, and post-FX uniforms in real time',
+            'Highlights palette swaps, onset bursts, and control bus deltas',
+            'Switch between geometries quickly for targeted shader debugging'
+        ],
+        tags: ['debug', 'shader'],
+        systems: ['Quantum'],
+        reactivity: ['Developer HUD']
+    },
+    {
+        slug: 'test-audio.html',
+        title: 'Test Audio',
+        category: 'Diagnostics',
+        status: 'Input Check',
+        summary: 'Minimal audio-only harness for confirming Web Audio permissions, context lifecycle, and onset thresholds.',
+        highlights: [
+            'Inputs into the shared AudioAnalyzer class directly',
+            'Prints onset detection, BPM, and RMS to the console',
+            'Great for diagnosing browser microphone sandbox issues'
+        ],
+        tags: ['audio', 'diagnostics'],
+        systems: ['Analyzer'],
+        reactivity: ['Analyzer Bench']
+    },
+    {
+        slug: 'test-minimal.html',
+        title: 'Test Minimal',
+        category: 'Diagnostics',
+        status: 'Minimal Repro',
+        summary: 'Lowest possible scaffolding to render a WebGL canvas and verify shader compilation after major refactors.',
+        highlights: [
+            'Single visualizer mount with static parameters',
+            'Ideal for regression checking shader helper utilities',
+            'Loads fast for iterative development in constrained environments'
+        ],
+        tags: ['minimal', 'smoke'],
+        systems: ['Quantum'],
+        reactivity: ['Static Baseline']
+    },
+    {
+        slug: 'basic-choreography.html',
+        title: 'Basic Choreography',
+        category: 'Legacy Archives',
+        status: 'Historical',
+        summary: 'Original baseline of the choreography engine showcasing early parameter sequencing with mock data.',
+        highlights: [
+            'Useful for comparing legacy vs modern smoothing curves',
+            'Demonstrates earliest UI + geometry switching concepts',
+            'Retained for documentation nostalgia'
+        ],
+        tags: ['legacy'],
+        systems: ['Quantum'],
+        reactivity: ['Mock Legacy']
+    },
+    {
+        slug: 'mobile-smart.html',
+        title: 'Mobile Maestro',
+        category: 'Production Suites',
+        status: 'Mobile Layout',
+        summary: 'Phone-first launch of the unified Ultimate Console with bottom-sheet controls, gesture capture, and palette playlists.',
+        highlights: [
+            'Boots directly into the deck layout for minimal canvas obstruction',
+            'Shares the same choreography + palette automation as the desktop console',
+            'Great quick link for performers and VJs running tablets or phones'
+        ],
+        tags: ['mobile', 'ui'],
+        systems: ['Quantum', 'Holographic', 'Polychora'],
+        reactivity: ['Full Spectrum']
+    },
+    {
+        slug: 'ultimate-controls.html#macros',
+        title: 'Ultimate Controls – Macro Anchor',
+        category: 'Quick Links',
+        status: 'Shortcut',
+        summary: 'Anchor link into the macro and gesture section of the Ultimate Controls page for fast demos.',
+        highlights: [
+            'Jumps directly to macro instructions when presenting',
+            'Great for onboarding sessions or documentation references',
+            'Pairs with macro JSON import/export examples'
+        ],
+        tags: ['shortcut', 'documentation'],
+        systems: ['Quantum', 'Holographic', 'Polychora'],
+        reactivity: ['Layered Reactivity']
+    }
+];
 
-            <!-- REAL VISUALIZERS -->
-            <div class="version-card">
-                <span class="version-badge">Core Demo</span>
-                <h3 class="version-title">Real Visualizers</h3>
-                <p class="version-description">
-                    Original production demo using actual Quantum, Faceted, and Holographic visualizer systems.
-                    Full choreography engine integration.
-                </p>
-                <ul class="version-features">
-                    <li>3 actual visualizer systems</li>
-                    <li>Rotation choreography</li>
-                    <li>Shader choreography</li>
-                    <li>Sequence triggers</li>
-                    <li>Beat synchronization</li>
-                </ul>
-                <a href="real-visualizers.html" class="version-link">Launch Core Demo →</a>
-            </div>
+const quickIndex = document.getElementById('quick-index');
+const categorySections = document.getElementById('category-sections');
+const searchInput = document.getElementById('search');
+const categoryFilter = document.getElementById('category-filter');
 
-            <!-- DEBUG VISUALIZER -->
-            <div class="version-card">
-                <span class="version-badge">Technical</span>
-                <h3 class="version-title">Debug Visualizer</h3>
-                <p class="version-description">
-                    Technical diagnostic tool showing WebGL context, shader compilation,
-                    buffer status, and real-time rendering statistics.
-                </p>
-                <ul class="version-features">
-                    <li>WebGL context inspector</li>
-                    <li>Shader program status</li>
-                    <li>Buffer diagnostics</li>
-                    <li>Performance metrics</li>
-                    <li>Error reporting</li>
-                </ul>
-                <a href="debug-visualizer.html" class="version-link">Launch Debug Tool →</a>
-            </div>
+const uniqueCategories = Array.from(new Set(demos.map(d => d.category)));
+uniqueCategories.sort((a, b) => a.localeCompare(b));
+uniqueCategories.forEach(cat => {
+    const option = document.createElement('option');
+    option.value = cat;
+    option.textContent = cat;
+    categoryFilter.appendChild(option);
+});
 
-            <!-- TEST AUDIO -->
-            <div class="version-card">
-                <span class="version-badge">Diagnostic</span>
-                <h3 class="version-title">Audio Test</h3>
-                <p class="version-description">
-                    Audio system diagnostic tool for troubleshooting playback issues.
-                    Detailed logging and retry mechanisms.
-                </p>
-                <ul class="version-features">
-                    <li>Audio context testing</li>
-                    <li>Playback diagnostics</li>
-                    <li>Error logging</li>
-                    <li>Retry mechanisms</li>
-                    <li>State monitoring</li>
-                </ul>
-                <a href="test-audio.html" class="version-link">Launch Audio Test →</a>
-            </div>
+function createCard(demo) {
+    const card = document.createElement('article');
+    card.className = 'card';
+    card.dataset.title = demo.title.toLowerCase();
+    card.dataset.tags = demo.tags.join(' ').toLowerCase();
+    card.dataset.category = demo.category;
 
-            <!-- BASIC CHOREOGRAPHY -->
-            <div class="version-card">
-                <span class="version-badge">Legacy</span>
-                <h3 class="version-title">Basic Choreography</h3>
-                <p class="version-description">
-                    Original demo version showing basic choreography concepts.
-                    Educational reference for system architecture.
-                </p>
-                <ul class="version-features">
-                    <li>Basic demo visualizer</li>
-                    <li>Simple choreography</li>
-                    <li>Educational reference</li>
-                    <li>Architecture demonstration</li>
-                </ul>
-                <a href="basic-choreography.html" class="version-link">View Legacy Demo →</a>
-            </div>
-        </div>
+    const badge = document.createElement('span');
+    badge.className = 'status-badge';
+    badge.textContent = demo.status;
+    card.appendChild(badge);
 
-        <div class="tech-stack">
-            <h2>🔧 Technology Stack</h2>
-            <div class="tech-tags">
-                <span class="tech-tag">WebGL 2.0</span>
-                <span class="tech-tag">Web Audio API</span>
-                <span class="tech-tag">4D Mathematics</span>
-                <span class="tech-tag">Shader Programming</span>
-                <span class="tech-tag">Real-Time Audio Analysis</span>
-                <span class="tech-tag">FFT Processing</span>
-                <span class="tech-tag">Onset Detection</span>
-                <span class="tech-tag">Beat Synchronization</span>
-                <span class="tech-tag">Timeline Choreography</span>
-                <span class="tech-tag">Easing Functions</span>
-                <span class="tech-tag">ES6 Modules</span>
-                <span class="tech-tag">GitHub Pages</span>
-                <span class="tech-tag">4D Rotation Matrices</span>
-                <span class="tech-tag">Hyperdimensional Projection</span>
-                <span class="tech-tag">Polytopal Geometry</span>
-                <span class="tech-tag">Fractal Systems</span>
-            </div>
-        </div>
+    const title = document.createElement('h4');
+    title.textContent = demo.title;
+    card.appendChild(title);
 
-        <div class="signature">
-            <h3>🌟 A Paul Phillips Manifestation</h3>
-            <p>Send Love, Hate, or Opportunity to: <a href="mailto:Paul@clearseassolutions.com">Paul@clearseassolutions.com</a></p>
-            <p>Join The Exoditical Moral Architecture Movement today: <a href="https://parserator.com" target="_blank">Parserator.com</a></p>
-            <div class="quote">"The Revolution Will Not be in a Structured Format"</div>
-            <div class="copyright">© 2025 Paul Phillips - Clear Seas Solutions LLC</div>
-            <div class="copyright">All Rights Reserved - Proprietary Technology</div>
-        </div>
-    </div>
+    const summary = document.createElement('p');
+    summary.textContent = demo.summary;
+    card.appendChild(summary);
+
+    if (demo.highlights && demo.highlights.length) {
+        const list = document.createElement('ul');
+        demo.highlights.forEach(point => {
+            const li = document.createElement('li');
+            li.textContent = point;
+            list.appendChild(li);
+        });
+        card.appendChild(list);
+    }
+
+    const meta = document.createElement('div');
+    meta.className = 'meta';
+    demo.systems.forEach(system => {
+        const span = document.createElement('span');
+        span.textContent = system;
+        meta.appendChild(span);
+    });
+    demo.reactivity.forEach(mode => {
+        const span = document.createElement('span');
+        span.textContent = mode;
+        meta.appendChild(span);
+    });
+    card.appendChild(meta);
+
+    const link = document.createElement('a');
+    link.href = demo.slug;
+    link.textContent = 'Launch →';
+    card.appendChild(link);
+
+    return card;
+}
+
+function populateQuickIndex(filtered) {
+    quickIndex.textContent = '';
+    filtered.forEach((demo, index) => {
+        const row = document.createElement('tr');
+
+        const indexCell = document.createElement('td');
+        indexCell.textContent = index + 1;
+        row.appendChild(indexCell);
+
+        const titleCell = document.createElement('td');
+        titleCell.textContent = demo.title;
+        row.appendChild(titleCell);
+
+        const categoryCell = document.createElement('td');
+        categoryCell.textContent = demo.category;
+        row.appendChild(categoryCell);
+
+        const statusCell = document.createElement('td');
+        statusCell.textContent = demo.status;
+        row.appendChild(statusCell);
+
+        const highlightCell = document.createElement('td');
+        highlightCell.textContent = demo.highlights ? demo.highlights[0] : '';
+        row.appendChild(highlightCell);
+
+        const linkCell = document.createElement('td');
+        const anchor = document.createElement('a');
+        anchor.href = demo.slug;
+        anchor.textContent = 'Open';
+        linkCell.appendChild(anchor);
+        row.appendChild(linkCell);
+
+        row.dataset.category = demo.category;
+        row.dataset.title = demo.title.toLowerCase();
+        row.dataset.tags = demo.tags.join(' ').toLowerCase();
+        quickIndex.appendChild(row);
+    });
+}
+
+function populateCategories(filtered) {
+    categorySections.textContent = '';
+    const grouped = filtered.reduce((acc, demo) => {
+        acc[demo.category] = acc[demo.category] || [];
+        acc[demo.category].push(demo);
+        return acc;
+    }, {});
+
+    Object.entries(grouped).sort(([a], [b]) => a.localeCompare(b)).forEach(([category, items]) => {
+        const section = document.createElement('section');
+        section.className = 'category';
+
+        const heading = document.createElement('h3');
+        heading.textContent = category;
+        section.appendChild(heading);
+
+        const cardGrid = document.createElement('div');
+        cardGrid.className = 'cards';
+        items.forEach(item => cardGrid.appendChild(createCard(item)));
+        section.appendChild(cardGrid);
+
+        categorySections.appendChild(section);
+    });
+}
+
+function applyFilters() {
+    const term = searchInput.value.trim().toLowerCase();
+    const category = categoryFilter.value;
+
+    const filtered = demos.filter(demo => {
+        const matchesCategory = category === 'all' || demo.category === category;
+        const haystack = [demo.title, demo.category, demo.status, demo.summary, demo.tags.join(' '), demo.highlights.join(' ')].join(' ').toLowerCase();
+        const matchesTerm = !term || haystack.includes(term);
+        return matchesCategory && matchesTerm;
+    });
+
+    populateQuickIndex(filtered);
+    populateCategories(filtered);
+}
+
+searchInput.addEventListener('input', applyFilters);
+categoryFilter.addEventListener('change', applyFilters);
+
+populateQuickIndex(demos);
+populateCategories(demos);
+
+const demoCount = demos.length;
+const systems = new Set();
+const reactivityModes = new Set();
+let macroHarnesses = 0;
+
+demos.forEach(demo => {
+    demo.systems.forEach(system => systems.add(system));
+    demo.reactivity.forEach(mode => {
+        reactivityModes.add(mode);
+        if (mode.toLowerCase().includes('macro')) {
+            macroHarnesses += 1;
+        }
+    });
+});
+
+document.querySelector('[data-stat="demo-count"]').textContent = demoCount;
+document.querySelector('[data-stat="system-count"]').textContent = systems.size;
+document.querySelector('[data-stat="reactivity-count"]').textContent = reactivityModes.size;
+document.querySelector('[data-stat="macro-count"]').textContent = macroHarnesses;
+
+applyFilters();
+</script>
 </body>
 </html>
