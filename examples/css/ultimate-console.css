@@ -113,6 +113,7 @@
             display: flex;
             justify-content: space-between;
             align-items: flex-start;
+            flex-wrap: wrap;
             gap: 12px;
             margin-bottom: 16px;
         }
@@ -123,6 +124,26 @@
             text-transform: uppercase;
             color: var(--accent);
             text-shadow: 0 0 16px rgba(0, 240, 255, 0.75);
+        }
+
+        .layout-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 12px;
+            border-radius: 999px;
+            border: 1px solid rgba(0, 255, 255, 0.2);
+            background: rgba(0, 30, 40, 0.75);
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            white-space: nowrap;
+        }
+
+        .layout-pill[data-mode="mobile"] {
+            border-color: rgba(255, 121, 0, 0.4);
+            color: #ffddc0;
         }
 
         .panel-close {

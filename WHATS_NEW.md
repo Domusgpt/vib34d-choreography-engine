@@ -16,6 +16,10 @@
 - [`examples/mobile-smart.html`](examples/mobile-smart.html) now imports the shared console module and boots straight into the bottom-sheet layout for phones and tablets.
 - Updated the Demo Atlas to flag the new workflow so teams follow the Ultimate Reactive entry for day-to-day testing.
 
+### 📐 Layout polish + adaptive canvas
+- Added an on-header layout pill plus automatic mobile/desktop collapsing so the shared console keeps key controls visible without overwhelming the viewport.
+- Resized the main canvas on every viewport change to preserve full-screen coverage and crisp rendering on high-DPI devices.
+
 ## Latest Update: Hypercolor + Uniform Controls Everywhere
 
 ### 🌈 Holographic + Faceted join the palette party

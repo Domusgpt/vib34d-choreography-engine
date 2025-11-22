@@ -1,13 +1,13 @@
-import { ChoreographyEngine } from '../src/core/ChoreographyEngine.js';
-import { RotationChoreographer } from '../src/choreographers/RotationChoreographer.js';
-import { ShaderChoreographer } from '../src/choreographers/ShaderChoreographer.js';
-import { PaletteDirector } from '../src/choreographers/PaletteDirector.js';
-import { SceneDirector } from '../src/choreographers/SceneDirector.js';
-import { QuantumHolographicVisualizer } from '../src/visualizers/quantum/QuantumVisualizer.js';
-import { IntegratedHolographicVisualizer } from '../src/visualizers/faceted/FacetedVisualizer.js';
-import { HolographicVisualizer } from '../src/visualizers/holographic/HolographicVisualizer.js';
-import { AudioAnalyzer } from '../src/audio/AudioAnalyzer.js';
-import { GeometryLibrary } from '../src/geometry/GeometryLibrary.js';
+import { ChoreographyEngine } from '../../src/core/ChoreographyEngine.js';
+import { RotationChoreographer } from '../../src/choreographers/RotationChoreographer.js';
+import { ShaderChoreographer } from '../../src/choreographers/ShaderChoreographer.js';
+import { PaletteDirector } from '../../src/choreographers/PaletteDirector.js';
+import { SceneDirector } from '../../src/choreographers/SceneDirector.js';
+import { QuantumHolographicVisualizer } from '../../src/visualizers/quantum/QuantumVisualizer.js';
+import { IntegratedHolographicVisualizer } from '../../src/visualizers/faceted/FacetedVisualizer.js';
+import { HolographicVisualizer } from '../../src/visualizers/holographic/HolographicVisualizer.js';
+import { AudioAnalyzer } from '../../src/audio/AudioAnalyzer.js';
+import { GeometryLibrary } from '../../src/geometry/GeometryLibrary.js';
 
 const CONSOLE_TEMPLATE = `
 <button id="controlToggle" aria-expanded="true">
@@ -19,6 +19,7 @@ const CONSOLE_TEMPLATE = `
             <div class="panel-header">
                 <div class="title-row">
                     <h1>Ultimate Reactive Console</h1>
+                    <span class="layout-pill" id="layoutBadge" aria-live="polite">Auto Layout</span>
                     <button class="panel-close" id="panelClose" aria-label="Hide controls">×</button>
                 </div>
                 <div class="status-grid">
@@ -381,10 +382,17 @@ export async function launchUltimateConsole(options = {}) {
         throw new Error(`Canvas element "${canvasId}" not found`);
     }
 
-
-const canvas = document.getElementById(canvasId);
-canvas.width = window.innerWidth * (window.devicePixelRatio || 1);
-canvas.height = window.innerHeight * (window.devicePixelRatio || 1);
+    const resizeCanvas = () => {
+        const dpr = window.devicePixelRatio || 1;
+        const width = window.innerWidth;
+        const height = window.innerHeight;
+        canvas.width = width * dpr;
+        canvas.height = height * dpr;
+        canvas.style.width = `${width}px`;
+        canvas.style.height = `${height}px`;
+    };
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
 
 const controlPanel = document.getElementById('controlPanel');
 const panelBody = document.getElementById('panelBody');
@@ -406,10 +414,11 @@ const statusTrack = document.getElementById('statusTrack');
 const statusBeat = document.getElementById('statusBeat');
 const statusCycle = document.getElementById('statusCycle');
 const timelineCurrent = document.getElementById('timelineCurrent');
-const timelineDuration = document.getElementById('timelineDuration');
-const timelineProgress = document.getElementById('timelineProgress');
-const reactivityMeter = document.getElementById('reactivityMeter');
-const reactivityValue = document.getElementById('reactivityValue');
+    const timelineDuration = document.getElementById('timelineDuration');
+    const timelineProgress = document.getElementById('timelineProgress');
+    const reactivityMeter = document.getElementById('reactivityMeter');
+    const reactivityValue = document.getElementById('reactivityValue');
+    const layoutBadge = document.getElementById('layoutBadge');
 const paletteQuickGrid = document.getElementById('paletteQuickGrid');
 const paletteQuickStyle = document.getElementById('paletteQuickStyle');
 const paletteChipGroup = document.getElementById('paletteChipGroup');
@@ -524,6 +533,19 @@ const forceDesktopLayout = forcedLayout === 'desktop';
 document.body.dataset.consoleLayout = forceMobileLayout ? 'mobile' : forceDesktopLayout ? 'desktop' : 'auto';
 
 const mobileQuery = window.matchMedia('(max-width: 900px)');
+const describeLayout = (isMobile) => {
+    if (!layoutBadge) return;
+    const label = forceMobileLayout
+        ? 'Mobile preset'
+        : forceDesktopLayout
+            ? 'Desktop preset'
+            : isMobile
+                ? 'Auto · Mobile'
+                : 'Auto · Desktop';
+    layoutBadge.textContent = label;
+    layoutBadge.dataset.mode = isMobile ? 'mobile' : 'desktop';
+};
+
 function setPanelOpen(open) {
     const isMobile = forceMobileLayout || (!forceDesktopLayout && mobileQuery.matches);
     if (isMobile) {
@@ -534,25 +556,33 @@ function setPanelOpen(open) {
     }
     controlToggle.setAttribute('aria-expanded', open);
     controlToggle.classList.toggle('collapsed', !open);
+    describeLayout(isMobile);
 }
 
 function syncPanelToViewport() {
+    const isMobile = forceMobileLayout || (!forceDesktopLayout && mobileQuery.matches);
     if (forceMobileLayout) {
         controlPanel.classList.add('open-mobile');
         controlPanel.classList.remove('collapsed');
         controlToggle.setAttribute('aria-expanded', 'true');
         controlToggle.classList.remove('collapsed');
+        describeLayout(true);
         return;
     }
     if (forceDesktopLayout) {
+        describeLayout(false);
         setPanelOpen(true);
         return;
     }
-    setPanelOpen(!mobileQuery.matches);
+    describeLayout(isMobile);
+    setPanelOpen(!isMobile);
 }
 
 if (!forceMobileLayout && !forceDesktopLayout) {
-    mobileQuery.addEventListener('change', syncPanelToViewport);
+    mobileQuery.addEventListener('change', () => {
+        syncPanelToViewport();
+        syncSectionLayout();
+    });
 }
 syncPanelToViewport();
 
@@ -622,11 +652,36 @@ tabButtons.forEach((button, index) => {
 });
 
 // Collapsible sections
-document.querySelectorAll('.collapsible').forEach(section => {
+const collapsibleSections = Array.from(document.querySelectorAll('.collapsible'));
+const defaultOpenMobile = new Set(['audio', 'visualizer', 'palette-quick']);
+const defaultOpenDesktop = new Set(['audio', 'visualizer', 'palette-quick', 'geometry']);
+
+function setCollapsibleOpen(section, open) {
+    const header = section.querySelector('.collapsible-header');
+    const content = section.querySelector('.collapsible-content');
+    section.classList.toggle('open', open);
+    header?.setAttribute('aria-expanded', open);
+    if (content) {
+        content.style.maxHeight = open ? `${content.scrollHeight}px` : null;
+    }
+}
+
+function syncSectionLayout() {
+    const isMobile = forceMobileLayout || (!forceDesktopLayout && mobileQuery.matches);
+    const defaults = isMobile ? defaultOpenMobile : defaultOpenDesktop;
+    collapsibleSections.forEach((section) => {
+        if (section.dataset.userToggled === 'true') return;
+        const key = section.dataset.section;
+        setCollapsibleOpen(section, defaults.has(key));
+    });
+}
+
+collapsibleSections.forEach(section => {
     const header = section.querySelector('.collapsible-header');
     const content = section.querySelector('.collapsible-content');
     header.addEventListener('click', () => {
         const open = section.classList.toggle('open');
+        section.dataset.userToggled = 'true';
         header.setAttribute('aria-expanded', open);
         if (open) {
             content.style.maxHeight = content.scrollHeight + 'px';
@@ -646,6 +701,7 @@ window.addEventListener('resize', () => {
         content.style.maxHeight = content.scrollHeight + 'px';
     });
 });
+syncSectionLayout();
 
 // Slider creation helpers
 const sliderContainers = {
