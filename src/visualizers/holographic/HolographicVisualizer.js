@@ -1,3 +1,5 @@
+import { getUniformPalette, lerpColor, applyVibrance, clampColor } from '../../color/UniformPaletteLibrary.js';
+
 /**
  * Core Holographic Visualizer - Clean WebGL rendering engine
  * Extracted from working system, no debugging mess
@@ -44,7 +46,28 @@ export class HolographicVisualizer {
         
         this.variantParams = this.generateVariantParams(variant);
         this.roleParams = this.generateRoleParams(role);
-        
+
+        this.baseVariantParams = {
+            hue: this.variantParams.hue,
+            saturation: this.variantParams.saturation,
+            intensity: this.variantParams.intensity,
+            density: this.variantParams.density,
+            speed: this.variantParams.speed,
+            chaos: this.variantParams.chaos,
+            morph: this.variantParams.morph
+        };
+
+        this.colorStyle = 0;
+        this.colorProfile = 0;
+        this.colorVibrance = 1.0;
+        this.colorState = {
+            primary: [0.55, 0.62, 0.9],
+            secondary: [0.34, 0.4, 0.62],
+            accent: [0.94, 0.55, 0.82],
+            highlight: [0.98, 0.82, 0.94],
+            shadow: [0.08, 0.05, 0.12]
+        };
+
         // Initialize state
         this.mouseX = 0.5;
         this.mouseY = 0.5;
@@ -76,6 +99,70 @@ export class HolographicVisualizer {
         this.audioSpeedBoost = 0.0;
         this.audioChaosBoost = 0.0;
         this.audioColorShift = 0.0;
+        this.audioChoreo = {
+            bass: 0,
+            mid: 0,
+            high: 0,
+            energy: 0,
+            onset: 0,
+            swing: 0,
+            triplet: 0,
+            beatPhase: 0,
+            measurePhase: 0,
+            chaos: 0,
+            densityBoost: 0,
+            morphBoost: 0,
+            speedBoost: 0,
+            colorOrbit: 0,
+            saturationPulse: 0,
+            colorBeat: 0,
+            accentLuma: 0,
+            ribbon: 0,
+            dimensionShift: 0,
+            motionVelocity: 0
+        };
+
+        this.cameraLighting = {
+            orbit: 0,
+            elevation: 0.4,
+            dolly: -0.18,
+            roll: 0.15,
+            exposure: 1.1,
+            shutter: 0.7,
+            bloom: 0.4,
+            keyLight: 0.6,
+            rimLight: 0.5,
+            ambientLight: 0.28,
+            vignette: 0.3,
+            parallax: 0.0,
+            focus: 0.9,
+            focusSpread: 0.7,
+            chromaticAberration: 0.1,
+            lightTemperature: 0.55,
+            shadowContrast: 0.5,
+            fogDensity: 0.12,
+            godrayIntensity: 0.22,
+            filmGrain: 0.2,
+            lensDistortion: 0.05,
+            frameBlend: 0.34,
+            lightWrap: 0.36,
+            colorBleed: 0.3
+        };
+        this.audioSmooth = {
+            density: 0,
+            morph: 0,
+            speed: 0,
+            chaos: 0,
+            orbit: 0,
+            saturation: 0,
+            dimension: 0,
+            layerIntensity: 0,
+            layerSpeed: 0,
+            layerShimmer: 0
+        };
+        this.layerAudioIntensity = 0;
+        this.layerAudioSpeed = 0;
+        this.layerAudioShimmer = 0;
 
         this.startTime = Date.now();
         this.initShaders();
@@ -86,6 +173,54 @@ export class HolographicVisualizer {
         this.gl.blendFunc(this.gl.SRC_ALPHA, this.gl.ONE_MINUS_SRC_ALPHA);
 
         this.resize();
+    }
+
+    setCameraLighting(state = {}) {
+        if (!state || typeof state !== 'object') {
+            return;
+        }
+
+        this.cameraLighting = {
+            ...this.cameraLighting,
+            ...state
+        };
+    }
+
+    setColor(color) {
+        if (!color) {
+            return;
+        }
+
+        const primary = clampColor(color.primary || color.base || color.main || color);
+        const secondary = clampColor(color.secondary || color.alt);
+        const accent = clampColor(color.accent || color.highlight || color.emphasis);
+        const shadow = clampColor(color.shadow || color.depth);
+        const highlight = clampColor(color.highlight || color.glow);
+
+        if (primary) {
+            this.colorState.primary = primary;
+        }
+        if (secondary) {
+            this.colorState.secondary = secondary;
+        } else if (!this.colorState.secondary) {
+            this.colorState.secondary = lerpColor(this.colorState.primary, [0.25, 0.28, 0.35], 0.35);
+        }
+        if (accent) {
+            this.colorState.accent = accent;
+        }
+        if (shadow) {
+            this.colorState.shadow = shadow;
+        }
+
+        if (highlight) {
+            this.colorState.highlight = highlight;
+        } else {
+            this.colorState.highlight = lerpColor(this.colorState.accent, [1, 1, 1], 0.28);
+        }
+
+        if (!this.colorState.secondary) {
+            this.colorState.secondary = lerpColor(this.colorState.primary, this.colorState.shadow, 0.25);
+        }
     }
     
     generateVariantParams(variant) {
@@ -215,6 +350,30 @@ export class HolographicVisualizer {
             uniform float u_rot4dXW;
             uniform float u_rot4dYW;
             uniform float u_rot4dZW;
+            uniform float u_cameraOrbit;
+            uniform float u_cameraElevation;
+            uniform float u_cameraDolly;
+            uniform float u_cameraRoll;
+            uniform float u_exposure;
+            uniform float u_shutter;
+            uniform float u_bloom;
+            uniform float u_keyLight;
+            uniform float u_rimLight;
+            uniform float u_ambientLight;
+            uniform float u_vignette;
+            uniform float u_cameraParallax;
+            uniform float u_focusDistance;
+            uniform float u_focusSpread;
+            uniform float u_chromaticAberration;
+            uniform float u_lightTemperature;
+            uniform float u_shadowContrast;
+            uniform float u_fogDensity;
+            uniform float u_godrayIntensity;
+            uniform float u_filmGrain;
+            uniform float u_lensDistortion;
+            uniform float u_frameBlend;
+            uniform float u_lightWrap;
+            uniform float u_colorBleed;
             
             // 4D rotation matrices
             mat4 rotateXW(float theta) {
@@ -400,8 +559,23 @@ export class HolographicVisualizer {
             void main() {
                 vec2 uv = gl_FragCoord.xy / u_resolution.xy;
                 float aspectRatio = u_resolution.x / u_resolution.y;
-                uv.x *= aspectRatio;
-                uv -= 0.5;
+                uv.x = (uv.x - 0.5) * aspectRatio;
+                uv.y -= 0.5;
+
+                float orbitAngle = u_cameraOrbit;
+                mat2 orbitMat = mat2(cos(orbitAngle), -sin(orbitAngle), sin(orbitAngle), cos(orbitAngle));
+                uv = orbitMat * uv;
+
+                float rollAngle = u_cameraRoll;
+                mat2 rollMat = mat2(cos(rollAngle), -sin(rollAngle), sin(rollAngle), cos(rollAngle));
+                uv = rollMat * uv;
+
+                float zoomFactor = exp(-u_cameraDolly);
+                uv *= zoomFactor;
+
+                float elevation = u_cameraElevation;
+                uv.y += sin(elevation) * (0.32 + abs(u_cameraDolly) * 0.2);
+                uv.x += sin(elevation * 0.55) * 0.1;
                 
                 float time = u_time * 0.0004 * u_speed * u_roleSpeed;
                 
@@ -485,8 +659,96 @@ export class HolographicVisualizer {
                 // Holographic interference from interactions
                 float interference = sin(mouseDist * 25.0 + u_time * 0.002) * u_mouseIntensity * 0.05;
                 color += vec3(interference) * baseColor;
-                
-                gl_FragColor = vec4(color, 0.95);
+
+                vec3 filmColor = color;
+                float exposure = max(0.1, u_exposure);
+                vec3 toneMapped = vec3(1.0) - exp(-filmColor * exposure);
+                float shutter = clamp(u_shutter, 0.2, 3.0);
+                toneMapped = pow(clamp(toneMapped, 0.0, 6.0), vec3(1.0 / shutter));
+                vec3 bloom = pow(clamp(filmColor, 0.0, 10.0), vec3(1.2)) * clamp(u_bloom, 0.0, 3.0);
+                toneMapped += bloom;
+
+                float rim = clamp(u_rimLight, 0.0, 1.5) * pow(clamp(length(p), 0.0, 1.0), 1.2);
+                toneMapped += rim * vec3(0.55, 0.85, 1.1);
+
+                float key = clamp(u_keyLight, 0.0, 2.0);
+                toneMapped *= (0.68 + key * 0.5);
+
+                float ambient = clamp(u_ambientLight, 0.0, 1.0);
+                toneMapped = mix(vec3(ambient), toneMapped, 0.88 + ambient * 0.1);
+
+                float vignette = mix(1.0, smoothstep(1.35, 0.25, length(uv) * (1.0 + u_cameraDolly * 0.35)), clamp(u_vignette, 0.0, 1.0));
+                toneMapped *= vignette;
+
+                float parallaxWarp = clamp(u_cameraParallax, -1.1, 1.1);
+                vec2 parallaxUv = uv + uv * parallaxWarp * 0.1;
+                float lensDistortion = clamp(u_lensDistortion, -0.5, 0.8);
+                float radiusSq = dot(parallaxUv, parallaxUv);
+                parallaxUv *= 1.0 + lensDistortion * radiusSq;
+                float focusSpread = max(0.05, u_focusSpread);
+                float focusDistance = clamp(u_focusDistance, 0.0, 2.8);
+                float focusFalloff = exp(-pow(length(parallaxUv) - focusDistance, 2.0) * (1.9 + focusSpread * 2.2));
+                float fogFactor = exp(-pow(length(parallaxUv), 2.0) * (0.7 + clamp(u_fogDensity, 0.0, 1.6) * 1.4));
+                float shadowMix = clamp(0.58 + clamp(u_shadowContrast, 0.0, 2.0) * 0.32, 0.0, 1.0);
+
+                vec3 fogColor = mix(vec3(0.14, 0.16, 0.22), vec3(0.24, 0.28, 0.35), clamp(u_lightTemperature, 0.0, 1.2));
+                toneMapped = mix(fogColor, toneMapped, clamp(fogFactor + focusFalloff * 0.4, 0.0, 1.0));
+
+                vec3 coolGrade = vec3(0.68, 0.92, 1.08);
+                vec3 warmGrade = vec3(1.12, 0.94, 0.76);
+                toneMapped *= mix(coolGrade, warmGrade, clamp(u_lightTemperature, 0.0, 1.3));
+
+                vec3 luminanceVec = vec3(0.299, 0.587, 0.114);
+                float luminance = dot(toneMapped, luminanceVec);
+                toneMapped = mix(vec3(luminance * (0.82 + shadowMix * 0.45)), toneMapped, shadowMix);
+
+                float lightWrap = clamp(u_lightWrap, 0.0, 1.6);
+                vec3 wrapColor = mix(
+                    toneMapped,
+                    vec3(luminance),
+                    clamp(lightWrap * (0.3 + focusFalloff * 0.5), 0.0, 0.8)
+                );
+                toneMapped = mix(toneMapped, wrapColor, clamp(lightWrap, 0.0, 1.0));
+
+                float aberration = clamp(u_chromaticAberration, 0.0, 1.0);
+                toneMapped.rg *= vec2(
+                    1.0 + sin(parallaxUv.y * 8.0 + u_time * 0.0015) * aberration * 0.1,
+                    1.0 - sin(parallaxUv.x * 6.5 - u_time * 0.0012) * aberration * 0.08
+                );
+                toneMapped.b *= 1.0 + cos(parallaxUv.x * 9.0 + parallaxUv.y * 5.0 + u_time * 0.0018) * aberration * 0.07;
+
+                float godrayAngle = atan(parallaxUv.y, parallaxUv.x);
+                float godrayWave = max(0.0, sin(godrayAngle * 5.5 + u_time * 0.0025));
+                float godrayDistance = exp(-length(parallaxUv) * (1.3 - parallaxWarp * 0.5));
+                float godray = godrayWave * godrayDistance * focusFalloff;
+                toneMapped += vec3(0.36, 0.44, 0.6) * godray * clamp(u_godrayIntensity, 0.0, 1.8);
+
+                toneMapped += vec3(0.16, 0.12, 0.26) * parallaxWarp * (0.45 + focusFalloff * 0.55);
+
+                float frameBlend = clamp(u_frameBlend, 0.0, 1.2);
+                float streak = sin(u_time * 0.004 + radiusSq * 70.0) * 0.5 + 0.5;
+                vec3 motionTint = mix(vec3(0.82, 0.72, 1.05), vec3(1.18, 0.86, 0.68), clamp(u_lightTemperature, 0.0, 1.2));
+                toneMapped = mix(
+                    toneMapped,
+                    toneMapped * mix(vec3(1.0), motionTint, clamp(streak, 0.0, 1.0)),
+                    clamp(frameBlend * 0.32, 0.0, 0.75)
+                );
+
+                float colorBleed = clamp(u_colorBleed, 0.0, 1.6);
+                vec3 bleedColor = vec3(
+                    toneMapped.r + toneMapped.g * 0.12,
+                    toneMapped.g + toneMapped.b * 0.12,
+                    toneMapped.b + toneMapped.r * 0.12
+                );
+                toneMapped = mix(toneMapped, bleedColor, clamp(colorBleed * 0.3, 0.0, 0.6));
+
+                float filmGrain = clamp(u_filmGrain, 0.0, 1.8);
+                float grain = fract(sin(dot(parallaxUv * 110.0, vec2(43.2321, 17.719))) * 43758.5453 + u_time * 0.007);
+                grain = (grain - 0.5) * 2.0;
+                toneMapped += grain * filmGrain * 0.05;
+                toneMapped = clamp(toneMapped, 0.0, 5.0);
+
+                gl_FragColor = vec4(toneMapped, 0.95);
             }
         `;
         
@@ -522,7 +784,31 @@ export class HolographicVisualizer {
             audioColorShift: this.gl.getUniformLocation(this.program, 'u_audioColorShift'),
             rot4dXW: this.gl.getUniformLocation(this.program, 'u_rot4dXW'),
             rot4dYW: this.gl.getUniformLocation(this.program, 'u_rot4dYW'),
-            rot4dZW: this.gl.getUniformLocation(this.program, 'u_rot4dZW')
+            rot4dZW: this.gl.getUniformLocation(this.program, 'u_rot4dZW'),
+            cameraOrbit: this.gl.getUniformLocation(this.program, 'u_cameraOrbit'),
+            cameraElevation: this.gl.getUniformLocation(this.program, 'u_cameraElevation'),
+            cameraDolly: this.gl.getUniformLocation(this.program, 'u_cameraDolly'),
+            cameraRoll: this.gl.getUniformLocation(this.program, 'u_cameraRoll'),
+            exposure: this.gl.getUniformLocation(this.program, 'u_exposure'),
+            shutter: this.gl.getUniformLocation(this.program, 'u_shutter'),
+            bloom: this.gl.getUniformLocation(this.program, 'u_bloom'),
+            keyLight: this.gl.getUniformLocation(this.program, 'u_keyLight'),
+            rimLight: this.gl.getUniformLocation(this.program, 'u_rimLight'),
+            ambientLight: this.gl.getUniformLocation(this.program, 'u_ambientLight'),
+            vignette: this.gl.getUniformLocation(this.program, 'u_vignette'),
+            cameraParallax: this.gl.getUniformLocation(this.program, 'u_cameraParallax'),
+            focusDistance: this.gl.getUniformLocation(this.program, 'u_focusDistance'),
+            focusSpread: this.gl.getUniformLocation(this.program, 'u_focusSpread'),
+            chromaticAberration: this.gl.getUniformLocation(this.program, 'u_chromaticAberration'),
+            lightTemperature: this.gl.getUniformLocation(this.program, 'u_lightTemperature'),
+            shadowContrast: this.gl.getUniformLocation(this.program, 'u_shadowContrast'),
+            fogDensity: this.gl.getUniformLocation(this.program, 'u_fogDensity'),
+            godrayIntensity: this.gl.getUniformLocation(this.program, 'u_godrayIntensity'),
+            filmGrain: this.gl.getUniformLocation(this.program, 'u_filmGrain'),
+            lensDistortion: this.gl.getUniformLocation(this.program, 'u_lensDistortion'),
+            frameBlend: this.gl.getUniformLocation(this.program, 'u_frameBlend'),
+            lightWrap: this.gl.getUniformLocation(this.program, 'u_lightWrap'),
+            colorBleed: this.gl.getUniformLocation(this.program, 'u_colorBleed')
         };
     }
     
@@ -661,7 +947,7 @@ export class HolographicVisualizer {
     // Audio reactivity now handled directly in render() loop
     updateAudio_DISABLED() {
         return; // No longer used - audio handled in render()
-        
+
         // Musical visualization approach - responsive but controlled
         const smoothing = 0.6; // Less smoothing for more reactivity
         
@@ -706,6 +992,104 @@ export class HolographicVisualizer {
         }
         this.audioSmooth.beat *= 0.8; // Faster beat decay for more responsive pulses
     }
+
+    setAudioChoreography(audioData = {}) {
+        const clamp = (value, min = 0, max = 1) => Math.max(min, Math.min(max, value ?? 0));
+        const smoothingBlend = (key, target, smoothing = 0.55) => {
+            const current = this.audioSmooth[key] ?? 0;
+            const next = current * smoothing + target * (1 - smoothing);
+            this.audioSmooth[key] = next;
+            return next;
+        };
+
+        const bands = audioData.bands || {};
+        const rhythm = audioData.rhythmPhases || {};
+        const dynamics = audioData.extremeDynamics || {};
+        const color = audioData.colorChoreography || {};
+
+        const bass = clamp(bands.bass);
+        const mid = clamp(bands.mid);
+        const high = clamp(bands.high);
+        const energy = clamp(audioData.rms ?? audioData.energy ?? 0);
+        const onsetStrength = clamp(
+            Math.max(
+                typeof audioData.onset === 'number' ? audioData.onset : 0,
+                audioData.onsetEvent?.strength || 0,
+                dynamics.transientBurst || 0
+            )
+        );
+
+        const densityTarget = Math.min(2.5, bass * 1.8 + energy * 0.6);
+        const morphTarget = Math.min(2.0, mid * 1.2 + (dynamics.dimensionLift || 0) * 0.9);
+        const speedTarget = Math.min(2.2, energy * 0.7 + (dynamics.motionVelocity || 0) * 1.1 + Math.abs(rhythm.swingPulse || 0) * 0.4);
+        const chaosTarget = Math.min(2.0, high * 1.1 + (dynamics.chaosSurge || 0) * 1.2);
+        const orbitTarget = ((color.orbit ?? 0) + (rhythm.beatPhase || 0) * 0.1 + (rhythm.tripletPulse || 0) * 0.05) % 1;
+        const saturationTarget = clamp((color.saturationPulse ?? 0) + (color.downbeatColor ?? 0) * 0.4);
+        const dimensionTarget = Math.min(1.5, (dynamics.dimensionLift || 0) + energy * 0.2);
+
+        this.audioDensityBoost = smoothingBlend('density', densityTarget, 0.55);
+        this.audioMorphBoost = smoothingBlend('morph', morphTarget, 0.55);
+        this.audioSpeedBoost = smoothingBlend('speed', speedTarget, 0.5);
+        this.audioChaosBoost = smoothingBlend('chaos', chaosTarget, 0.5);
+        const orbit = smoothingBlend('orbit', orbitTarget, 0.65);
+        const saturation = smoothingBlend('saturation', saturationTarget, 0.6);
+        const dimensionShift = smoothingBlend('dimension', dimensionTarget, 0.6);
+
+        const intensityLayer = smoothingBlend('layerIntensity', clamp(bass + onsetStrength * 0.7), 0.6);
+        const speedLayer = smoothingBlend('layerSpeed', clamp(speedTarget, 0, 2.5), 0.6);
+        const shimmerLayer = smoothingBlend(
+            'layerShimmer',
+            clamp(high + (color.accentLuma || 0) * 0.6 + (color.ribbon || 0) * 0.3),
+            0.6
+        );
+
+        this.layerAudioIntensity = intensityLayer;
+        this.layerAudioSpeed = speedLayer;
+        this.layerAudioShimmer = shimmerLayer;
+
+        this.audioColorShift = orbit * Math.PI * 2;
+
+        this.audioChoreo = {
+            bass,
+            mid,
+            high,
+            energy,
+            onset: onsetStrength,
+            swing: rhythm.swingPulse || 0,
+            triplet: rhythm.tripletPulse || 0,
+            beatPhase: rhythm.beatPhase || 0,
+            measurePhase: rhythm.measurePhase || 0,
+            chaos: this.audioChaosBoost,
+            densityBoost: this.audioDensityBoost,
+            morphBoost: this.audioMorphBoost,
+            speedBoost: this.audioSpeedBoost,
+            colorOrbit: orbit,
+            saturationPulse: saturation,
+            colorBeat: clamp(color.downbeatColor ?? 0),
+            accentLuma: clamp(color.accentLuma ?? 0),
+            ribbon: clamp(color.ribbon ?? 0),
+            dimensionShift,
+            motionVelocity: dynamics.motionVelocity || 0
+        };
+    }
+
+    setLayerIntensity(value = 0) {
+        const target = Math.max(0, value);
+        this.audioSmooth.layerIntensity = (this.audioSmooth.layerIntensity ?? 0) * 0.6 + target * 0.4;
+        this.layerAudioIntensity = this.audioSmooth.layerIntensity;
+    }
+
+    setLayerSpeed(value = 0) {
+        const target = Math.max(0, value);
+        this.audioSmooth.layerSpeed = (this.audioSmooth.layerSpeed ?? 0) * 0.6 + target * 0.4;
+        this.layerAudioSpeed = this.audioSmooth.layerSpeed;
+    }
+
+    setShimmerIntensity(value = 0) {
+        const target = Math.max(0, value);
+        this.audioSmooth.layerShimmer = (this.audioSmooth.layerShimmer ?? 0) * 0.6 + target * 0.4;
+        this.layerAudioShimmer = this.audioSmooth.layerShimmer;
+    }
     
     updateScrollPhysics() {
         this.scrollPosition += this.scrollVelocity;
@@ -734,59 +1118,136 @@ export class HolographicVisualizer {
         this.updateScrollPhysics();
         
         const time = Date.now() - this.startTime;
-        
-        // Convert HSL to RGB for color uniform
-        const hue = (this.variantParams.hue || 0) / 360; // Convert to 0-1 range
-        const saturation = this.variantParams.saturation || 0.8;
-        const lightness = Math.max(0.2, Math.min(0.8, this.variantParams.intensity || 0.5)); // Use intensity for lightness
-        
-        // HSL to RGB conversion
-        const hslToRgb = (h, s, l) => {
-            let r, g, b;
-            if (s === 0) {
-                r = g = b = l; // achromatic
-            } else {
-                const hue2rgb = (p, q, t) => {
-                    if (t < 0) t += 1;
-                    if (t > 1) t -= 1;
-                    if (t < 1/6) return p + (q - p) * 6 * t;
-                    if (t < 1/2) return q;
-                    if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
-                    return p;
-                };
-                const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
-                const p = 2 * l - q;
-                r = hue2rgb(p, q, h + 1/3);
-                g = hue2rgb(p, q, h);
-                b = hue2rgb(p, q, h - 1/3);
-            }
-            return [r, g, b];
-        };
-        
-        const rgbColor = hslToRgb(hue, saturation, lightness);
+
+        const audio = this.audioChoreo || {};
+        const baseHue = this.baseVariantParams.hue || 0;
+        const orbitShift = audio.colorOrbit * 360;
+        const beatShift = audio.colorBeat * 140;
+        const swingShift = (audio.triplet || 0) * 20;
+        const finalHueDegrees = ((baseHue + orbitShift + beatShift + swingShift) % 360 + 360) % 360;
+
+        const baseSaturation = Math.max(0.05, Math.min(1.0, this.baseVariantParams.saturation || 0.8));
+        const vibrance = Math.min(3, Math.max(0.2, this.colorVibrance || 1));
+        const style = Math.round(this.colorStyle || 0);
+        const profileIndex = Math.max(0, Math.floor(this.colorProfile || 0));
+        const orbitBlend = Math.min(
+            1,
+            Math.max(0, (audio.colorOrbit || 0) * 0.65 + (audio.swing || 0) * 0.35)
+        );
+        const accentBlend = Math.min(
+            1,
+            Math.max(0, (audio.accentLuma || 0) * 0.75 + (audio.onset || 0) * 0.55)
+        );
+        const energyBlend = Math.min(
+            1,
+            Math.max(0, (audio.energy || 0) * 0.7 + (audio.colorBeat || 0) * 0.45)
+        );
+        const shimmerBlend = Math.min(
+            1,
+            Math.max(0, (audio.saturationPulse || 0) * 0.5 + (this.layerAudioShimmer || 0) * 0.25)
+        );
+
+        let rgbColor;
+        if (style <= 0) {
+            const palette = this.colorState || {};
+            const primary = clampColor(palette.primary || [0.55, 0.62, 0.9]);
+            const secondary = clampColor(palette.secondary || [0.34, 0.4, 0.62]);
+            const accent = clampColor(palette.accent || [0.94, 0.55, 0.82]);
+            const highlight = clampColor(palette.highlight || lerpColor(accent, [1, 1, 1], 0.3));
+            const shadow = clampColor(palette.shadow || [0.08, 0.05, 0.12]);
+            const hyperOrbit = Math.min(
+                1,
+                Math.max(
+                    0,
+                    (audio.colorOrbit || 0) * 0.6
+                        + (audio.swing || 0) * 0.3
+                        + (audio.measurePhase || 0) * 0.2
+                )
+            );
+            const hyperAccent = Math.min(
+                1,
+                Math.max(0, (audio.accentLuma || 0) * 0.7 + (audio.onset || 0) * 0.55)
+            );
+            const hyperEnergy = Math.min(
+                1,
+                Math.max(0, (audio.energy || 0) * 0.65 + (audio.colorBeat || 0) * 0.4)
+            );
+            const baseColor = lerpColor(primary, secondary, hyperOrbit);
+            const accented = lerpColor(baseColor, accent, hyperAccent);
+            const lifted = lerpColor(accented, highlight, hyperEnergy);
+            const ribbon = Math.min(1, Math.max(0, (audio.ribbon || 0) * 0.35));
+            const shadowMix = Math.min(1, Math.max(0, 0.18 + ribbon * 0.4 - (audio.energy || 0) * 0.1));
+            const shaded = lerpColor(lifted, shadow, shadowMix * 0.25);
+            rgbColor = applyVibrance(shaded, vibrance);
+        } else {
+            const palette = getUniformPalette(profileIndex);
+            const baseColor = lerpColor(palette.base, palette.mid, orbitBlend);
+            const accented = lerpColor(baseColor, palette.accent, accentBlend);
+            const lifted = lerpColor(accented, palette.highlight, energyBlend);
+            const shimmered = lerpColor(lifted, palette.highlight, shimmerBlend * 0.4);
+            const ribbon = Math.min(1, Math.max(0, (audio.ribbon || 0) * 0.4));
+            const shaded = lerpColor(shimmered, palette.shadow, ribbon * 0.2);
+            rgbColor = applyVibrance(shaded, vibrance);
+        }
+        rgbColor = clampColor(rgbColor);
+
+        const saturation = Math.max(
+            0.05,
+            Math.min(
+                1.0,
+                baseSaturation * (0.65 + (vibrance - 1) * 0.35) + (audio.saturationPulse || 0) * 0.3 + (this.layerAudioShimmer || 0) * 0.25
+            )
+        );
+
+        const grayscale = (rgbColor[0] + rgbColor[1] + rgbColor[2]) / 3;
+        rgbColor = clampColor([
+            grayscale + (rgbColor[0] - grayscale) * saturation,
+            grayscale + (rgbColor[1] - grayscale) * saturation,
+            grayscale + (rgbColor[2] - grayscale) * saturation
+        ]);
         
         // Set uniforms with proper variant parameters
         this.gl.uniform2f(this.uniforms.resolution, this.canvas.width, this.canvas.height);
         this.gl.uniform1f(this.uniforms.time, time);
         this.gl.uniform2f(this.uniforms.mouse, this.mouseX, this.mouseY);
         this.gl.uniform1f(this.uniforms.geometryType, this.variantParams.geometryType || 0);
-        this.gl.uniform1f(this.uniforms.density, this.variantParams.density || 1.0);
-        // FIX: Controlled speed calculation - base speed controls main movement, audio provides subtle boost
-        const baseSpeed = (this.variantParams.speed || 0.5) * 0.2; // Much slower base speed
-        const audioBoost = (this.audioSpeedBoost || 0.0) * 0.1; // Subtle audio boost only
-        this.gl.uniform1f(this.uniforms.speed, baseSpeed + audioBoost);
+
+        const densityBase = this.baseVariantParams.density || 1.0;
+        const density = densityBase + this.audioDensityBoost * 0.75 + audio.densityBoost * 0.35 + (this.layerAudioIntensity || 0) * 0.2;
+        this.gl.uniform1f(this.uniforms.density, density);
+
+        const baseSpeed = (this.baseVariantParams.speed || 0.5) * 0.18;
+        const audioSpeed = (this.audioSpeedBoost || 0) * 0.18 + (this.layerAudioSpeed || 0) * 0.08;
+        this.gl.uniform1f(this.uniforms.speed, baseSpeed + audioSpeed);
+
         this.gl.uniform3fv(this.uniforms.color, new Float32Array(rgbColor));
-        this.gl.uniform1f(this.uniforms.intensity, (this.variantParams.intensity || 0.5) * this.roleParams.intensity);
-        this.gl.uniform1f(this.uniforms.roleDensity, this.roleParams.densityMult);
-        this.gl.uniform1f(this.uniforms.roleSpeed, this.roleParams.speedMult);
-        this.gl.uniform1f(this.uniforms.colorShift, this.roleParams.colorShift + (this.variantParams.hue || 0) / 360);
-        this.gl.uniform1f(this.uniforms.chaosIntensity, this.variantParams.chaos || 0.0);
+
+        const intensityBase = (this.baseVariantParams.intensity || 0.5) * this.roleParams.intensity;
+        const intensityGain = (1 + (this.layerAudioIntensity || 0) * 0.6 + audio.energy * 0.25 + audio.accentLuma * 0.25)
+            * (0.85 + saturation * 0.25);
+        this.gl.uniform1f(this.uniforms.intensity, intensityBase * intensityGain);
+
+        this.gl.uniform1f(this.uniforms.roleDensity, this.roleParams.densityMult * (1 + audio.densityBoost * 0.15));
+        this.gl.uniform1f(this.uniforms.roleSpeed, this.roleParams.speedMult * (1 + audio.motionVelocity * 0.25));
+
+        const uniformShift = ((this.roleParams.colorShift || 0) / 360)
+            + orbitBlend * 0.12
+            + (audio.measurePhase || 0) * 0.05;
+        const colorShiftNormalized = style <= 0
+            ? ((this.roleParams.colorShift || 0) + finalHueDegrees) / 360
+            : uniformShift;
+        this.gl.uniform1f(this.uniforms.colorShift, Math.max(0, Math.min(1, colorShiftNormalized)));
+
+        const chaosEnvelope = Math.min(2.5, (this.baseVariantParams.chaos || 0) + this.audioChaosBoost * 0.5 + audio.chaos * 0.35);
+        this.gl.uniform1f(this.uniforms.chaosIntensity, chaosEnvelope);
         this.gl.uniform1f(this.uniforms.mouseIntensity, this.mouseIntensity);
         this.gl.uniform1f(this.uniforms.clickIntensity, this.clickIntensity);
         this.gl.uniform1f(this.uniforms.densityVariation, this.densityVariation);
         this.gl.uniform1f(this.uniforms.geometryType, this.variantParams.geometryType !== undefined ? this.variantParams.geometryType : this.variant || 0);
-        this.gl.uniform1f(this.uniforms.chaos, this.variantParams.chaos || 0.0);
-        this.gl.uniform1f(this.uniforms.morph, this.variantParams.morph || 0.0);
+        const chaosValue = Math.min(2.5, (this.baseVariantParams.chaos || 0) + this.audioChaosBoost * 0.5 + audio.chaos * 0.35);
+        const morphValue = Math.min(2.0, (this.baseVariantParams.morph || 0) + this.audioMorphBoost * 0.6 + audio.dimensionShift * 0.35);
+        this.gl.uniform1f(this.uniforms.chaos, chaosValue);
+        this.gl.uniform1f(this.uniforms.morph, morphValue);
         
         // Touch and scroll uniforms
         this.gl.uniform1f(this.uniforms.touchMorph, this.touchMorph);
@@ -795,34 +1256,51 @@ export class HolographicVisualizer {
         this.gl.uniform1f(this.uniforms.gridDensityShift, this.gridDensityShift);
         this.gl.uniform1f(this.uniforms.colorScrollShift, this.colorScrollShift);
         
-        // 🎵 HOLOGRAPHIC AUDIO REACTIVITY - Direct and beautiful
-        let audioDensity = 0, audioMorph = 0, audioSpeed = 0, audioChaos = 0, audioColor = 0;
-        
-        if (window.audioEnabled && window.audioReactive) {
-            // Holographic audio mapping: Rich volumetric effects
-            audioDensity = window.audioReactive.bass * 1.5;     // Bass creates density in holographic layers
-            audioMorph = window.audioReactive.mid * 1.2;        // Mid frequencies morph the hologram
-            audioSpeed = window.audioReactive.high * 0.8;       // High frequencies speed up animation
-            audioChaos = window.audioReactive.energy * 0.6;     // Energy creates chaotic holographic distortion
-            audioColor = window.audioReactive.bass * 45;        // Bass affects holographic color shifts
-            
-            // Debug logging every 10 seconds to verify holographic audio reactivity
-            if (Date.now() % 10000 < 16) {
-                console.log(`✨ Holographic audio reactivity: Density+${audioDensity.toFixed(2)} Morph+${audioMorph.toFixed(2)} Speed+${audioSpeed.toFixed(2)} Chaos+${audioChaos.toFixed(2)} Color+${audioColor.toFixed(1)}`);
-            }
-        }
-        
+        const audioDensity = Math.max(0, this.audioDensityBoost);
+        const audioMorph = Math.max(0, this.audioMorphBoost);
+        const audioSpeedUniform = Math.max(0, this.audioSpeedBoost);
+        const audioChaos = Math.max(0, this.audioChaosBoost + audio.chaos * 0.25);
+        const audioColorShift = this.audioColorShift + audio.colorBeat * Math.PI * 0.5;
+
         this.gl.uniform1f(this.uniforms.audioDensityBoost, audioDensity);
         this.gl.uniform1f(this.uniforms.audioMorphBoost, audioMorph);
-        this.gl.uniform1f(this.uniforms.audioSpeedBoost, audioSpeed);
+        this.gl.uniform1f(this.uniforms.audioSpeedBoost, audioSpeedUniform);
         this.gl.uniform1f(this.uniforms.audioChaosBoost, audioChaos);
-        this.gl.uniform1f(this.uniforms.audioColorShift, audioColor);
-        
+        this.gl.uniform1f(this.uniforms.audioColorShift, audioColorShift);
+
         // 4D rotation uniforms
-        this.gl.uniform1f(this.uniforms.rot4dXW, this.variantParams.rot4dXW || 0.0);
-        this.gl.uniform1f(this.uniforms.rot4dYW, this.variantParams.rot4dYW || 0.0);
-        this.gl.uniform1f(this.uniforms.rot4dZW, this.variantParams.rot4dZW || 0.0);
-        
+        const swingWarp = (audio.swing || 0) * 0.35;
+        const tripletWarp = (audio.triplet || 0) * 0.2;
+        this.gl.uniform1f(this.uniforms.rot4dXW, (this.variantParams.rot4dXW || 0.0) + swingWarp);
+        this.gl.uniform1f(this.uniforms.rot4dYW, (this.variantParams.rot4dYW || 0.0) + tripletWarp);
+        this.gl.uniform1f(this.uniforms.rot4dZW, (this.variantParams.rot4dZW || 0.0) + audio.motionVelocity * 0.4);
+
+        const camera = this.cameraLighting || {};
+        this.gl.uniform1f(this.uniforms.cameraOrbit, camera.orbit || 0);
+        this.gl.uniform1f(this.uniforms.cameraElevation, camera.elevation || 0);
+        this.gl.uniform1f(this.uniforms.cameraDolly, camera.dolly || 0);
+        this.gl.uniform1f(this.uniforms.cameraRoll, camera.roll || 0);
+        this.gl.uniform1f(this.uniforms.exposure, Math.max(0.1, camera.exposure || 0));
+        this.gl.uniform1f(this.uniforms.shutter, Math.max(0.2, camera.shutter || 0.5));
+        this.gl.uniform1f(this.uniforms.bloom, Math.max(0, camera.bloom || 0));
+        this.gl.uniform1f(this.uniforms.keyLight, Math.max(0, camera.keyLight || 0));
+        this.gl.uniform1f(this.uniforms.rimLight, Math.max(0, camera.rimLight || 0));
+        this.gl.uniform1f(this.uniforms.ambientLight, Math.max(0, camera.ambientLight || 0));
+        this.gl.uniform1f(this.uniforms.vignette, Math.max(0, camera.vignette || 0));
+        this.gl.uniform1f(this.uniforms.cameraParallax, camera.parallax || 0);
+        this.gl.uniform1f(this.uniforms.focusDistance, Math.max(0, camera.focus || 0));
+        this.gl.uniform1f(this.uniforms.focusSpread, Math.max(0.01, camera.focusSpread || 0));
+        this.gl.uniform1f(this.uniforms.chromaticAberration, Math.max(0, camera.chromaticAberration || 0));
+        this.gl.uniform1f(this.uniforms.lightTemperature, Math.max(0, camera.lightTemperature || 0));
+        this.gl.uniform1f(this.uniforms.shadowContrast, Math.max(0, camera.shadowContrast || 0));
+        this.gl.uniform1f(this.uniforms.fogDensity, Math.max(0, camera.fogDensity || 0));
+        this.gl.uniform1f(this.uniforms.godrayIntensity, Math.max(0, camera.godrayIntensity || 0));
+        this.gl.uniform1f(this.uniforms.filmGrain, Math.max(0, camera.filmGrain || 0));
+        this.gl.uniform1f(this.uniforms.lensDistortion, camera.lensDistortion || 0);
+        this.gl.uniform1f(this.uniforms.frameBlend, Math.max(0, camera.frameBlend || 0));
+        this.gl.uniform1f(this.uniforms.lightWrap, Math.max(0, camera.lightWrap || 0));
+        this.gl.uniform1f(this.uniforms.colorBleed, Math.max(0, camera.colorBleed || 0));
+
         this.gl.drawArrays(this.gl.TRIANGLE_STRIP, 0, 4);
     }
     
@@ -876,10 +1354,23 @@ export class HolographicVisualizer {
         // Update variant parameters with proper mapping and scaling
         if (this.variantParams) {
             Object.keys(params).forEach(param => {
+                if (param === 'colorStyle') {
+                    this.colorStyle = params[param];
+                    return;
+                }
+                if (param === 'colorProfile') {
+                    this.colorProfile = params[param];
+                    return;
+                }
+                if (param === 'colorVibrance') {
+                    this.colorVibrance = params[param];
+                    return;
+                }
+
                 const mappedParam = this.mapParameterName(param);
                 if (mappedParam !== null) {
                     let scaledValue = params[param];
-                    
+
                     // FIX: Scale gridDensity to reasonable holographic density range (back to normal levels)
                     if (param === 'gridDensity') {
                         // Convert gridDensity (5-100) to holographic density (0.3-2.5) - reasonable range
@@ -887,9 +1378,9 @@ export class HolographicVisualizer {
                         scaledValue = 0.3 + (parseFloat(params[param]) - 5) / 95 * 2.2;
                         console.log(`🔧 Density scaling: gridDensity=${params[param]} → density=${scaledValue.toFixed(3)} (normal range)`);
                     }
-                    
+
                     this.variantParams[mappedParam] = scaledValue;
-                    
+
                     // Handle special parameter types
                     if (mappedParam === 'geometryType') {
                         // Regenerate role params with new geometry
@@ -906,6 +1397,19 @@ export class HolographicVisualizer {
      * Update a single parameter
      */
     updateParameter(name, value) {
+        if (name === 'colorStyle') {
+            this.colorStyle = value;
+            return;
+        }
+        if (name === 'colorProfile') {
+            this.colorProfile = value;
+            return;
+        }
+        if (name === 'colorVibrance') {
+            this.colorVibrance = value;
+            return;
+        }
+
         const mappedParam = this.mapParameterName(name);
         if (mappedParam !== null && this.variantParams) {
             let scaledValue = value;
@@ -927,6 +1431,9 @@ export class HolographicVisualizer {
      * Map global parameter names to holographic system parameter names
      */
     mapParameterName(globalParam) {
+        if (globalParam === 'colorStyle' || globalParam === 'colorProfile' || globalParam === 'colorVibrance') {
+            return null;
+        }
         const paramMap = {
             'gridDensity': 'density',
             'morphFactor': 'morph',

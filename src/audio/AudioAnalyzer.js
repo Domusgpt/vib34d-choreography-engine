@@ -7,11 +7,50 @@
  */
 
 export class AudioAnalyzer {
-    constructor(analyserNode) {
-        this.analyser = analyserNode;
-        this.sampleRate = analyserNode.context.sampleRate;
-        this.fftSize = analyserNode.fftSize;
-        this.binCount = analyserNode.frequencyBinCount;
+    constructor(audioInput, options = {}) {
+        if (!audioInput) {
+            throw new Error('AudioAnalyzer requires an AudioContext or AnalyserNode');
+        }
+
+        const isAnalyserNode = typeof audioInput?.getByteFrequencyData === 'function' && !!audioInput?.context;
+        const isAudioContext = typeof audioInput?.createAnalyser === 'function';
+
+        if (!isAnalyserNode && !isAudioContext) {
+            throw new Error('AudioAnalyzer expects an AudioContext or AnalyserNode');
+        }
+
+        this.audioContext = isAnalyserNode ? audioInput.context : audioInput;
+        this.analyser = isAnalyserNode ? audioInput : audioInput.createAnalyser();
+
+        const {
+            fftSize = 2048,
+            minDecibels = -90,
+            maxDecibels = -10,
+            smoothingTimeConstant = 0.85,
+            bandSmoothing = 0.8,
+            onsetThreshold = 0.15,
+            maxOnsetHistory = 32,
+            timeProvider
+        } = options;
+
+        this.analyser.fftSize = fftSize;
+        this.analyser.minDecibels = minDecibels;
+        this.analyser.maxDecibels = maxDecibels;
+        this.analyser.smoothingTimeConstant = smoothingTimeConstant;
+
+        this.sampleRate = this.audioContext?.sampleRate || 44100;
+        this.fftSize = this.analyser.fftSize;
+        this.binCount = this.analyser.frequencyBinCount;
+
+        // Allow deterministic timing for testing environments
+        this.getNow = typeof timeProvider === 'function'
+            ? timeProvider
+            : () => {
+                if (typeof performance !== 'undefined' && typeof performance.now === 'function') {
+                    return performance.now();
+                }
+                return Date.now();
+            };
 
         // Data buffers
         this.freqData = new Uint8Array(this.binCount);
@@ -20,18 +59,22 @@ export class AudioAnalyzer {
 
         // 7 frequency bands for professional audio analysis
         this.bands = {
-            subBass: { low: 20, high: 60, value: 0 },      // Kick drums, sub bass
-            bass: { low: 60, high: 250, value: 0 },        // Bass guitar, low toms
-            lowMid: { low: 250, high: 500, value: 0 },     // Guitars, keyboards
-            mid: { low: 500, high: 2000, value: 0 },       // Vocals, snares
-            highMid: { low: 2000, high: 4000, value: 0 },  // Cymbals, guitars
-            high: { low: 4000, high: 8000, value: 0 },     // Hi-hats, strings
-            air: { low: 8000, high: 20000, value: 0 }      // Airiness, sparkle
+            subBass: { low: 20, high: 60, value: 0 },       // Kick drums, sub bass
+            bass: { low: 60, high: 250, value: 0 },         // Bass guitar, low toms
+            lowMid: { low: 250, high: 500, value: 0 },      // Guitars, keyboards
+            mid: { low: 500, high: 2000, value: 0 },        // Vocals, snares
+            highMid: { low: 2000, high: 4000, value: 0 },   // Cymbals, guitars
+            high: { low: 4000, high: 8000, value: 0 },      // Hi-hats, strings
+            air: { low: 8000, high: 12000, value: 0 },      // Airiness, sparkle
+            ultraHigh: { low: 12000, high: 20000, value: 0 } // Extreme highs, sparkle
         };
 
         // Smoothed band values for less jitter
-        this.smoothedBands = { ...this.bands };
-        this.smoothingFactor = 0.8; // 0 = instant, 1 = no change
+        this.smoothedBands = {};
+        Object.entries(this.bands).forEach(([name, band]) => {
+            this.smoothedBands[name] = { ...band };
+        });
+        this.smoothingFactor = bandSmoothing; // 0 = instant, 1 = no change
 
         // Spectral features
         this.spectralCentroid = 0;  // Brightness of sound (weighted average frequency)
@@ -42,20 +85,30 @@ export class AudioAnalyzer {
         // Onset detection (kicks, snares, transients)
         this.onsetHistory = [];
         this.lastOnsetTime = 0;
-        this.onsetThreshold = 0.15; // Minimum flux for onset detection
+        this.onsetThreshold = onsetThreshold; // Minimum flux for onset detection
+        this.lastOnsetEvent = { detected: false, strength: 0, time: 0 };
 
         // BPM estimation
         this.estimatedBPM = 120;
-        this.maxOnsetHistory = 32; // Keep last 32 onsets for BPM calculation
+        this.maxOnsetHistory = maxOnsetHistory; // Keep recent onsets for BPM calculation
     }
 
     /**
      * Main analysis method - call this every frame
      */
     analyze() {
-        // Get current audio data
-        this.analyser.getByteFrequencyData(this.freqData);
-        this.analyser.getByteTimeDomainData(this.timeData);
+        if (!this.analyser) {
+            return this.createSilentFrame();
+        }
+
+        try {
+            // Get current audio data
+            this.analyser.getByteFrequencyData(this.freqData);
+            this.analyser.getByteTimeDomainData(this.timeData);
+        } catch (error) {
+            console.warn('AudioAnalyzer: failed to pull audio data, returning silent frame', error);
+            return this.createSilentFrame();
+        }
 
         // Analyze frequency bands
         this.analyzeBands();
@@ -67,7 +120,7 @@ export class AudioAnalyzer {
         this.calcRMS();
 
         // Detect onsets (kicks, snares)
-        const onset = this.detectOnset();
+        const onsetEvent = this.detectOnset();
 
         // Estimate BPM if we have enough data
         if (this.onsetHistory.length >= 4) {
@@ -77,13 +130,22 @@ export class AudioAnalyzer {
         // Store for next frame (for flux calculation)
         this.prevFreqData.set(this.freqData);
 
+        const bandValues = {};
+        const bandDetails = {};
+        Object.entries(this.smoothedBands).forEach(([name, band]) => {
+            bandValues[name] = band.value || 0;
+            bandDetails[name] = { low: band.low, high: band.high, value: band.value || 0 };
+        });
+
         return {
-            bands: this.smoothedBands,
+            bands: bandValues,
+            bandDetails,
             spectralCentroid: this.spectralCentroid,
             spectralRolloff: this.spectralRolloff,
             spectralFlux: this.spectralFlux,
             rms: this.rms,
-            onset: onset,
+            onset: onsetEvent.strength,
+            onsetEvent,
             bpm: this.estimatedBPM
         };
     }
@@ -195,7 +257,7 @@ export class AudioAnalyzer {
      * Detect onset events (kicks, snares, transients)
      */
     detectOnset() {
-        const now = Date.now();
+        const now = this.getCurrentTime();
 
         // Check if flux exceeds threshold and enough time has passed since last onset
         if (this.spectralFlux > this.onsetThreshold &&
@@ -209,18 +271,22 @@ export class AudioAnalyzer {
                 this.onsetHistory.shift();
             }
 
-            return {
+            this.lastOnsetEvent = {
                 detected: true,
                 strength: this.spectralFlux,
                 time: now
             };
+
+            return this.lastOnsetEvent;
         }
 
-        return {
+        this.lastOnsetEvent = {
             detected: false,
             strength: this.spectralFlux,
             time: now
         };
+
+        return this.lastOnsetEvent;
     }
 
     /**
@@ -281,5 +347,48 @@ export class AudioAnalyzer {
             bpm: this.estimatedBPM.toFixed(1),
             onsetCount: this.onsetHistory.length
         };
+    }
+
+    /**
+     * Return a silent analysis frame when audio data is unavailable
+     */
+    createSilentFrame() {
+        const bandValues = {};
+        const bandDetails = {};
+        Object.entries(this.smoothedBands).forEach(([name, band]) => {
+            bandValues[name] = 0;
+            bandDetails[name] = { low: band.low, high: band.high, value: 0 };
+        });
+
+        const onsetEvent = {
+            detected: false,
+            strength: 0,
+            time: this.getCurrentTime()
+        };
+
+        return {
+            bands: bandValues,
+            bandDetails,
+            spectralCentroid: 0,
+            spectralRolloff: 0,
+            spectralFlux: 0,
+            rms: 0,
+            onset: 0,
+            onsetEvent,
+            bpm: this.estimatedBPM
+        };
+    }
+
+    getCurrentTime() {
+        try {
+            const value = this.getNow;
+            if (typeof value === 'function') {
+                return value();
+            }
+            return value;
+        } catch (error) {
+            console.warn('AudioAnalyzer: failed to resolve current time', error);
+            return Date.now();
+        }
     }
 }
