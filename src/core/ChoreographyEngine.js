@@ -38,12 +38,8 @@ export class ChoreographyEngine {
             rotationMomentum: { xw: 0, yw: 0, zw: 0 },
             energyTrend: "neutral",
             lastOnsetTime: 0,
-            lastOnsetEvent: null,
             energyHistory: []
         };
-
-        // Audio snapshot tracking for derivative-based dynamics
-        this.prevAudioSnapshot = null;
 
         // Performance tracking
         this.lastFrameTime = 0;
@@ -124,8 +120,7 @@ export class ChoreographyEngine {
         this.lastFrameTime = currentTime;
 
         // Get audio data
-        const rawAudioData = this.audioAnalyzer ? this.audioAnalyzer.analyze() : this.getMockAudioData();
-        const audioData = this.normalizeAudioData(rawAudioData);
+        const audioData = this.audioAnalyzer ? this.audioAnalyzer.analyze() : this.getMockAudioData();
 
         // Update beat tracking
         this.updateBeatTracking(currentTime, audioData);
@@ -162,9 +157,8 @@ export class ChoreographyEngine {
         }
 
         // Check for onset - higher threshold to avoid constant triggering
-        const onsetEvent = audioData.onsetEvent;
-        if (onsetEvent?.detected && onsetEvent.strength > 0) {
-            this.onOnset(onsetEvent.strength, currentTime, onsetEvent);
+        if (audioData.onset > 0.85) {
+            this.onOnset(audioData.onset, currentTime);
         }
     }
 
@@ -204,13 +198,9 @@ export class ChoreographyEngine {
     /**
      * Onset event handler
      */
-    onOnset(intensity, time, event = null) {
+    onOnset(intensity, time) {
         console.log(`⚡ Onset detected: intensity=${intensity.toFixed(2)}`);
         this.memory.lastOnsetTime = time;
-
-        if (event) {
-            this.memory.lastOnsetEvent = event;
-        }
 
         // Trigger immediate visual responses
         this.visualizers.forEach(viz => {
@@ -481,238 +471,19 @@ export class ChoreographyEngine {
     }
 
     /**
-     * Normalize audio data into a consistent structure for the engine
-     */
-    normalizeAudioData(audioData) {
-        const baseBands = ['subBass', 'bass', 'lowMid', 'mid', 'highMid', 'high', 'air', 'ultraHigh'];
-        const normalized = { ...(audioData || {}) };
-
-        const incomingBandDetails = audioData?.bandDetails || {};
-        const incomingBands = audioData?.bands || {};
-        const normalizedBands = {};
-        const normalizedDetails = {};
-
-        const assignBand = (name, value, detail) => {
-            const numericValue = typeof value === 'number' ? value : typeof value?.value === 'number' ? value.value : 0;
-            normalizedBands[name] = numericValue;
-            const sourceDetail = detail || value;
-            if (sourceDetail && typeof sourceDetail === 'object') {
-                normalizedDetails[name] = {
-                    low: sourceDetail.low ?? 0,
-                    high: sourceDetail.high ?? 0,
-                    value: numericValue
-                };
-            } else {
-                normalizedDetails[name] = { low: 0, high: 0, value: numericValue };
-            }
-        };
-
-        Object.entries(incomingBands).forEach(([name, value]) => {
-            assignBand(name, value, incomingBandDetails[name]);
-        });
-
-        Object.entries(incomingBandDetails).forEach(([name, detail]) => {
-            if (!(name in normalizedBands)) {
-                assignBand(name, detail?.value ?? 0, detail);
-            }
-        });
-
-        // Ensure base bands exist with safe defaults
-        baseBands.forEach(name => {
-            if (!(name in normalizedBands)) {
-                normalizedBands[name] = 0;
-                normalizedDetails[name] = { low: 0, high: 0, value: 0 };
-            }
-        });
-
-        // Alias ultraHigh to air if only one exists
-        const ultraHighProvided = Object.prototype.hasOwnProperty.call(incomingBands, 'ultraHigh') ||
-            Object.prototype.hasOwnProperty.call(incomingBandDetails, 'ultraHigh');
-        if (!ultraHighProvided && normalizedBands.air !== undefined) {
-            normalizedBands.ultraHigh = normalizedBands.air;
-            const sourceDetail = normalizedDetails.air || { low: 0, high: 0, value: normalizedBands.ultraHigh };
-            normalizedDetails.ultraHigh = { ...sourceDetail, value: normalizedBands.ultraHigh };
-        }
-
-        const onsetEvent = audioData?.onsetEvent || (typeof audioData?.onset === 'object' ? audioData.onset : null);
-        const onsetStrength = typeof audioData?.onset === 'number'
-            ? audioData.onset
-            : onsetEvent?.strength || 0;
-
-        normalized.bands = normalizedBands;
-        normalized.bandDetails = normalizedDetails;
-        normalized.onset = onsetStrength;
-        normalized.onsetEvent = onsetEvent || {
-            detected: false,
-            strength: onsetStrength,
-            time: Date.now()
-        };
-
-        normalized.rms = normalized.rms ?? 0;
-        normalized.spectralCentroid = normalized.spectralCentroid ?? 0;
-        normalized.spectralRolloff = normalized.spectralRolloff ?? 0;
-        normalized.spectralFlux = normalized.spectralFlux ?? 0;
-        normalized.bpm = normalized.bpm ?? this.bpm;
-
-        // Derived rhythmic phases for richer choreography
-        const now = Date.now();
-        const elapsedFromStart = this.startTime ? now - this.startTime : 0;
-        const beatDuration = Math.max(1, this.beatDuration || 1);
-        const measureDuration = Math.max(beatDuration * this.beatsPerMeasure, beatDuration);
-        const beatPhase = (elapsedFromStart % beatDuration) / beatDuration;
-        const measurePhase = (elapsedFromStart % measureDuration) / measureDuration;
-        const swingPulse = Math.sin(beatPhase * Math.PI * 2) + Math.sin(beatPhase * Math.PI * 4) * 0.35;
-        const tripletPulse = Math.sin(beatPhase * Math.PI * 6);
-        const quintuplePulse = Math.sin(beatPhase * Math.PI * 10);
-        const septuplePulse = Math.sin(beatPhase * Math.PI * 14);
-        const accentPulse = Math.max(0, Math.sin(beatPhase * Math.PI * 2));
-        const downbeatPulse = Math.max(0, 1 - beatPhase * 1.3);
-
-        normalized.rhythmPhases = {
-            beatPhase,
-            measurePhase,
-            swingPulse,
-            tripletPulse,
-            quintuplePulse,
-            septuplePulse,
-            accentPulse,
-            downbeatPulse,
-            beatStrength: Math.max(accentPulse, onsetStrength),
-            elapsedBeats: elapsedFromStart / beatDuration
-        };
-
-        // Momentum tracking for extreme dynamics
-        const bass = normalizedBands.bass || 0;
-        const mid = normalizedBands.mid || 0;
-        const high = normalizedBands.high || 0;
-        const energy = normalized.rms || 0;
-        const spectralFlux = normalized.spectralFlux || 0;
-        const nowSeconds = now / 1000;
-
-        let bassMomentum = 0;
-        let midMomentum = 0;
-        let highMomentum = 0;
-
-        if (this.prevAudioSnapshot) {
-            const dt = Math.max(0.016, nowSeconds - this.prevAudioSnapshot.time);
-            bassMomentum = (bass - this.prevAudioSnapshot.bass) / dt;
-            midMomentum = (mid - this.prevAudioSnapshot.mid) / dt;
-            highMomentum = (high - this.prevAudioSnapshot.high) / dt;
-        }
-
-        const swingEnergy = 0.5 + 0.5 * Math.tanh(swingPulse);
-        const transientBurst = Math.max(0, onsetStrength * 0.8 + Math.max(0, highMomentum) * 0.2);
-        const chaosSurge = Math.min(
-            1,
-            Math.abs(tripletPulse) * 0.4 + Math.abs(quintuplePulse) * 0.25 + Math.max(0, highMomentum) * 0.1
-        );
-        const dimensionLift = Math.min(
-            1.5,
-            0.3 * energy + 0.25 * mid + 0.18 * swingEnergy + Math.max(0, bassMomentum) * 0.12
-        );
-        const intensityExponent = Math.max(
-            0.35,
-            0.9 + energy * 0.9 + onsetStrength * 0.7 + spectralFlux * 0.5
-        );
-        const motionVelocity = Math.min(
-            1,
-            Math.sqrt(
-                bassMomentum * bassMomentum +
-                midMomentum * midMomentum +
-                highMomentum * highMomentum
-            ) * 0.12
-        );
-
-        normalized.extremeDynamics = {
-            intensityExponent,
-            dimensionLift,
-            chaosSurge,
-            motionVelocity,
-            transientBurst,
-            swingEnergy,
-            rhythmAccent: accentPulse
-        };
-
-        const orbit = (beatPhase + spectralFlux * 0.1 + high * 0.08 + motionVelocity * 0.05) % 1;
-        const saturationPulse = Math.max(
-            0,
-            0.5 + 0.5 * Math.sin(measurePhase * Math.PI * 2 + tripletPulse * 0.35)
-        );
-        const ribbon = 0.5 + 0.5 * Math.sin(quintuplePulse + swingPulse * 0.4);
-        const downbeatColor = Math.min(1, downbeatPulse * (0.6 + onsetStrength * 0.6));
-
-        normalized.colorChoreography = {
-            orbit,
-            saturationPulse,
-            ribbon,
-            downbeatColor,
-            accentLuma: Math.min(1, energy * 0.8 + transientBurst * 0.6)
-        };
-
-        this.prevAudioSnapshot = {
-            time: nowSeconds,
-            bass,
-            mid,
-            high,
-            energy
-        };
-
-        return normalized;
-    }
-
-    /**
      * Get mock audio data for testing
      */
     getMockAudioData() {
         const time = (Date.now() - this.startTime) / 1000;
-        const bandDetails = {
-            subBass: { low: 20, high: 60 },
-            bass: { low: 60, high: 250 },
-            lowMid: { low: 250, high: 500 },
-            mid: { low: 500, high: 2000 },
-            highMid: { low: 2000, high: 4000 },
-            high: { low: 4000, high: 8000 },
-            air: { low: 8000, high: 20000 },
-            ultraHigh: { low: 12000, high: 22000 }
-        };
-
-        const bassValue = Math.abs(Math.sin(time * 0.5)) * 0.7;
-        const midValue = Math.abs(Math.sin(time * 0.7)) * 0.5;
-        const highValue = Math.abs(Math.sin(time * 1.3)) * 0.3;
-        const onsetStrength = Math.random() > 0.95 ? Math.random() : 0;
-        const onsetEvent = {
-            detected: onsetStrength > 0.75,
-            strength: onsetStrength,
-            time: Date.now()
-        };
-
-        const bandValues = {
-            subBass: bassValue * 0.9,
-            bass: bassValue,
-            lowMid: midValue * 0.6,
-            mid: midValue,
-            highMid: highValue * 0.8,
-            high: highValue,
-            air: highValue * 0.6,
-            ultraHigh: highValue * 0.6
-        };
-
-        const detailedBands = {};
-        Object.entries(bandDetails).forEach(([name, detail]) => {
-            detailedBands[name] = { ...detail, value: bandValues[name] ?? 0 };
-        });
-        Object.entries(bandValues).forEach(([name, value]) => {
-            if (!detailedBands[name]) {
-                detailedBands[name] = { low: 0, high: 0, value };
-            }
-        });
 
         return {
-            bands: bandValues,
-            bandDetails: detailedBands,
+            bands: {
+                bass: Math.abs(Math.sin(time * 0.5)) * 0.7,
+                mid: Math.abs(Math.sin(time * 0.7)) * 0.5,
+                high: Math.abs(Math.sin(time * 1.3)) * 0.3
+            },
             rms: Math.abs(Math.sin(time * 0.3)) * 0.6,
-            onset: onsetStrength,
-            onsetEvent,
+            onset: Math.random() > 0.95 ? Math.random() : 0,
             spectralCentroid: 1000 + Math.random() * 3000,
             spectralRolloff: 5000 + Math.random() * 5000
         };

@@ -496,7 +496,7 @@ const baseParams = {
     gridDensity: 22,
     morphFactor: 0.9,
     chaos: 0.12,
-    speed: 0.6,
+    speed: 0.35,
     dimension: 3.5,
     hue: 210,
     saturation: 0.9,
