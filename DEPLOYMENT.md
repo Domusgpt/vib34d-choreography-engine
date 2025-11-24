@@ -11,6 +11,19 @@ https://domusgpt.github.io/vib34d-choreography-engine/examples/real-visualizers.
 
 **GitHub Repo**: https://github.com/Domusgpt/vib34d-choreography-engine
 
+## GitHub Pages Configuration
+
+GitHub Pages can publish either the `main` branch or any feature branch directly from the repository root. To confirm that the current pull request branch deploys correctly from the root of the project:
+
+1. Open the repository settings and navigate to **Pages → Build and deployment**.
+2. Change **Source** to **Deploy from a branch**.
+3. Select the working branch for this pull request (for example `work`) and set **Folder** to **/ (root)**.
+4. Save the configuration and wait for the deployment banner to show "GitHub Pages is deploying".
+5. Visit `https://<username>.github.io/vib34d-choreography-engine/` once the deploy completes and ensure it redirects to the Demo Atlas at `/examples/INDEX.html`.
+6. Validate at least one visualizer (e.g., `examples/properly-reactive.html`) to confirm the build assets resolve under the branch deployment.
+
+After merging, switch the configuration back to the production branch (usually `main`) to keep the live site in sync.
+
 ## What's Deployed
 
 ✅ **ChoreographyEngine** - Complete timeline-based sequence system
