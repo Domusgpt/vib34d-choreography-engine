@@ -1,5 +1,113 @@
 # 🎉 What's New in VIB34D Choreography Engine
 
+## Latest Update: Calmer Defaults + Mobile-Ready Controls
+
+### 🧭 Smoother defaults for every visualizer
+- Lowered the base speed, chaos, and morph values across the Ultimate console so the first render is cinematic instead of frantic, while keeping reactive boosts intact when the music swells.
+- Softened hue swings and rotation multipliers to prioritise readable motion and let palette choices breathe before reactive peaks kick in.
+
+### 🎨 New restrained colour journeys
+- Added Glacier Mono, Amber Drift, Sakura Veil, and Verdant Pulse uniform palettes so operators can stay inside tight two-to-three-tone ranges instead of the legacy rainbow blends.
+- Swapped the default palette style to Uniform and pointed the starter profile at the new sets, while keeping Hypercolor available as a quick style toggle.
+
+### 📱 Mobile scrolling that actually reaches thresholds
+- Gave the control deck a measured max-height, min-height, and live resize observer so every tab scrolls smoothly on small screens without clipping the deeper threshold sliders.
+- Propagated the calculated height into CSS variables so the bottom sheet respects safe areas and the canvas stays visible while controls glide.
+
+## Latest Update: Unified Ultimate Console
+
+### 🖥️ Desktop and mobile share one super console
+- Rebuilt [`examples/ultimate-reactive.html`](examples/ultimate-reactive.html) with a unified layout so the desktop control deck and Mobile Maestro experience now live in one responsive surface.
+- Added a seven-band transport HUD with live timeline, BPM/beat counters, and track status badges so you can confirm real audio is flowing without leaving the canvas.
+- Introduced palette quick picks, hypercolor/uniform style pills, and synchronized playlist chips so colour journeys swap instantly on both wide and small screens.
+- Extracted the console logic into [`examples/js/ultimateConsole.js`](examples/js/ultimateConsole.js) so any HTML wrapper can mount the same experience programmatically.
+
+### 🎛️ Reactivity meter + per-channel overrides
+- Dropped a global reactivity slider with density/morph/chaos/rotation/colour/vibrance/glitch toggles so you can blend base parameters with choreography on demand.
+- Mapped the new controls to the Quantum, Holographic, and Faceted engines so turning off a channel falls back to slider baselines instead of killing the visualizer.
+
+### 📱 Mobile Maestro launches the shared deck
+- [`examples/mobile-smart.html`](examples/mobile-smart.html) now imports the shared console module and boots straight into the bottom-sheet layout for phones and tablets.
+- Updated the Demo Atlas to flag the new workflow so teams follow the Ultimate Reactive entry for day-to-day testing.
+
+### 📐 Layout polish + adaptive canvas
+- Added an on-header layout pill plus automatic mobile/desktop collapsing so the shared console keeps key controls visible without overwhelming the viewport.
+- Resized the main canvas on every viewport change to preserve full-screen coverage and crisp rendering on high-DPI devices.
+
+## Latest Update: Hypercolor + Uniform Controls Everywhere
+
+### 🌈 Holographic + Faceted join the palette party
+- Added the same **Hypercolor ↔ Uniform** palette toggle that debuted in Quantum to both the Holographic and Faceted visualizers.
+- Each system now honours the shared colour playlists, vibrance slider, and palette director events so scene changes never desynchronise the trio.
+
+### 🔊 Audio choreography stays in command
+- Reworked the colour pipelines so live audio metadata always modulates density, vibrance, and accent pulses even when uniform palettes are active.
+- Guarded the control bus to let palette selections override default gradients without muting bass/mid/high reactions or onset-driven bursts.
+
+### 🕹️ Console controls stay consistent
+- Ultimate Reactive and Mobile Maestro automatically expose the colour style/profile sliders for Holographic and Faceted, matching the Quantum experience.
+- Manual picks and automatic palette rotations now flow through all three visualizers, keeping desktop and mobile operators in sync.
+
+## Latest Update: Scene Director & Live Scene Controls
+
+### 🎬 Reactive scene sequencing on desktop and mobile
+- Introduced a shared `SceneDirector` that advances complete choreography scenes—palette, geometry, baseline sliders, vibrance, and RGB glitch envelopes—off reactive, tempo, interval, or energy triggers.
+- Dropped responsive scene cards into `ultimate-reactive.html` with playlist toggles, mode buttons, and condensed threshold sliders that collapse automatically on mobile breakpoints.
+
+### 📱 Mobile Maestro mirrors the full scene library
+- Added the Scene Director tab to `mobile-smart.html`, complete with thumb-friendly cards, auto-mode chips, and live status readouts so phones can launch the same cinematic scenes as the desktop console.
+- Synced the status bar with active scene labels and ensured slider/geometry states persist across visualizer swaps and manual overrides.
+
+### 🗂️ Queue, favorites, and history rails
+- Introduced scene queues on both consoles so operators can line up special looks that fire before the reactive scheduler resumes.
+- Added favorite toggles to every scene card and surfaced them as compact chips for one-tap recall on mobile and desktop.
+- Logged every automatic and manual scene trigger with timestamps and reasons, exposing the ledger in both UIs for quick audits mid-performance.
+
+### 🌈 Palette and vibrance blending stay in lockstep
+- Scene application now updates palette playlists, vibrance sliders, and moiré glitch controls in one move so auto-rotations never fight manual grading.
+- Manual scene selections acknowledge the director timers, keeping future automatic changes musical instead of immediate.
+
+### ⏱️ Shuffle-ready scene navigation
+- Dropped in-order vs. shuffle toggles plus manual next/previous triggers for both the Ultimate Reactive console and Mobile Maestro so operators can steer transitions without leaving the canvas.
+- Live status cards now preview the upcoming scene name and show a running countdown so you know exactly when the director will fire the next change.
+
+## Latest Update: Palette Director & Hypercolor Expansion
+
+### 🎨 Palette sequencing on every console
+- Dropped a shared `PaletteDirector` into the Mobile Maestro and Ultimate Reactive consoles so palette journeys can auto-rotate on downbeats, tempo grids, energy spikes, or a simple interval timer.
+- Added playlist toggles, mode buttons, and contextual sliders (interval seconds, beat division, energy threshold) that collapse when manual mode is selected to preserve screen real estate.
+
+### 🌌 Quantum gains four new colour families
+- Expanded the Quantum shader with Luxe Ember, Biolumens, Cyber Noir, and Aurora Cascade palette profiles while keeping the original six legacy options intact.
+- Updated every layer's colour math so the new profiles inject gold-teal, bioluminescent, cyberpunk, and aurora-inspired journeys without breaking existing choreography.
+
+### 🖥️ Ultimate Reactive mirrors Mobile Maestro polish
+- Brought the compact palette controls, playlist chips, and auto-mode HUD from Mobile Maestro into `examples/ultimate-reactive.html` so desktop rigs enjoy the same streamlined colour workflow.
+- Synced the consoles to the same choreography engine so manual palette picks and automatic rotations stay locked across devices.
+
+## Previous Update: Mobile Maestro Console & Quantum Hypercolor
+
+### 📱 Mobile-Smart evolves into the Mobile Maestro
+- Rebuilt [`examples/mobile-smart.html`](examples/mobile-smart.html) with the Advanced Reactive aesthetic, a sliding bottom console, and mobile-first tabs so choreography controls never crowd the canvas.
+- Wired the page into the full choreography engine with beat-driven rotation patterns, palette selection, geometry swaps, and RGB moiré toggles that mirror the ultimate demo while staying touch friendly.
+- Added live reactivity meters, frequency bars, and quick sequence launchers so verifying real audio input on phones is now instant.
+
+### 🌈 Quantum gets selectable palette choreography
+- Introduced six curated palette journeys (Legacy Hypercolor, Aurora Bloom, Solar Inferno, Midnight Prism, Neon Mirage, and Monochrome Bloom) plus a vibrance slider that feeds directly into shader dynamics.
+- Added a beat-reactive moiré/RGB offset glitch uniform so the lattice can lean into audio-driven chromatic interference or stay pristine.
+- Updated the shader to honour the new uniforms while keeping the legacy extreme color mode as the baseline option.
+
+## Latest Update: Demo Atlas & Visualizer Navigation
+
+### 🗺️ All demos in one searchable hub
+- Added a **Demo Atlas** at [`examples/INDEX.html`](examples/INDEX.html) that lists every active HTML entry point.
+- Documented a GitHub Pages checklist so pull request branches can deploy from the repository root before merging.
+- Live search and category filters make it simple to jump between production canvases, analyzer harnesses, diagnostics, and archival builds.
+- Automatic totals keep counts for demos, visualizer systems, reactivity modes, and macro scenarios accurate as new pages land.
+- Quick links call out priority flows such as `properly-reactive.html` for analyzer verification and the Final Ultimate cinematic showcase.
+
+---
+
 ## Latest Update: Advanced Audio Reactivity System
 
 ### 🌟 NEW PRIMARY DEMO: Advanced Reactive
@@ -58,6 +166,14 @@ Instant reactivity profiles for different music:
 - **Chaotic**: Wild unpredictability (experimental)
 - **Smooth**: Flowing motion (downtempo, lo-fi)
 - **Explosive**: Extreme peaks (bass drops, build-ups)
+
+### 7. **Cinematic Camera & Lighting Rails**
+- A new `CameraLightingSystem` keeps orbit, elevation, dolly, and roll synced with bass momentum, swing pulses, and onset bursts.
+- Exposure, shutter, bloom, key, rim, and ambient light uniforms now flow directly into every shader for tonemapped glow without post-processing.
+- Control bus channels (`cameraOrbit`, `cameraElevation`, `exposure`, etc.) let macros or live gestures stack additional moves atop the audio choreography.
+- Fresh `transitionCameraPreset()` easing blends plus system-specific “auto directors” swap presets (Heart Glide ↔ Orbit Sparkle ↔ Bass Drop Zoom) whenever energy, swing, or dimensional surges demand a new cinematic mood.
+- New depth cinematography uniforms drive focus distance, focus spread, parallax warp, chromatic aberration, fog density, shadow contrast, colour temperature, and godray intensity so every visualizer renders volumetric haze and prismatic flares that pulse with the beat.
+- Post-processing controls for film grain, lens distortion, frame blending, light wrap, and colour bleed ride the same camera rail so every canvas can pivot between crisp clarity and dreamlike bloom as the music evolves.
 
 ---
 
