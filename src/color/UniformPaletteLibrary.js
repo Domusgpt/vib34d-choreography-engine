@@ -145,6 +145,54 @@ const HEX_PALETTES = [
         highlight: '#3FA56F',
         accent: '#76D9B0',
         shadow: '#050A07'
+    },
+    {
+        // 14 - Indigo Drift
+        base: '#0A0E1C',
+        mid: '#152241',
+        highlight: '#3C5A8A',
+        accent: '#6F8FC8',
+        shadow: '#04070F'
+    },
+    {
+        // 15 - Emerald Still
+        base: '#0A130E',
+        mid: '#183126',
+        highlight: '#2E6B4F',
+        accent: '#58A989',
+        shadow: '#030806'
+    },
+    {
+        // 16 - Copper Pulse
+        base: '#1A0F0C',
+        mid: '#3B251F',
+        highlight: '#B86D3D',
+        accent: '#E8B07A',
+        shadow: '#0B0604'
+    },
+    {
+        // 17 - Obsidian Film
+        base: '#0C0C0E',
+        mid: '#1D1B1A',
+        highlight: '#4B3C32',
+        accent: '#C07F4F',
+        shadow: '#050505'
+    },
+    {
+        // 18 - Nordic Dawn
+        base: '#0C1418',
+        mid: '#1F3037',
+        highlight: '#8DB4C9',
+        accent: '#E1C4B6',
+        shadow: '#050A0D'
+    },
+    {
+        // 19 - Sepia Glass
+        base: '#18100C',
+        mid: '#2C1E18',
+        highlight: '#B48767',
+        accent: '#E3C9B3',
+        shadow: '#080504'
     }
 ];
 

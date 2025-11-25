@@ -96,27 +96,46 @@ const CONSOLE_TEMPLATE = `
                                                             <span id="timelineDuration">--:--</span>
                                                         </div>
                                                     </div>
-                                                    <div class="reactivity-column">
-                                                        <div class="reactivity-meter" aria-label="Average reactivity">
-                                                            <div class="reactivity-meter-fill" id="reactivityMeter"></div>
+                                                <div class="reactivity-column">
+                                                    <div class="reactivity-meter" aria-label="Average reactivity">
+                                                        <div class="reactivity-meter-fill" id="reactivityMeter"></div>
+                                                    </div>
+                                                    <div class="control-row compact">
+                                                        <div class="control-label">
+                                                            <span>Reactivity</span>
+                                                            <span id="reactivityValue">1.00</span>
+                                                        </div>
+                                                        <input type="range" id="reactivityAmount" min="0" max="2" step="0.05" value="1">
+                                                    </div>
+                                                    <div class="pill-row" id="reactivityToggles">
+                                                        <button class="pill-button active" data-react="density">Density</button>
+                                                        <button class="pill-button active" data-react="morph">Morph</button>
+                                                        <button class="pill-button active" data-react="chaos">Chaos</button>
+                                                        <button class="pill-button active" data-react="rotation">Rotation</button>
+                                                        <button class="pill-button active" data-react="color">Color</button>
+                                                        <button class="pill-button active" data-react="vibrance">Vibrance</button>
+                                                        <button class="pill-button active" data-react="glitch">Glitch</button>
+                                                    </div>
+                                                    <div class="behavior-suite">
+                                                        <div class="behavior-header">
+                                                            <span>Behavior Suite</span>
+                                                            <span id="behaviorLabel">Drift · Balanced</span>
+                                                        </div>
+                                                        <div class="pill-row" id="behaviorModes" role="group" aria-label="Behavior modes">
+                                                            <button class="pill-button active" data-behavior="drift">Drift</button>
+                                                            <button class="pill-button" data-behavior="bloom">Bloom</button>
+                                                            <button class="pill-button" data-behavior="pulse">Pulse</button>
                                                         </div>
                                                         <div class="control-row compact">
-                                                            <div class="control-label">
-                                                                <span>Reactivity</span>
-                                                                <span id="reactivityValue">1.00</span>
-                                                            </div>
-                                                            <input type="range" id="reactivityAmount" min="0" max="2" step="0.05" value="1">
+                                                            <div class="control-label"><span>Motion Bias</span><span id="behaviorMotionValue">0</span></div>
+                                                            <input type="range" id="behaviorMotion" min="-1" max="1" step="0.05" value="0">
                                                         </div>
-                                                        <div class="pill-row" id="reactivityToggles">
-                                                            <button class="pill-button active" data-react="density">Density</button>
-                                                            <button class="pill-button active" data-react="morph">Morph</button>
-                                                            <button class="pill-button active" data-react="chaos">Chaos</button>
-                                                            <button class="pill-button active" data-react="rotation">Rotation</button>
-                                                            <button class="pill-button active" data-react="color">Color</button>
-                                                            <button class="pill-button active" data-react="vibrance">Vibrance</button>
-                                                            <button class="pill-button active" data-react="glitch">Glitch</button>
+                                                        <div class="control-row compact">
+                                                            <div class="control-label"><span>Color Bias</span><span id="behaviorColorValue">0</span></div>
+                                                            <input type="range" id="behaviorColor" min="-1" max="1" step="0.05" value="0">
                                                         </div>
                                                     </div>
+                                                </div>
                                                 </div>
                                                 <div class="band-meter">
                                                     <div class="band-bar" data-band="sub">
@@ -471,8 +490,8 @@ const statusCycle = document.getElementById('statusCycle');
 const timelineCurrent = document.getElementById('timelineCurrent');
     const timelineDuration = document.getElementById('timelineDuration');
     const timelineProgress = document.getElementById('timelineProgress');
-    const reactivityMeter = document.getElementById('reactivityMeter');
-    const reactivityValue = document.getElementById('reactivityValue');
+const reactivityMeter = document.getElementById('reactivityMeter');
+const reactivityValue = document.getElementById('reactivityValue');
 const layoutBadge = document.getElementById('layoutBadge');
 const paletteQuickGrid = document.getElementById('paletteQuickGrid');
 const paletteQuickStyle = document.getElementById('paletteQuickStyle');
@@ -487,6 +506,12 @@ const paletteTempoValue = document.getElementById('value-paletteTempo');
 const paletteEnergyValue = document.getElementById('value-paletteEnergy');
 const reactivityAmountSlider = document.getElementById('reactivityAmount');
 const reactivityToggleRow = document.getElementById('reactivityToggles');
+const behaviorModesRow = document.getElementById('behaviorModes');
+const behaviorLabel = document.getElementById('behaviorLabel');
+const behaviorMotionSlider = document.getElementById('behaviorMotion');
+const behaviorColorSlider = document.getElementById('behaviorColor');
+const behaviorMotionValue = document.getElementById('behaviorMotionValue');
+const behaviorColorValue = document.getElementById('behaviorColorValue');
 const sceneDeck = document.getElementById('sceneDeck');
 const sceneModeBar = document.getElementById('sceneModeBar');
 const sceneOrderBar = document.getElementById('sceneOrderBar');
@@ -551,6 +576,40 @@ const colorState = {
     vibrance: 1.0,
     moire: 0,
     style: paletteState.style
+};
+const behaviorProfiles = {
+    drift: {
+        label: 'Drift',
+        motion: { base: 0.9, bass: 0.35, rms: 0.25, onset: 0.15, floor: 0.25, ceiling: 1.15 },
+        rotation: { base: 0.12, beat: 0.35, air: 0.2 },
+        color: { hueSwing: 90, trebleLift: 140, beatLift: 60, vibrance: 0.35, saturation: 0.15 },
+        glitch: { base: 0.0, onset: 0.18, air: 0.1 }
+    },
+    bloom: {
+        label: 'Bloom',
+        motion: { base: 1.05, bass: 0.55, rms: 0.35, onset: 0.25, floor: 0.35, ceiling: 1.55 },
+        rotation: { base: 0.16, beat: 0.45, air: 0.28 },
+        color: { hueSwing: 140, trebleLift: 180, beatLift: 90, vibrance: 0.55, saturation: 0.25 },
+        glitch: { base: 0.06, onset: 0.28, air: 0.15 }
+    },
+    pulse: {
+        label: 'Pulse',
+        motion: { base: 1.2, bass: 0.82, rms: 0.5, onset: 0.35, floor: 0.45, ceiling: 1.85 },
+        rotation: { base: 0.2, beat: 0.6, air: 0.34 },
+        color: { hueSwing: 180, trebleLift: 210, beatLift: 120, vibrance: 0.75, saturation: 0.35 },
+        glitch: { base: 0.08, onset: 0.45, air: 0.24 }
+    }
+};
+const behaviorState = {
+    mode: 'drift',
+    motionBias: 0,
+    colorBias: 0,
+    smoothing: {
+        speed: baseParams.speed,
+        hue: baseParams.hue,
+        vibrance: colorState.vibrance,
+        glitch: colorState.moire
+    }
 };
 const dynamicsState = {
     motionFloor: 0.3,
@@ -898,7 +957,7 @@ let sliderDefinitions = [
     { id: 'gridDensity', label: 'Grid Density', min: 5, max: 80, step: 1, value: 22, section: 'core', param: true, format: v => Math.round(v) },
     { id: 'morphFactor', label: 'Morph Factor', min: 0.1, max: 3.0, step: 0.05, value: 0.9, section: 'core', param: true, format: v => v.toFixed(2) },
     { id: 'chaos', label: 'Chaos', min: 0, max: 1, step: 0.02, value: 0.12, section: 'core', param: true, format: v => v.toFixed(2) },
-    { id: 'speed', label: 'Speed', min: 0.1, max: 3.0, step: 0.05, value: 0.6, section: 'core', param: true, format: v => v.toFixed(2) },
+    { id: 'speed', label: 'Speed', min: 0.1, max: 3.0, step: 0.05, value: 0.35, section: 'core', param: true, format: v => v.toFixed(2) },
     { id: 'dimension', label: 'Dimension', min: 2.0, max: 5.0, step: 0.05, value: 3.5, section: 'core', param: true, format: v => v.toFixed(2) },
     { id: 'hue', label: 'Hue', min: 0, max: 360, step: 1, value: 210, section: 'color', param: true, format: v => Math.round(v)},
     { id: 'saturation', label: 'Saturation', min: 0, max: 1, step: 0.02, value: 0.9, section: 'color', param: true, format: v => v.toFixed(2) },
@@ -929,6 +988,7 @@ const sliderDefinitionMap = new Map();
 const bandKeys = ['sub', 'bass', 'low', 'mid', 'highMid', 'high', 'air'];
 const bandElements = bandKeys.map((key) => document.getElementById(`band-${key}`));
 const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
+const lerp = (a, b, t) => a + (b - a) * Math.max(0, Math.min(1, t));
 
 function createSlider(def) {
     const container = sliderContainers[def.section];
@@ -1032,7 +1092,10 @@ const palettes = [
     { id: 13, name: 'Verdant Pulse', description: 'Forest greens with teal accents for minimal shifts' },
     { id: 14, name: 'Indigo Drift', description: 'Indigo, midnight, and slate for restrained contrast' },
     { id: 15, name: 'Emerald Still', description: 'Forest greens with gentle teal glints' },
-    { id: 16, name: 'Copper Pulse', description: 'Oxidized copper with obsidian shadows' }
+    { id: 16, name: 'Copper Pulse', description: 'Oxidized copper with obsidian shadows' },
+    { id: 17, name: 'Obsidian Film', description: 'Charcoal greys with faint amber bloom' },
+    { id: 18, name: 'Nordic Dawn', description: 'Frosted teal, cloud grey, and blush sunrise edges' },
+    { id: 19, name: 'Sepia Glass', description: 'Amber sepia glass with lavender undertones' }
 ];
 
 if (paletteState.profile >= palettes.length) {
@@ -1152,6 +1215,58 @@ if (reactivityToggleRow) {
         });
     });
 }
+
+const describeBehavior = () => {
+    const profile = behaviorProfiles[behaviorState.mode];
+    if (!behaviorLabel || !profile) return;
+    const motionStr = behaviorState.motionBias > 0.05
+        ? 'Motion+' : behaviorState.motionBias < -0.05
+            ? 'Motion−'
+            : 'Balanced';
+    const colorStr = behaviorState.colorBias > 0.05
+        ? 'Color+'
+        : behaviorState.colorBias < -0.05
+            ? 'Color−'
+            : 'Neutral';
+    behaviorLabel.textContent = `${profile.label} · ${motionStr}/${colorStr}`;
+};
+
+if (behaviorModesRow) {
+    behaviorModesRow.querySelectorAll('button').forEach((button) => {
+        const mode = button.dataset.behavior;
+        if (!mode) return;
+        button.classList.toggle('active', mode === behaviorState.mode);
+        button.addEventListener('click', () => {
+            behaviorState.mode = mode;
+            behaviorModesRow.querySelectorAll('button').forEach((btn) => {
+                btn.classList.toggle('active', btn.dataset.behavior === behaviorState.mode);
+            });
+            describeBehavior();
+        });
+    });
+}
+
+if (behaviorMotionSlider) {
+    behaviorMotionSlider.addEventListener('input', (event) => {
+        const raw = parseFloat(event.target.value);
+        behaviorState.motionBias = Number.isNaN(raw) ? 0 : raw;
+        if (behaviorMotionValue) behaviorMotionValue.textContent = behaviorState.motionBias.toFixed(2);
+        describeBehavior();
+    });
+    behaviorMotionSlider.dispatchEvent(new Event('input'));
+}
+
+if (behaviorColorSlider) {
+    behaviorColorSlider.addEventListener('input', (event) => {
+        const raw = parseFloat(event.target.value);
+        behaviorState.colorBias = Number.isNaN(raw) ? 0 : raw;
+        if (behaviorColorValue) behaviorColorValue.textContent = behaviorState.colorBias.toFixed(2);
+        describeBehavior();
+    });
+    behaviorColorSlider.dispatchEvent(new Event('input'));
+}
+
+describeBehavior();
 
 if (dynamicsToggles && showDynamicsLab) {
     dynamicsToggles.querySelectorAll('button').forEach((button) => {
@@ -2089,6 +2204,108 @@ document.getElementById('pauseBtn').addEventListener('click', () => {
     if (audioElement) audioElement.pause();
 });
 
+function applyBehavioralReactivity(audioData, rotationValues, beatPhase) {
+    const profile = behaviorProfiles[behaviorState.mode] || behaviorProfiles.drift;
+    const bands = audioData.bands || {};
+    const bass = bands.bass ?? 0;
+    const mid = bands.mid ?? 0;
+    const high = bands.high ?? 0;
+    const air = bands.air ?? 0;
+    const rms = audioData.rms ?? 0;
+    const onset = audioData.onset ?? 0;
+
+    const motionBias = 1 + behaviorState.motionBias * 0.35;
+    const colorBias = 1 + behaviorState.colorBias * 0.35;
+
+    if (reactivity.enabled.density) {
+        const density = Math.min(140, baseParams.gridDensity + bass * 60 * reactivity.amount * motionBias);
+        currentVisualizer.updateParameter('gridDensity', density);
+    } else {
+        currentVisualizer.updateParameter('gridDensity', baseParams.gridDensity);
+    }
+
+    if (reactivity.enabled.morph) {
+        const morph = Math.min(2.6, baseParams.morphFactor + mid * 1.8 * reactivity.amount * motionBias);
+        currentVisualizer.updateParameter('morphFactor', morph);
+    } else {
+        currentVisualizer.updateParameter('morphFactor', baseParams.morphFactor);
+    }
+
+    if (reactivity.enabled.chaos) {
+        const chaos = Math.min(1.8, baseParams.chaos + (rms * 0.65 + onset * 0.5) * reactivity.amount * motionBias);
+        currentVisualizer.updateParameter('chaos', chaos);
+    } else {
+        currentVisualizer.updateParameter('chaos', baseParams.chaos);
+    }
+
+    let speed = baseParams.speed * (profile.motion.base * motionBias);
+    speed += (bass * profile.motion.bass + rms * profile.motion.rms + onset * profile.motion.onset) * reactivity.amount;
+    speed = clamp(speed, profile.motion.floor, profile.motion.ceiling);
+    if (showDynamicsLab) {
+        speed = clamp(speed, dynamicsState.motionFloor, dynamicsState.motionCeiling);
+        if (dynamicsState.speedBrake && rms < 0.08) {
+            speed = Math.min(speed, baseParams.speed);
+        }
+    }
+    behaviorState.smoothing.speed = lerp(behaviorState.smoothing.speed, speed, 0.2);
+    currentVisualizer.updateParameter('speed', behaviorState.smoothing.speed);
+
+    const targetIntensity = Math.min(2.5, baseParams.intensity + rms * 0.35 + onset * 0.1);
+    currentVisualizer.updateParameter('intensity', targetIntensity);
+    currentVisualizer.updateParameter('dimension', baseParams.dimension + (audioData.extremeDynamics?.dimensionLift ?? 0));
+
+    if (reactivity.enabled.rotation) {
+        const rotationScale = profile.rotation.base * motionBias;
+        currentVisualizer.updateParameter('rot4dXW', baseParams.rot4dXW + rotationValues.rot4dXW * (rotationScale + profile.rotation.beat * beatPhase));
+        currentVisualizer.updateParameter('rot4dYW', baseParams.rot4dYW + rotationValues.rot4dYW * (rotationScale + profile.rotation.air * air));
+        currentVisualizer.updateParameter('rot4dZW', baseParams.rot4dZW + rotationValues.rot4dZW * (rotationScale + profile.rotation.beat * 0.6));
+    } else {
+        currentVisualizer.updateParameter('rot4dXW', baseParams.rot4dXW);
+        currentVisualizer.updateParameter('rot4dYW', baseParams.rot4dYW);
+        currentVisualizer.updateParameter('rot4dZW', baseParams.rot4dZW);
+    }
+
+    if (reactivity.enabled.color) {
+        const hueSwing = (profile.color.hueSwing + behaviorState.colorBias * 80) * reactivity.amount;
+        const trebleInfluence = (high * profile.color.trebleLift + air * profile.color.trebleLift * 0.4) * reactivity.amount;
+        const beatInfluence = profile.color.beatLift * beatPhase * reactivity.amount;
+        const targetHue = (baseParams.hue + hueSwing + trebleInfluence + beatInfluence) % 360;
+        let saturation = Math.min(1.3, baseParams.saturation + (mid * profile.color.saturation * colorBias));
+        if (showDynamicsLab) {
+            saturation = clamp(saturation, dynamicsState.colorFloor, dynamicsState.colorCeiling);
+        }
+        behaviorState.smoothing.hue = lerp(behaviorState.smoothing.hue, targetHue, 0.18);
+        currentVisualizer.updateParameter('hue', behaviorState.smoothing.hue);
+        currentVisualizer.updateParameter('saturation', saturation);
+    } else {
+        currentVisualizer.updateParameter('hue', baseParams.hue);
+    }
+
+    if (reactivity.enabled.vibrance) {
+        const vibranceDelta = (high * profile.color.vibrance + onset * 0.45) * colorBias * reactivity.amount;
+        let vibrance = Math.min(2.5, colorState.vibrance + vibranceDelta);
+        if (showDynamicsLab) {
+            vibrance = clamp(vibrance, dynamicsState.colorFloor, dynamicsState.colorCeiling);
+        }
+        behaviorState.smoothing.vibrance = lerp(behaviorState.smoothing.vibrance, vibrance, 0.2);
+        currentVisualizer.updateParameter('colorVibrance', behaviorState.smoothing.vibrance);
+    } else {
+        currentVisualizer.updateParameter('colorVibrance', colorState.vibrance);
+    }
+
+    if (reactivity.enabled.glitch) {
+        let glitch = profile.glitch.base + (onset * profile.glitch.onset + air * profile.glitch.air) * reactivity.amount * colorBias;
+        glitch = Math.min(1, glitch + colorState.moire);
+        if (!dynamicsState.glitchAuto && showDynamicsLab) {
+            glitch = colorState.moire;
+        }
+        behaviorState.smoothing.glitch = lerp(behaviorState.smoothing.glitch, glitch, 0.25);
+        currentVisualizer.updateParameter('glitchMoire', behaviorState.smoothing.glitch);
+    } else {
+        currentVisualizer.updateParameter('glitchMoire', colorState.moire);
+    }
+}
+
 // Render loop
 engine.start();
 function render() {
@@ -2201,79 +2418,7 @@ function render() {
     const onset = audioData.onset ?? 0;
     const beatPhase = audioData.rhythmPhases?.beatPhase ?? 0;
 
-    if (reactivity.enabled.density) {
-        const density = Math.min(120, baseParams.gridDensity + bass * 50 * reactivity.amount);
-        currentVisualizer.updateParameter('gridDensity', density);
-    } else {
-        currentVisualizer.updateParameter('gridDensity', baseParams.gridDensity);
-    }
-
-    if (reactivity.enabled.morph) {
-        const morph = Math.min(2.5, baseParams.morphFactor + mid * 1.6 * reactivity.amount);
-        currentVisualizer.updateParameter('morphFactor', morph);
-    } else {
-        currentVisualizer.updateParameter('morphFactor', baseParams.morphFactor);
-    }
-
-    if (reactivity.enabled.chaos) {
-        const chaos = Math.min(1.6, baseParams.chaos + rms * 0.7 * reactivity.amount + onset * 0.4);
-        currentVisualizer.updateParameter('chaos', chaos);
-    } else {
-        currentVisualizer.updateParameter('chaos', baseParams.chaos);
-    }
-
-    let speed = Math.min(2.0, baseParams.speed + (bass + rms) * 0.45 * reactivity.amount);
-    if (showDynamicsLab) {
-        speed = clamp(speed, dynamicsState.motionFloor, dynamicsState.motionCeiling);
-        if (dynamicsState.speedBrake && rms < 0.08) {
-            speed = Math.min(speed, baseParams.speed);
-        }
-    }
-    currentVisualizer.updateParameter('speed', speed);
-    currentVisualizer.updateParameter('intensity', Math.min(2.5, baseParams.intensity + rms * 0.3));
-    currentVisualizer.updateParameter('dimension', baseParams.dimension + (audioData.extremeDynamics?.dimensionLift ?? 0));
-
-    if (reactivity.enabled.rotation) {
-        currentVisualizer.updateParameter('rot4dXW', baseParams.rot4dXW + rotationValues.rot4dXW * 0.12);
-        currentVisualizer.updateParameter('rot4dYW', baseParams.rot4dYW + rotationValues.rot4dYW * 0.12);
-        currentVisualizer.updateParameter('rot4dZW', baseParams.rot4dZW + rotationValues.rot4dZW * 0.16);
-    } else {
-        currentVisualizer.updateParameter('rot4dXW', baseParams.rot4dXW);
-        currentVisualizer.updateParameter('rot4dYW', baseParams.rot4dYW);
-        currentVisualizer.updateParameter('rot4dZW', baseParams.rot4dZW);
-    }
-
-    if (reactivity.enabled.color) {
-        const hue = (baseParams.hue + (high * 160 + beatPhase * 90) * reactivity.amount) % 360;
-        let saturation = Math.min(1.2, baseParams.saturation + mid * 0.35 * reactivity.amount);
-        if (showDynamicsLab) {
-            saturation = clamp(saturation, dynamicsState.colorFloor, dynamicsState.colorCeiling);
-        }
-        currentVisualizer.updateParameter('hue', hue);
-        currentVisualizer.updateParameter('saturation', saturation);
-    } else {
-        currentVisualizer.updateParameter('hue', baseParams.hue);
-    }
-
-    if (reactivity.enabled.vibrance) {
-        let vibrance = Math.min(2.5, colorState.vibrance + (high * 0.8 + onset * 0.6) * reactivity.amount);
-        if (showDynamicsLab) {
-            vibrance = clamp(vibrance, dynamicsState.colorFloor, dynamicsState.colorCeiling);
-        }
-        currentVisualizer.updateParameter('colorVibrance', vibrance);
-    } else {
-        currentVisualizer.updateParameter('colorVibrance', colorState.vibrance);
-    }
-
-    if (reactivity.enabled.glitch) {
-        let glitch = Math.min(1, colorState.moire + (onset * dynamicsState.glitchOnsetGain + air * 0.5) * reactivity.amount);
-        if (!dynamicsState.glitchAuto && showDynamicsLab) {
-            glitch = colorState.moire;
-        }
-        currentVisualizer.updateParameter('glitchMoire', glitch);
-    } else {
-        currentVisualizer.updateParameter('glitchMoire', colorState.moire);
-    }
+    applyBehavioralReactivity(audioData, rotationValues, beatPhase);
 
     const suggestedScene = sceneDirector.update(audioData, seconds, activeSceneId);
     if (suggestedScene && suggestedScene.id !== activeSceneId) {

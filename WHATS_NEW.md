@@ -1,5 +1,15 @@
 # 🎉 What's New in VIB34D Choreography Engine
 
+## Latest Update: Behavioral Console Refactor
+
+### 🎭 Behavior Suite for motion + colour
+- Added Drift, Bloom, and Pulse behavior modes with bias sliders so you can favour motion or colour swings without touching individual sliders.
+- Refactored the render loop to drive density, morph, chaos, speed, rotation, hue, vibrance, and glitch from the selected behavior, smoothing transitions to keep visuals readable.
+
+### 🎨 Fresh restrained palettes
+- Introduced Obsidian Film, Nordic Dawn, and Sepia Glass uniform palettes for tighter two-to-three-tone journeys alongside the existing sets.
+- Extended the uniform palette library so Quantum, Holographic, Faceted, and Polychora all inherit the new restrained swatches automatically.
+
 ## Latest Update: Dynamics Lab Console
 
 ### 🎚️ Pro console with motion and colour clamps
