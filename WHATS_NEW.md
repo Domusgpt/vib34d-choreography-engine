@@ -1,6 +1,10 @@
 # 🎉 What's New in VIB34D Choreography Engine
 
-## Latest Update: Behavioral Console Refactor
+## Latest Update: Sweep Director + Behavioral Console Refactor
+
+### 🌀 Journey-aware sweep director
+- Added Orbit, Pendulum, and Spiral sweep modes to the shared Ultimate console with tempo, depth, and colour-span sliders so operators can sculpt how each visualizer moves through space and hue.
+- Refactored the render loop to blend sweep pacing with behavior profiles, driving speed, rotation, dimension, and hue arcs from rhythmic phases without sacrificing calm defaults.
 
 ### 🎭 Behavior Suite for motion + colour
 - Added Drift, Bloom, and Pulse behavior modes with bias sliders so you can favour motion or colour swings without touching individual sliders.

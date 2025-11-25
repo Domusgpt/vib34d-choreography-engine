@@ -135,6 +135,30 @@ const CONSOLE_TEMPLATE = `
                                                             <input type="range" id="behaviorColor" min="-1" max="1" step="0.05" value="0">
                                                         </div>
                                                     </div>
+
+                                                    <div class="sweep-director">
+                                                        <div class="behavior-header">
+                                                            <span>Sweep Director</span>
+                                                            <span id="sweepLabel">Orbit · Gentle</span>
+                                                        </div>
+                                                        <div class="pill-row" id="sweepModes" role="group" aria-label="Sweep modes">
+                                                            <button class="pill-button active" data-sweep="orbit">Orbit</button>
+                                                            <button class="pill-button" data-sweep="pendulum">Pendulum</button>
+                                                            <button class="pill-button" data-sweep="spiral">Spiral</button>
+                                                        </div>
+                                                        <div class="control-row compact">
+                                                            <div class="control-label"><span>Tempo</span><span id="sweepTempoValue">0.55</span></div>
+                                                            <input type="range" id="sweepTempo" min="0.2" max="1.5" step="0.05" value="0.55">
+                                                        </div>
+                                                        <div class="control-row compact">
+                                                            <div class="control-label"><span>Depth</span><span id="sweepDepthValue">0.55</span></div>
+                                                            <input type="range" id="sweepDepth" min="0" max="1" step="0.05" value="0.55">
+                                                        </div>
+                                                        <div class="control-row compact">
+                                                            <div class="control-label"><span>Color Span</span><span id="sweepColorValue">0.35</span></div>
+                                                            <input type="range" id="sweepColor" min="0" max="1" step="0.05" value="0.35">
+                                                        </div>
+                                                    </div>
                                                 </div>
                                                 </div>
                                                 <div class="band-meter">
@@ -512,6 +536,14 @@ const behaviorMotionSlider = document.getElementById('behaviorMotion');
 const behaviorColorSlider = document.getElementById('behaviorColor');
 const behaviorMotionValue = document.getElementById('behaviorMotionValue');
 const behaviorColorValue = document.getElementById('behaviorColorValue');
+const sweepModesRow = document.getElementById('sweepModes');
+const sweepLabel = document.getElementById('sweepLabel');
+const sweepTempoSlider = document.getElementById('sweepTempo');
+const sweepDepthSlider = document.getElementById('sweepDepth');
+const sweepColorSlider = document.getElementById('sweepColor');
+const sweepTempoValue = document.getElementById('sweepTempoValue');
+const sweepDepthValue = document.getElementById('sweepDepthValue');
+const sweepColorValue = document.getElementById('sweepColorValue');
 const sceneDeck = document.getElementById('sceneDeck');
 const sceneModeBar = document.getElementById('sceneModeBar');
 const sceneOrderBar = document.getElementById('sceneOrderBar');
@@ -611,6 +643,41 @@ const behaviorState = {
         glitch: colorState.moire
     }
 };
+const sweepProfiles = {
+    orbit: {
+        label: 'Orbit',
+        motion: { sway: 0.4, lift: 0.2, glide: 0.5 },
+        rotation: { orbit: 0.35, wobble: 0.25 },
+        color: { swing: 55, pulse: 35 },
+        dimension: { breath: 0.3 }
+    },
+    pendulum: {
+        label: 'Pendulum',
+        motion: { sway: 0.65, lift: 0.1, glide: 0.3 },
+        rotation: { orbit: 0.48, wobble: 0.15 },
+        color: { swing: 35, pulse: 50 },
+        dimension: { breath: 0.22 }
+    },
+    spiral: {
+        label: 'Spiral',
+        motion: { sway: 0.55, lift: 0.35, glide: 0.6 },
+        rotation: { orbit: 0.6, wobble: 0.32 },
+        color: { swing: 65, pulse: 65 },
+        dimension: { breath: 0.34 }
+    }
+};
+const sweepState = {
+    mode: 'orbit',
+    tempo: 0.55,
+    depth: 0.55,
+    colorSpan: 0.35,
+    phase: 0,
+    smoothing: {
+        hue: baseParams.hue,
+        dimension: baseParams.dimension,
+        rotation: 0
+    }
+};
 const dynamicsState = {
     motionFloor: 0.3,
     motionCeiling: 1.35,
@@ -692,6 +759,7 @@ let audioObjectUrl = null;
 let onsetThreshold = 0.85;
 let bassThreshold = 0.83;
 let lastBeatUpdate = 0;
+let lastRenderTime = performance.now();
 
 const releaseVisualizer = (visualizer) => {
     if (!visualizer) return;
@@ -1231,6 +1299,14 @@ const describeBehavior = () => {
     behaviorLabel.textContent = `${profile.label} · ${motionStr}/${colorStr}`;
 };
 
+const describeSweep = () => {
+    const profile = sweepProfiles[sweepState.mode];
+    if (!profile || !sweepLabel) return;
+    const depthStr = sweepState.depth > 0.7 ? 'Wide' : sweepState.depth < 0.3 ? 'Tight' : 'Gentle';
+    const tempoStr = sweepState.tempo > 1 ? 'Rapid' : sweepState.tempo < 0.45 ? 'Slow' : 'Flow';
+    sweepLabel.textContent = `${profile.label} · ${tempoStr}/${depthStr}`;
+};
+
 if (behaviorModesRow) {
     behaviorModesRow.querySelectorAll('button').forEach((button) => {
         const mode = button.dataset.behavior;
@@ -1264,6 +1340,48 @@ if (behaviorColorSlider) {
         describeBehavior();
     });
     behaviorColorSlider.dispatchEvent(new Event('input'));
+}
+
+if (sweepModesRow) {
+    sweepModesRow.querySelectorAll('button').forEach((button) => {
+        const mode = button.dataset.sweep;
+        button.classList.toggle('active', mode === sweepState.mode);
+        button.addEventListener('click', () => {
+            sweepState.mode = mode;
+            sweepModesRow.querySelectorAll('button').forEach((btn) => btn.classList.toggle('active', btn.dataset.sweep === sweepState.mode));
+            describeSweep();
+        });
+    });
+}
+
+if (sweepTempoSlider) {
+    sweepTempoSlider.addEventListener('input', (event) => {
+        const raw = parseFloat(event.target.value);
+        sweepState.tempo = Number.isNaN(raw) ? sweepState.tempo : raw;
+        if (sweepTempoValue) sweepTempoValue.textContent = sweepState.tempo.toFixed(2);
+        describeSweep();
+    });
+    sweepTempoSlider.dispatchEvent(new Event('input'));
+}
+
+if (sweepDepthSlider) {
+    sweepDepthSlider.addEventListener('input', (event) => {
+        const raw = parseFloat(event.target.value);
+        sweepState.depth = Number.isNaN(raw) ? sweepState.depth : raw;
+        if (sweepDepthValue) sweepDepthValue.textContent = sweepState.depth.toFixed(2);
+        describeSweep();
+    });
+    sweepDepthSlider.dispatchEvent(new Event('input'));
+}
+
+if (sweepColorSlider) {
+    sweepColorSlider.addEventListener('input', (event) => {
+        const raw = parseFloat(event.target.value);
+        sweepState.colorSpan = Number.isNaN(raw) ? sweepState.colorSpan : raw;
+        if (sweepColorValue) sweepColorValue.textContent = sweepState.colorSpan.toFixed(2);
+        describeSweep();
+    });
+    sweepColorSlider.dispatchEvent(new Event('input'));
 }
 
 describeBehavior();
@@ -2204,8 +2322,9 @@ document.getElementById('pauseBtn').addEventListener('click', () => {
     if (audioElement) audioElement.pause();
 });
 
-function applyBehavioralReactivity(audioData, rotationValues, beatPhase) {
+function applyBehavioralReactivity(audioData, rotationValues, beatPhase, deltaSeconds = 0.016) {
     const profile = behaviorProfiles[behaviorState.mode] || behaviorProfiles.drift;
+    const sweepProfile = sweepProfiles[sweepState.mode] || sweepProfiles.orbit;
     const bands = audioData.bands || {};
     const bass = bands.bass ?? 0;
     const mid = bands.mid ?? 0;
@@ -2217,8 +2336,20 @@ function applyBehavioralReactivity(audioData, rotationValues, beatPhase) {
     const motionBias = 1 + behaviorState.motionBias * 0.35;
     const colorBias = 1 + behaviorState.colorBias * 0.35;
 
+    const sweepDepth = Math.max(0, Math.min(1, sweepState.depth));
+    const sweepTempo = sweepState.tempo;
+    sweepState.phase += deltaSeconds * (0.35 + sweepTempo * 1.65) * (1 + rms * 0.45 + onset * 0.55);
+    const sweepWave = Math.sin(sweepState.phase);
+    const sweepPulse = 0.5 + 0.5 * Math.sin(sweepState.phase * 0.55 + beatPhase * Math.PI * 2);
+    const sweepMotion = 1 + sweepProfile.motion.sway * sweepDepth * sweepWave;
+    const sweepOrbit = sweepProfile.rotation.orbit * sweepDepth * sweepWave;
+    const sweepWobble = sweepProfile.rotation.wobble * sweepDepth * (sweepPulse - 0.5);
+    const sweepDimension = sweepProfile.dimension.breath * sweepDepth * (sweepPulse - 0.5);
+    const sweepHue = sweepProfile.color.swing * sweepState.colorSpan * sweepWave;
+    const sweepHuePulse = sweepProfile.color.pulse * sweepState.colorSpan * (sweepPulse - 0.5);
+
     if (reactivity.enabled.density) {
-        const density = Math.min(140, baseParams.gridDensity + bass * 60 * reactivity.amount * motionBias);
+        const density = Math.min(140, baseParams.gridDensity + bass * 60 * reactivity.amount * motionBias + sweepProfile.motion.lift * sweepDepth * 12 * sweepPulse);
         currentVisualizer.updateParameter('gridDensity', density);
     } else {
         currentVisualizer.updateParameter('gridDensity', baseParams.gridDensity);
@@ -2240,6 +2371,8 @@ function applyBehavioralReactivity(audioData, rotationValues, beatPhase) {
 
     let speed = baseParams.speed * (profile.motion.base * motionBias);
     speed += (bass * profile.motion.bass + rms * profile.motion.rms + onset * profile.motion.onset) * reactivity.amount;
+    speed *= 1 + sweepMotion * 0.25;
+    speed += sweepProfile.motion.glide * sweepDepth * 0.12;
     speed = clamp(speed, profile.motion.floor, profile.motion.ceiling);
     if (showDynamicsLab) {
         speed = clamp(speed, dynamicsState.motionFloor, dynamicsState.motionCeiling);
@@ -2252,13 +2385,17 @@ function applyBehavioralReactivity(audioData, rotationValues, beatPhase) {
 
     const targetIntensity = Math.min(2.5, baseParams.intensity + rms * 0.35 + onset * 0.1);
     currentVisualizer.updateParameter('intensity', targetIntensity);
-    currentVisualizer.updateParameter('dimension', baseParams.dimension + (audioData.extremeDynamics?.dimensionLift ?? 0));
+    const dimensionLift = (audioData.extremeDynamics?.dimensionLift ?? 0) + sweepDimension;
+    sweepState.smoothing.dimension = lerp(sweepState.smoothing.dimension, baseParams.dimension + dimensionLift, 0.14);
+    currentVisualizer.updateParameter('dimension', sweepState.smoothing.dimension);
 
     if (reactivity.enabled.rotation) {
         const rotationScale = profile.rotation.base * motionBias;
-        currentVisualizer.updateParameter('rot4dXW', baseParams.rot4dXW + rotationValues.rot4dXW * (rotationScale + profile.rotation.beat * beatPhase));
-        currentVisualizer.updateParameter('rot4dYW', baseParams.rot4dYW + rotationValues.rot4dYW * (rotationScale + profile.rotation.air * air));
-        currentVisualizer.updateParameter('rot4dZW', baseParams.rot4dZW + rotationValues.rot4dZW * (rotationScale + profile.rotation.beat * 0.6));
+        sweepState.smoothing.rotation = lerp(sweepState.smoothing.rotation, sweepOrbit + sweepWobble, 0.12);
+        const sweepOffset = sweepState.smoothing.rotation;
+        currentVisualizer.updateParameter('rot4dXW', baseParams.rot4dXW + rotationValues.rot4dXW * (rotationScale + profile.rotation.beat * beatPhase) + sweepOffset);
+        currentVisualizer.updateParameter('rot4dYW', baseParams.rot4dYW + rotationValues.rot4dYW * (rotationScale + profile.rotation.air * air) - sweepOffset * 0.4);
+        currentVisualizer.updateParameter('rot4dZW', baseParams.rot4dZW + rotationValues.rot4dZW * (rotationScale + profile.rotation.beat * 0.6) + sweepOffset * 0.65);
     } else {
         currentVisualizer.updateParameter('rot4dXW', baseParams.rot4dXW);
         currentVisualizer.updateParameter('rot4dYW', baseParams.rot4dYW);
@@ -2269,7 +2406,7 @@ function applyBehavioralReactivity(audioData, rotationValues, beatPhase) {
         const hueSwing = (profile.color.hueSwing + behaviorState.colorBias * 80) * reactivity.amount;
         const trebleInfluence = (high * profile.color.trebleLift + air * profile.color.trebleLift * 0.4) * reactivity.amount;
         const beatInfluence = profile.color.beatLift * beatPhase * reactivity.amount;
-        const targetHue = (baseParams.hue + hueSwing + trebleInfluence + beatInfluence) % 360;
+        const targetHue = (baseParams.hue + hueSwing + trebleInfluence + beatInfluence + sweepHue + sweepHuePulse) % 360;
         let saturation = Math.min(1.3, baseParams.saturation + (mid * profile.color.saturation * colorBias));
         if (showDynamicsLab) {
             saturation = clamp(saturation, dynamicsState.colorFloor, dynamicsState.colorCeiling);
@@ -2282,7 +2419,8 @@ function applyBehavioralReactivity(audioData, rotationValues, beatPhase) {
     }
 
     if (reactivity.enabled.vibrance) {
-        const vibranceDelta = (high * profile.color.vibrance + onset * 0.45) * colorBias * reactivity.amount;
+        const vibranceDelta = (high * profile.color.vibrance + onset * 0.45) * colorBias * reactivity.amount
+            + Math.max(0, sweepPulse - 0.5) * sweepState.colorSpan * 0.3;
         let vibrance = Math.min(2.5, colorState.vibrance + vibranceDelta);
         if (showDynamicsLab) {
             vibrance = clamp(vibrance, dynamicsState.colorFloor, dynamicsState.colorCeiling);
@@ -2310,6 +2448,8 @@ function applyBehavioralReactivity(audioData, rotationValues, beatPhase) {
 engine.start();
 function render() {
     const now = Date.now();
+    const deltaSeconds = Math.max(0.001, (now - lastRenderTime) / 1000);
+    lastRenderTime = now;
     const audioPlaying = !!(audioAnalyzer && audioElement && !audioElement.paused);
     let audioData = audioAnalyzer ? audioAnalyzer.analyze() : engine.getMockAudioData();
 
@@ -2418,7 +2558,7 @@ function render() {
     const onset = audioData.onset ?? 0;
     const beatPhase = audioData.rhythmPhases?.beatPhase ?? 0;
 
-    applyBehavioralReactivity(audioData, rotationValues, beatPhase);
+    applyBehavioralReactivity(audioData, rotationValues, beatPhase, deltaSeconds);
 
     const suggestedScene = sceneDirector.update(audioData, seconds, activeSceneId);
     if (suggestedScene && suggestedScene.id !== activeSceneId) {
