@@ -196,6 +196,7 @@
         </div>
         <button id="playBtn">▶️ PLAY</button>
         <button id="pauseBtn">⏸️ PAUSE</button>
+        <button id="demoBtn" class="btn-full">🧪 DEMO GROOVE</button>
         <div class="audio-bars">
             <div class="audio-bar" id="bar1"></div>
             <div class="audio-bar" id="bar2"></div>
@@ -362,6 +363,137 @@
         let audioContext = null;
         let audioAnalyzer = null;
         let audioElement = null;
+        let audioElementSource = null;
+        let demoSource = null;
+        let demoPlaying = false;
+
+        const getAudioContext = () => {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            return audioContext;
+        };
+
+        const ensureAudioAnalyzer = () => {
+            const context = getAudioContext();
+            if (!audioAnalyzer || audioAnalyzer.audioContext !== context) {
+                audioAnalyzer = new AudioAnalyzer(context);
+            }
+            return audioAnalyzer;
+        };
+
+        const connectSourceToAnalyzer = (sourceNode) => {
+            const analyzer = ensureAudioAnalyzer();
+            const context = getAudioContext();
+            try {
+                analyzer.analyser.disconnect();
+            } catch (err) {
+                // Nothing to disconnect
+            }
+            sourceNode.connect(analyzer.analyser);
+            analyzer.analyser.connect(context.destination);
+        };
+
+        const stopDemoSource = () => {
+            if (demoSource) {
+                try {
+                    demoSource.stop();
+                } catch (err) {
+                    console.warn('Demo source stop error', err);
+                }
+                try {
+                    demoSource.disconnect();
+                } catch (err) {
+                    // ignore disconnect errors
+                }
+                demoSource = null;
+            }
+            demoPlaying = false;
+        };
+
+        const stopAudioElement = () => {
+            if (audioElement) {
+                audioElement.pause();
+                audioElement.currentTime = 0;
+            }
+        };
+
+        const createDemoGrooveBuffer = (context) => {
+            const bpm = 122;
+            const beats = 16;
+            const seconds = (beats / bpm) * 60;
+            const sampleRate = context.sampleRate;
+            const length = Math.floor(seconds * sampleRate);
+            const channels = 2;
+            const buffer = context.createBuffer(channels, length, sampleRate);
+
+            for (let channel = 0; channel < channels; channel++) {
+                const data = buffer.getChannelData(channel);
+                for (let i = 0; i < length; i++) {
+                    const time = i / sampleRate;
+                    const beatDuration = 60 / bpm;
+                    const beatIndex = Math.floor(time / beatDuration);
+                    const beatPhase = (time % beatDuration) / beatDuration;
+
+                    let sample = 0;
+
+                    if (beatPhase < 0.25) {
+                        const env = Math.pow(1 - (beatPhase / 0.25), 3);
+                        const sweep = 48 + (beatPhase * -30);
+                        sample += Math.sin(2 * Math.PI * sweep * time) * env * 0.8;
+                    }
+
+                    if (beatIndex % 4 === 1 || beatIndex % 4 === 3) {
+                        const snarePhase = beatPhase;
+                        if (snarePhase < 0.2) {
+                            const env = Math.pow(1 - (snarePhase / 0.2), 2);
+                            const noisePhase = Math.sin((i + channel * 37) * 0.025);
+                            sample += Math.sin(2 * Math.PI * 900 * time + noisePhase) * env * 0.5;
+                        }
+                    }
+
+                    const hatDuration = beatDuration / 2;
+                    const hatPhase = (time % hatDuration) / hatDuration;
+                    if (hatPhase < 0.12) {
+                        const env = Math.pow(1 - hatPhase / 0.12, 2);
+                        const hat = Math.sin(2 * Math.PI * (6000 + channel * 180) * time);
+                        sample += hat * env * 0.18;
+                    }
+
+                    const bass = Math.sin(2 * Math.PI * (110 + channel * 2) * time);
+                    sample += bass * 0.25;
+
+                    data[i] = Math.max(-1, Math.min(1, sample * 0.75));
+                }
+            }
+
+            return buffer;
+        };
+
+        const startDemoGroove = async () => {
+            stopAudioElement();
+            stopDemoSource();
+
+            const context = getAudioContext();
+            if (context.state === 'suspended') {
+                await context.resume();
+            }
+
+            ensureAudioAnalyzer();
+
+            const buffer = createDemoGrooveBuffer(context);
+            demoSource = context.createBufferSource();
+            demoSource.buffer = buffer;
+            demoSource.loop = true;
+            connectSourceToAnalyzer(demoSource);
+            demoSource.start(0);
+            demoPlaying = true;
+            demoSource.onended = () => {
+                demoPlaying = false;
+            };
+            document.getElementById('status').textContent = '🔁 DEMO GROOVE';
+            console.log('🎼 Demo groove started');
+        };
 
         // Visualizer
         let visualizer = new QuantumHolographicVisualizer('canvas', 'content', 1.0, 0);
@@ -466,12 +598,22 @@
             const file = e.target.files[0];
             if (!file) return;
 
+            stopDemoSource();
+
             try {
                 document.getElementById('status').textContent = `Loading ${file.name}...`;
 
+                if (audioElementSource) {
+                    try {
+                        audioElementSource.disconnect();
+                    } catch (err) {
+                        console.warn('Previous media source disconnect error', err);
+                    }
+                    audioElementSource = null;
+                }
+
                 if (audioElement) {
                     audioElement.pause();
-                    audioElement.src = '';
                     if (audioElement.parentNode) {
                         audioElement.parentNode.removeChild(audioElement);
                     }
@@ -498,14 +640,14 @@
                     setTimeout(() => resolve(), 2000); // Timeout fallback
                 });
 
-                audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                audioAnalyzer = new AudioAnalyzer(audioContext);
+                const context = getAudioContext();
+                ensureAudioAnalyzer();
 
-                const source = audioContext.createMediaElementSource(audioElement);
-                source.connect(audioAnalyzer.analyser);
-                audioAnalyzer.analyser.connect(audioContext.destination);
+                audioElementSource = context.createMediaElementSource(audioElement);
+                connectSourceToAnalyzer(audioElementSource);
 
                 document.getElementById('status').textContent = `✅ Loaded! Press PLAY`;
+                demoPlaying = false;
                 console.log('✅ Audio loaded successfully');
             } catch (err) {
                 console.error('Audio load error:', err);
@@ -515,18 +657,20 @@
 
         document.getElementById('playBtn').onclick = async () => {
             if (!audioElement) {
-                alert('Load audio file first');
+                alert('Load audio or start the demo groove first.');
                 return;
             }
 
-            try {
-                console.log('🎬 Attempting playback...');
-                console.log('AudioContext state:', audioContext?.state);
+            stopDemoSource();
 
-                // Resume context FIRST
-                if (audioContext && audioContext.state === 'suspended') {
+            try {
+                const context = getAudioContext();
+                console.log('🎬 Attempting playback...');
+                console.log('AudioContext state:', context?.state);
+
+                if (context.state === 'suspended') {
                     console.log('Resuming AudioContext...');
-                    await audioContext.resume();
+                    await context.resume();
                 }
 
                 console.log('Playing audio element...');
@@ -538,10 +682,12 @@
                 console.error('Play error:', err);
                 document.getElementById('status').textContent = 'Play error: ' + err.message;
 
-                // Retry logic
                 try {
+                    const context = getAudioContext();
                     console.log('🔄 Retrying...');
-                    await audioContext.resume();
+                    if (context.state === 'suspended') {
+                        await context.resume();
+                    }
                     await audioElement.play();
                     document.getElementById('status').textContent = '🔊 PLAYING (retry success)';
                     console.log('✅ Retry worked!');
@@ -553,9 +699,17 @@
         };
 
         document.getElementById('pauseBtn').onclick = () => {
-            if (audioElement) {
-                audioElement.pause();
-                document.getElementById('status').textContent = 'Paused';
+            stopAudioElement();
+            stopDemoSource();
+            document.getElementById('status').textContent = '⏸️ Paused';
+        };
+
+        document.getElementById('demoBtn').onclick = async () => {
+            try {
+                await startDemoGroove();
+            } catch (err) {
+                console.error('Demo groove error:', err);
+                document.getElementById('status').textContent = 'Demo error: ' + err.message;
             }
         };
 
@@ -570,9 +724,9 @@
 
             // Get audio data
             let audioData = { bands: {}, rms: 0, onset: 0 };
-            const audioPlaying = audioAnalyzer && audioElement && !audioElement.paused;
+            const audioActive = audioAnalyzer && (demoPlaying || (audioElement && !audioElement.paused));
 
-            if (audioPlaying) {
+            if (audioActive) {
                 audioData = audioAnalyzer.analyze();
 
                 // Log every 60 frames (1 second)
@@ -588,6 +742,9 @@
                 }
             }
 
+            window.__lastAudioFrame = audioData;
+            window.__audioActive = audioActive;
+
             // Update audio bars
             const bands = audioData.bands || {};
             for (let i = 1; i <= 7; i++) {
@@ -600,7 +757,7 @@
             // Calculate reactive parameters
             const finalParams = { ...params };
 
-            if (audioAnalyzer && audioElement && !audioElement.paused) {
+            if (audioAnalyzer && audioActive) {
                 const mult = reactivity.amount;
 
                 // Density reacts to bass
@@ -653,7 +810,7 @@
             });
 
             // Set global for internal visualizer reactivity
-            window.audioEnabled = !!(audioAnalyzer && audioElement && !audioElement.paused);
+            window.audioEnabled = !!audioActive;
             window.audioReactive = audioData.bands || {};
 
             // Render
