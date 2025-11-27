@@ -2,8 +2,8 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>VIB34D Mobile Maestro</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VIB34D Ultimate Reactive Pro Console</title>
     <link rel="stylesheet" href="./css/ultimate-console.css">
 </head>
 <body>
@@ -13,14 +13,18 @@
     </div>
     <script type="module">
         import { launchUltimateConsole } from './js/ultimateConsole.js';
+        const params = new URLSearchParams(window.location.search);
+        const layout = params.get('layout') || 'auto';
         try {
             await launchUltimateConsole({
                 canvasId: 'mainCanvas',
                 hostId: 'consoleHost',
-                layout: 'mobile',
+                layout,
+                mode: 'pro',
+                enableDynamicsLab: true,
             });
         } catch (error) {
-            console.error('Failed to launch Mobile Maestro console', error);
+            console.error('Failed to launch Ultimate Pro Console', error);
         }
     </script>
 </body>
