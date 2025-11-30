@@ -670,6 +670,7 @@
         import { HolographicVisualizer } from '../src/visualizers/holographic/HolographicVisualizer.js';
         import { AudioAnalyzer } from '../src/audio/AudioAnalyzer.js';
         import { GeometryLibrary } from '../src/geometry/GeometryLibrary.js';
+        import { BehaviorSweepEngine } from '../src/visualizers/shared/BehaviorSweepEngine.js';
 
         // Collapsible sections
         window.toggleSection = function(header) {
@@ -688,6 +689,10 @@
 
         // Visualizer
         let visualizer = new QuantumHolographicVisualizer('canvas', 'content', 1.0, 0);
+
+        const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+        const bandVal = (band) => typeof band === 'number' ? band : (band?.value || 0);
+        const sweepEngine = new BehaviorSweepEngine('hyper');
 
         // Base parameters
         const baseParams = {
@@ -928,54 +933,85 @@
 
             barIds.forEach((id, i) => {
                 const bar = document.getElementById(id);
-                const val = bands[bandKeys[i]] || 0;
+                const val = bandVal(bands[bandKeys[i]]);
                 if (bar) bar.style.height = (val * 100) + '%';
             });
 
             // Reactivity strength indicator
-            const avgReactivity = Object.values(bands).reduce((a, b) => a + b, 0) / 7;
+            const avgReactivity = Object.values(bands).reduce((a, b) => a + bandVal(b), 0) / 7;
             document.getElementById('reactivityBar').style.width = (avgReactivity * 100) + '%';
 
             // Set global for visualizer internal use
             window.audioEnabled = audioPlaying;
-            window.audioReactive = bands;
+            window.audioReactive = {
+                bass: bandVal(bands.bass),
+                subBass: bandVal(bands.subBass),
+                mid: bandVal(bands.mid),
+                high: bandVal(bands.high ?? bands.highMid),
+                energy: audioData?.rms || 0
+            };
 
-            // APPLY AUDIO REACTIVITY
+            const deltas = sweepEngine.applyBehavioralReactivity({
+                audioFrame: audioData,
+                beatInfo: audioData?.beat,
+                preset: 'hyper',
+                deltaTime: dt
+            });
+
+            const reactiveParams = { ...baseParams };
+
             if (audioPlaying) {
                 const mult = reactivity.amount;
 
                 if (reactivity.enabled.density) {
-                    const densityMod = ((bands.bass || 0) * 40 + (bands.subBass || 0) * 30) * mult;
-                    visualizer.updateParameter('gridDensity', Math.min(80, baseParams.gridDensity + densityMod));
+                    reactiveParams.gridDensity = clamp(
+                        baseParams.gridDensity + deltas.densityDelta * mult,
+                        0,
+                        80
+                    );
                 }
 
                 if (reactivity.enabled.morph) {
-                    const morphMod = (bands.mid || 0) * 1.5 * mult;
-                    visualizer.updateParameter('morphFactor', Math.min(3.0, baseParams.morphFactor + morphMod));
+                    reactiveParams.morphFactor = clamp(
+                        baseParams.morphFactor + deltas.morphDelta * mult,
+                        0,
+                        3
+                    );
                 }
 
                 if (reactivity.enabled.color) {
-                    const hueShift = (bands.high || 0) * 120 * mult;
-                    visualizer.updateParameter('hue', (baseParams.hue + hueShift) % 360);
-
-                    const satMod = (bands.mid || 0) * 0.3 * mult;
-                    visualizer.updateParameter('saturation', Math.min(1.0, baseParams.saturation + satMod));
+                    reactiveParams.hue = (baseParams.hue + deltas.color.hueShift * mult) % 360;
+                    reactiveParams.saturation = clamp(
+                        baseParams.saturation + deltas.color.saturationPulse * mult,
+                        0,
+                        1
+                    );
                 }
 
                 if (reactivity.enabled.chaos) {
-                    const chaosMod = (audioData.rms || 0) * 0.6 * mult;
-                    visualizer.updateParameter('chaos', Math.min(1.0, baseParams.chaos + chaosMod));
+                    reactiveParams.chaos = clamp(
+                        baseParams.chaos + deltas.cameraVelocity * 0.35 * mult,
+                        0,
+                        1
+                    );
                 }
 
                 if (reactivity.enabled.rotation) {
-                    visualizer.updateParameter('rot4dXW', baseParams.rot4dXW + (bands.lowMid || 0) * 0.5 * mult);
-                    visualizer.updateParameter('rot4dYW', baseParams.rot4dYW + (bands.mid || 0) * 0.6 * mult);
-                    visualizer.updateParameter('rot4dZW', baseParams.rot4dZW + (bands.high || 0) * 0.8 * mult);
+                    reactiveParams.rot4dXW = baseParams.rot4dXW + deltas.motionRotation.xw * mult;
+                    reactiveParams.rot4dYW = baseParams.rot4dYW + deltas.motionRotation.yw * mult;
+                    reactiveParams.rot4dZW = baseParams.rot4dZW + deltas.motionRotation.zw * mult;
                 }
 
-                const speedMod = ((bands.bass || 0) + (audioData.rms || 0)) * 0.8 * mult;
-                visualizer.updateParameter('speed', Math.min(3.0, baseParams.speed + speedMod));
+                reactiveParams.speed = clamp(
+                    baseParams.speed + deltas.cameraVelocity * 0.3 * mult,
+                    0,
+                    3
+                );
             }
+
+            Object.entries(reactiveParams).forEach(([key, value]) => {
+                visualizer.updateParameter(key, value);
+            });
 
             // Render
             if (visualizer.render) {
