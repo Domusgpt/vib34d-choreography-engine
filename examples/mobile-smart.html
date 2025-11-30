@@ -552,6 +552,7 @@
         import { HolographicVisualizer } from '../src/visualizers/holographic/HolographicVisualizer.js';
         import { AudioAnalyzer } from '../src/audio/AudioAnalyzer.js';
         import { GeometryLibrary } from '../src/geometry/GeometryLibrary.js';
+        import { BehaviorSweepEngine } from '../src/visualizers/shared/BehaviorSweepEngine.js';
 
         const canvas = document.getElementById('canvas');
         canvas.width = window.innerWidth * (window.devicePixelRatio || 1);
@@ -571,6 +572,10 @@
         visualizer.updateParameter('hue', 180);
         visualizer.updateParameter('saturation', 1.0);
         visualizer.updateParameter('gridDensity', 25);
+
+        const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+        const bandVal = (band) => typeof band === 'number' ? band : (band?.value || 0);
+        const sweepEngine = new BehaviorSweepEngine('hyper');
 
         let currentGeometry = 0; // Start with Tetrahedron (index 0)
 
@@ -813,91 +818,76 @@
 
             barIds.forEach((id, i) => {
                 const bar = document.getElementById(id);
-                const bandData = bands[bandKeys[i]];
-                const val = bandData?.value || 0;  // CRITICAL: bands are objects with .value
+                const val = bandVal(bands[bandKeys[i]]);
                 if (bar) bar.style.height = (val * 100) + '%';
             });
 
             // Strength - sum all band values
-            const bandValues = Object.values(bands).map(b => b?.value || 0);
+            const bandValues = Object.values(bands).map(bandVal);
             const avgReactivity = bandValues.reduce((a, b) => a + b, 0) / bandValues.length;
             document.getElementById('reactivityBar').style.width = (avgReactivity * 100) + '%';
 
-            // APPLY PARAMETERS - bands are OBJECTS with .value property!
+            const deltas = sweepEngine.applyBehavioralReactivity({
+                audioFrame: audioData,
+                beatInfo: audioData?.beat,
+                preset: 'hyper',
+                deltaTime: dt
+            });
+
+            const reactiveParams = { ...baseParams };
+
             if (audioPlaying) {
-                // Audio is playing - apply base + modulation
                 const mult = reactivity.amount;
-                const b = audioData.bands || {};
 
-                // CRITICAL FIX: Extract .value from band objects
-                const bassVal = b.bass?.value || 0;
-                const midVal = b.mid?.value || 0;
-                const lowMidVal = b.lowMid?.value || 0;
-                const highVal = b.high?.value || 0;
-                const rmsVal = audioData.rms || 0;
-
-                // Log once per second
-                if (frameCount % 60 === 0) {
-                    console.log(`🎵 AUDIO: bass=${bassVal.toFixed(2)} mid=${midVal.toFixed(2)} high=${highVal.toFixed(2)} mult=${mult}`);
-                }
-
-                // Apply ALL parameters with modulation
                 if (reactivity.enabled.density) {
-                    const modded = Math.min(80, baseParams.gridDensity + bassVal * 40 * mult);
-                    visualizer.updateParameter('gridDensity', modded);
-                } else {
-                    visualizer.updateParameter('gridDensity', baseParams.gridDensity);
+                    reactiveParams.gridDensity = clamp(
+                        baseParams.gridDensity + deltas.densityDelta * mult,
+                        0,
+                        80
+                    );
                 }
 
                 if (reactivity.enabled.morph) {
-                    visualizer.updateParameter('morphFactor', Math.min(3.0, baseParams.morphFactor + midVal * 1.5 * mult));
-                } else {
-                    visualizer.updateParameter('morphFactor', baseParams.morphFactor);
+                    reactiveParams.morphFactor = clamp(
+                        baseParams.morphFactor + deltas.morphDelta * mult,
+                        0,
+                        3
+                    );
                 }
 
                 if (reactivity.enabled.color) {
-                    visualizer.updateParameter('hue', (baseParams.hue + highVal * 120 * mult) % 360);
-                    visualizer.updateParameter('saturation', Math.min(1.0, baseParams.saturation + midVal * 0.3 * mult));
-                } else {
-                    visualizer.updateParameter('hue', baseParams.hue);
-                    visualizer.updateParameter('saturation', baseParams.saturation);
+                    reactiveParams.hue = (baseParams.hue + deltas.color.hueShift * mult) % 360;
+                    reactiveParams.saturation = clamp(
+                        baseParams.saturation + deltas.color.saturationPulse * mult,
+                        0,
+                        1
+                    );
                 }
 
                 if (reactivity.enabled.chaos) {
-                    visualizer.updateParameter('chaos', Math.min(1.0, baseParams.chaos + rmsVal * 0.6 * mult));
-                } else {
-                    visualizer.updateParameter('chaos', baseParams.chaos);
+                    reactiveParams.chaos = clamp(
+                        baseParams.chaos + deltas.cameraVelocity * 0.35 * mult,
+                        0,
+                        1
+                    );
                 }
 
-                visualizer.updateParameter('speed', Math.min(3.0, baseParams.speed + ((bassVal + rmsVal) * 0.8 * mult)));
-                visualizer.updateParameter('intensity', baseParams.intensity);
-                visualizer.updateParameter('dimension', baseParams.dimension);
-
-                // Apply 4D rotations with audio modulation if enabled
                 if (reactivity.enabled.rotation) {
-                    visualizer.updateParameter('rot4dXW', baseParams.rot4dXW + lowMidVal * 0.5 * mult);
-                    visualizer.updateParameter('rot4dYW', baseParams.rot4dYW + midVal * 0.6 * mult);
-                    visualizer.updateParameter('rot4dZW', baseParams.rot4dZW + highVal * 0.8 * mult);
-                } else {
-                    visualizer.updateParameter('rot4dXW', baseParams.rot4dXW);
-                    visualizer.updateParameter('rot4dYW', baseParams.rot4dYW);
-                    visualizer.updateParameter('rot4dZW', baseParams.rot4dZW);
+                    reactiveParams.rot4dXW = baseParams.rot4dXW + deltas.motionRotation.xw * mult;
+                    reactiveParams.rot4dYW = baseParams.rot4dYW + deltas.motionRotation.yw * mult;
+                    reactiveParams.rot4dZW = baseParams.rot4dZW + deltas.motionRotation.zw * mult;
                 }
-            } else {
-                // NO audio playing - still need to apply base params every frame
-                // This makes sliders work even without audio
-                visualizer.updateParameter('gridDensity', baseParams.gridDensity);
-                visualizer.updateParameter('morphFactor', baseParams.morphFactor);
-                visualizer.updateParameter('hue', baseParams.hue);
-                visualizer.updateParameter('saturation', baseParams.saturation);
-                visualizer.updateParameter('chaos', baseParams.chaos);
-                visualizer.updateParameter('speed', baseParams.speed);
-                visualizer.updateParameter('intensity', baseParams.intensity);
-                visualizer.updateParameter('dimension', baseParams.dimension);
-                visualizer.updateParameter('rot4dXW', baseParams.rot4dXW);
-                visualizer.updateParameter('rot4dYW', baseParams.rot4dYW);
-                visualizer.updateParameter('rot4dZW', baseParams.rot4dZW);
+
+                reactiveParams.speed = clamp(
+                    baseParams.speed + deltas.cameraVelocity * 0.3 * mult,
+                    0,
+                    3
+                );
             }
+
+            Object.entries(reactiveParams).forEach(([key, value]) => {
+                visualizer.updateParameter(key, value);
+            });
 
             // Render
             if (visualizer.render) {
