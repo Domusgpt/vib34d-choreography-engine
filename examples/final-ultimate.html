@@ -670,6 +670,7 @@
         import { HolographicVisualizer } from '../src/visualizers/holographic/HolographicVisualizer.js';
         import { AudioAnalyzer } from '../src/audio/AudioAnalyzer.js';
         import { GeometryLibrary } from '../src/geometry/GeometryLibrary.js';
+        import { BehaviorSweepEngine, applyReactiveControls, createBehaviorPrompt, parseBehaviorPromptResponse } from '../src/visualizers/shared/BehaviorSweepEngine.js';
 
         // Collapsible sections
         window.toggleSection = function(header) {
@@ -688,6 +689,10 @@
 
         // Visualizer
         let visualizer = new QuantumHolographicVisualizer('canvas', 'content', 1.0, 0);
+
+        const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+        const bandVal = (band) => typeof band === 'number' ? band : (band?.value || 0);
+        const sweepEngine = new BehaviorSweepEngine('hyper');
 
         // Base parameters
         const baseParams = {
@@ -712,9 +717,51 @@
                 morph: true,
                 color: true,
                 chaos: true,
-                rotation: true
+                rotation: true,
+                camera: true
+            },
+            controlAmount: {
+                density: 1.0,
+                morph: 1.0,
+                color: 1.0,
+                chaos: 1.0,
+                rotation: 1.0,
+                camera: 1.0
             },
             amount: 1.0
+        };
+
+        window.copyBehaviorPrompt = (userPrompt = '') => createBehaviorPrompt(userPrompt);
+
+        window.applyLLMBehaviorSettings = (responseText = '') => {
+            const parsed = parseBehaviorPromptResponse(responseText);
+
+            if (parsed.preset) {
+                sweepEngine.setPreset(parsed.preset);
+            }
+
+            if (typeof parsed.intensity === 'number') {
+                reactivity.amount = clamp(parsed.intensity, 0, 3);
+                const slider = document.getElementById('reactivity');
+                if (slider) {
+                    slider.value = reactivity.amount;
+                }
+                document.getElementById('reactivityVal').textContent = reactivity.amount.toFixed(1);
+            }
+
+            Object.entries(parsed.controls || {}).forEach(([key, control]) => {
+                if (!control) return;
+                if (typeof control.enabled === 'boolean') {
+                    reactivity.enabled[key] = control.enabled;
+                    const checkbox = document.getElementById('react' + key.charAt(0).toUpperCase() + key.slice(1));
+                    if (checkbox) checkbox.checked = control.enabled;
+                }
+                if (typeof control.amount === 'number') {
+                    reactivity.controlAmount[key] = clamp(control.amount, 0, 3);
+                }
+            });
+
+            console.log('🧠 Applied LLM behavior settings:', parsed);
         };
 
         // Setup geometry buttons
@@ -928,54 +975,59 @@
 
             barIds.forEach((id, i) => {
                 const bar = document.getElementById(id);
-                const val = bands[bandKeys[i]] || 0;
+                const val = bandVal(bands[bandKeys[i]]);
                 if (bar) bar.style.height = (val * 100) + '%';
             });
 
             // Reactivity strength indicator
-            const avgReactivity = Object.values(bands).reduce((a, b) => a + b, 0) / 7;
+            const avgReactivity = Object.values(bands).reduce((a, b) => a + bandVal(b), 0) / 7;
             document.getElementById('reactivityBar').style.width = (avgReactivity * 100) + '%';
 
             // Set global for visualizer internal use
             window.audioEnabled = audioPlaying;
-            window.audioReactive = bands;
+            window.audioReactive = {
+                bass: bandVal(bands.bass),
+                subBass: bandVal(bands.subBass),
+                mid: bandVal(bands.mid),
+                high: bandVal(bands.high ?? bands.highMid),
+                energy: audioData?.rms || 0
+            };
 
-            // APPLY AUDIO REACTIVITY
+            const deltas = sweepEngine.applyBehavioralReactivity({
+                audioFrame: audioData,
+                beatInfo: audioData?.beat,
+                preset: 'hyper',
+                deltaTime: dt
+            });
+
+            let reactiveParams = { ...baseParams };
+
             if (audioPlaying) {
-                const mult = reactivity.amount;
-
-                if (reactivity.enabled.density) {
-                    const densityMod = ((bands.bass || 0) * 40 + (bands.subBass || 0) * 30) * mult;
-                    visualizer.updateParameter('gridDensity', Math.min(80, baseParams.gridDensity + densityMod));
-                }
-
-                if (reactivity.enabled.morph) {
-                    const morphMod = (bands.mid || 0) * 1.5 * mult;
-                    visualizer.updateParameter('morphFactor', Math.min(3.0, baseParams.morphFactor + morphMod));
-                }
-
-                if (reactivity.enabled.color) {
-                    const hueShift = (bands.high || 0) * 120 * mult;
-                    visualizer.updateParameter('hue', (baseParams.hue + hueShift) % 360);
-
-                    const satMod = (bands.mid || 0) * 0.3 * mult;
-                    visualizer.updateParameter('saturation', Math.min(1.0, baseParams.saturation + satMod));
-                }
-
-                if (reactivity.enabled.chaos) {
-                    const chaosMod = (audioData.rms || 0) * 0.6 * mult;
-                    visualizer.updateParameter('chaos', Math.min(1.0, baseParams.chaos + chaosMod));
-                }
-
-                if (reactivity.enabled.rotation) {
-                    visualizer.updateParameter('rot4dXW', baseParams.rot4dXW + (bands.lowMid || 0) * 0.5 * mult);
-                    visualizer.updateParameter('rot4dYW', baseParams.rot4dYW + (bands.mid || 0) * 0.6 * mult);
-                    visualizer.updateParameter('rot4dZW', baseParams.rot4dZW + (bands.high || 0) * 0.8 * mult);
-                }
-
-                const speedMod = ((bands.bass || 0) + (audioData.rms || 0)) * 0.8 * mult;
-                visualizer.updateParameter('speed', Math.min(3.0, baseParams.speed + speedMod));
+                reactiveParams = applyReactiveControls({
+                    baseParams,
+                    deltas,
+                    intensity: reactivity.amount,
+                    controls: {
+                        density: { enabled: reactivity.enabled.density, amount: reactivity.controlAmount.density },
+                        morph: { enabled: reactivity.enabled.morph, amount: reactivity.controlAmount.morph },
+                        color: { enabled: reactivity.enabled.color, amount: reactivity.controlAmount.color },
+                        chaos: { enabled: reactivity.enabled.chaos, amount: reactivity.controlAmount.chaos },
+                        rotation: { enabled: reactivity.enabled.rotation, amount: reactivity.controlAmount.rotation },
+                        camera: { enabled: reactivity.enabled.camera, amount: reactivity.controlAmount.camera }
+                    },
+                    limits: {
+                        gridDensity: { min: 0, max: 80 },
+                        morphFactor: { min: 0, max: 3 },
+                        saturation: { min: 0, max: 1 },
+                        chaos: { min: 0, max: 1 },
+                        speed: { min: 0, max: 3 }
+                    }
+                });
             }
+
+            Object.entries(reactiveParams).forEach(([key, value]) => {
+                visualizer.updateParameter(key, value);
+            });
 
             // Render
             if (visualizer.render) {
