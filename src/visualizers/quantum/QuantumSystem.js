@@ -77,6 +77,67 @@ export class QuantumSystem extends BaseSystem {
             this.visualizer.setParameters(parameters);
         }
 
+        // New behavior/sweep engine integration - journey-aware control
+        const behaviorState = parameters?.behaviorState || audioData?.behaviorState || {};
+        const sweepState = parameters?.sweepState || audioData?.sweepState || {};
+
+        // Per-journey phase presets (favor low baseline motion with audio-driven surges)
+        const journeyPhase = behaviorState.journeyPhase || 'orbit';
+        const journeyPresets = {
+            orbit: {
+                camera: { tilt: 0.08, sway: 0.04 },
+                volumetric: 0.35,
+                hueSpan: [parameters.hue - 20, parameters.hue + 40],
+                contrast: 0.85,
+                rotation: { xw: 0.12, yw: 0.08, zw: 0.04 }
+            },
+            pendulum: {
+                camera: { tilt: 0.03, sway: 0.12 },
+                volumetric: 0.28,
+                hueSpan: [parameters.hue - 10, parameters.hue + 25],
+                contrast: 0.9,
+                rotation: { xw: 0.08, yw: 0.18, zw: 0.06 }
+            },
+            spiral: {
+                camera: { tilt: 0.12, sway: 0.1 },
+                volumetric: 0.42,
+                hueSpan: [parameters.hue - 30, parameters.hue + 55],
+                contrast: 0.95,
+                rotation: { xw: 0.16, yw: 0.14, zw: 0.1 }
+            }
+        };
+
+        const activePreset = journeyPresets[journeyPhase] || journeyPresets.orbit;
+
+        // Beat/onset envelopes provide cinematic surges without high baseline motion
+        const beatEnvelope = Math.min(1, behaviorState.beatEnvelope ?? (audioData?.beatEnvelope || audioData?.rms || 0));
+        const onsetEnvelope = Math.min(1, behaviorState.onsetEnvelope ?? audioData?.onset ?? 0);
+
+        // Palette bands allow multi-stop gradients driven by journey hue span
+        const paletteBands = behaviorState.paletteBands || [
+            { position: 0.0, color: [0.05, 0.02, 0.12] },
+            { position: 0.32, color: [0.25, 0.15, 0.35] },
+            { position: 0.68, color: [0.68, 0.35, 0.15] },
+            { position: 1.0, color: [1.0, 0.65, 0.28] }
+        ];
+
+        // Rotation targets from sweep engine layered on top of preset journey rotations
+        const rotationTargets = sweepState.rotations || behaviorState.rotations || activePreset.rotation;
+
+        if (this.visualizer.applyBehaviorState) {
+            this.visualizer.applyBehaviorState({
+                journeyPhase,
+                beatEnvelope,
+                onsetEnvelope,
+                volumetricDensity: activePreset.volumetric + beatEnvelope * 0.35 + onsetEnvelope * 0.35,
+                hueSpan: activePreset.hueSpan,
+                contrastCurve: activePreset.contrast + onsetEnvelope * 0.25,
+                paletteBands,
+                rotationTargets,
+                cameraPreset: activePreset.camera
+            });
+        }
+
         // Get color from color system
         const time = this.visualizer.getTime();
         const color = this.colorSystem.getColor(
