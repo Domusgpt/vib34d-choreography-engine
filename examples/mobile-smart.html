@@ -552,6 +552,7 @@
         import { HolographicVisualizer } from '../src/visualizers/holographic/HolographicVisualizer.js';
         import { AudioAnalyzer } from '../src/audio/AudioAnalyzer.js';
         import { GeometryLibrary } from '../src/geometry/GeometryLibrary.js';
+        import { BehaviorSweepEngine, applyReactiveControls, createBehaviorPrompt, parseBehaviorPromptResponse } from '../src/visualizers/shared/BehaviorSweepEngine.js';
 
         const canvas = document.getElementById('canvas');
         canvas.width = window.innerWidth * (window.devicePixelRatio || 1);
@@ -571,6 +572,10 @@
         visualizer.updateParameter('hue', 180);
         visualizer.updateParameter('saturation', 1.0);
         visualizer.updateParameter('gridDensity', 25);
+
+        const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+        const bandVal = (band) => typeof band === 'number' ? band : (band?.value || 0);
+        const sweepEngine = new BehaviorSweepEngine('hyper');
 
         let currentGeometry = 0; // Start with Tetrahedron (index 0)
 
@@ -597,8 +602,48 @@
                 morph: true,
                 color: true,
                 chaos: true,
-                rotation: true
+                rotation: true,
+                camera: true
+            },
+            controlAmount: {
+                density: 1.0,
+                morph: 1.0,
+                color: 1.0,
+                chaos: 1.0,
+                rotation: 1.0,
+                camera: 1.0
             }
+        };
+
+        window.copyBehaviorPrompt = (userPrompt = '') => createBehaviorPrompt(userPrompt);
+
+        window.applyLLMBehaviorSettings = (responseText = '') => {
+            const parsed = parseBehaviorPromptResponse(responseText);
+
+            if (parsed.preset) {
+                sweepEngine.setPreset(parsed.preset);
+            }
+
+            if (typeof parsed.intensity === 'number') {
+                reactivity.amount = clamp(parsed.intensity, 0, 3);
+                const slider = document.getElementById('reactivity');
+                if (slider) slider.value = reactivity.amount;
+                document.getElementById('val-reactivity').textContent = reactivity.amount.toFixed(1);
+            }
+
+            Object.entries(parsed.controls || {}).forEach(([key, control]) => {
+                if (!control) return;
+                if (typeof control.enabled === 'boolean') {
+                    reactivity.enabled[key] = control.enabled;
+                    const toggle = document.getElementById('toggle-' + key);
+                    if (toggle) toggle.classList.toggle('active', control.enabled);
+                }
+                if (typeof control.amount === 'number') {
+                    reactivity.controlAmount[key] = clamp(control.amount, 0, 3);
+                }
+            });
+
+            console.log('🧠 Applied mobile LLM behavior settings:', parsed);
         };
 
         // Audio
@@ -813,91 +858,50 @@
 
             barIds.forEach((id, i) => {
                 const bar = document.getElementById(id);
-                const bandData = bands[bandKeys[i]];
-                const val = bandData?.value || 0;  // CRITICAL: bands are objects with .value
+                const val = bandVal(bands[bandKeys[i]]);
                 if (bar) bar.style.height = (val * 100) + '%';
             });
 
             // Strength - sum all band values
-            const bandValues = Object.values(bands).map(b => b?.value || 0);
+            const bandValues = Object.values(bands).map(bandVal);
             const avgReactivity = bandValues.reduce((a, b) => a + b, 0) / bandValues.length;
             document.getElementById('reactivityBar').style.width = (avgReactivity * 100) + '%';
 
-            // APPLY PARAMETERS - bands are OBJECTS with .value property!
+            const deltas = sweepEngine.applyBehavioralReactivity({
+                audioFrame: audioData,
+                beatInfo: audioData?.beat,
+                preset: 'hyper',
+                deltaTime: dt
+            });
+
+            let reactiveParams = { ...baseParams };
+
             if (audioPlaying) {
-                // Audio is playing - apply base + modulation
-                const mult = reactivity.amount;
-                const b = audioData.bands || {};
-
-                // CRITICAL FIX: Extract .value from band objects
-                const bassVal = b.bass?.value || 0;
-                const midVal = b.mid?.value || 0;
-                const lowMidVal = b.lowMid?.value || 0;
-                const highVal = b.high?.value || 0;
-                const rmsVal = audioData.rms || 0;
-
-                // Log once per second
-                if (frameCount % 60 === 0) {
-                    console.log(`🎵 AUDIO: bass=${bassVal.toFixed(2)} mid=${midVal.toFixed(2)} high=${highVal.toFixed(2)} mult=${mult}`);
-                }
-
-                // Apply ALL parameters with modulation
-                if (reactivity.enabled.density) {
-                    const modded = Math.min(80, baseParams.gridDensity + bassVal * 40 * mult);
-                    visualizer.updateParameter('gridDensity', modded);
-                } else {
-                    visualizer.updateParameter('gridDensity', baseParams.gridDensity);
-                }
-
-                if (reactivity.enabled.morph) {
-                    visualizer.updateParameter('morphFactor', Math.min(3.0, baseParams.morphFactor + midVal * 1.5 * mult));
-                } else {
-                    visualizer.updateParameter('morphFactor', baseParams.morphFactor);
-                }
-
-                if (reactivity.enabled.color) {
-                    visualizer.updateParameter('hue', (baseParams.hue + highVal * 120 * mult) % 360);
-                    visualizer.updateParameter('saturation', Math.min(1.0, baseParams.saturation + midVal * 0.3 * mult));
-                } else {
-                    visualizer.updateParameter('hue', baseParams.hue);
-                    visualizer.updateParameter('saturation', baseParams.saturation);
-                }
-
-                if (reactivity.enabled.chaos) {
-                    visualizer.updateParameter('chaos', Math.min(1.0, baseParams.chaos + rmsVal * 0.6 * mult));
-                } else {
-                    visualizer.updateParameter('chaos', baseParams.chaos);
-                }
-
-                visualizer.updateParameter('speed', Math.min(3.0, baseParams.speed + ((bassVal + rmsVal) * 0.8 * mult)));
-                visualizer.updateParameter('intensity', baseParams.intensity);
-                visualizer.updateParameter('dimension', baseParams.dimension);
-
-                // Apply 4D rotations with audio modulation if enabled
-                if (reactivity.enabled.rotation) {
-                    visualizer.updateParameter('rot4dXW', baseParams.rot4dXW + lowMidVal * 0.5 * mult);
-                    visualizer.updateParameter('rot4dYW', baseParams.rot4dYW + midVal * 0.6 * mult);
-                    visualizer.updateParameter('rot4dZW', baseParams.rot4dZW + highVal * 0.8 * mult);
-                } else {
-                    visualizer.updateParameter('rot4dXW', baseParams.rot4dXW);
-                    visualizer.updateParameter('rot4dYW', baseParams.rot4dYW);
-                    visualizer.updateParameter('rot4dZW', baseParams.rot4dZW);
-                }
-            } else {
-                // NO audio playing - still need to apply base params every frame
-                // This makes sliders work even without audio
-                visualizer.updateParameter('gridDensity', baseParams.gridDensity);
-                visualizer.updateParameter('morphFactor', baseParams.morphFactor);
-                visualizer.updateParameter('hue', baseParams.hue);
-                visualizer.updateParameter('saturation', baseParams.saturation);
-                visualizer.updateParameter('chaos', baseParams.chaos);
-                visualizer.updateParameter('speed', baseParams.speed);
-                visualizer.updateParameter('intensity', baseParams.intensity);
-                visualizer.updateParameter('dimension', baseParams.dimension);
-                visualizer.updateParameter('rot4dXW', baseParams.rot4dXW);
-                visualizer.updateParameter('rot4dYW', baseParams.rot4dYW);
-                visualizer.updateParameter('rot4dZW', baseParams.rot4dZW);
+                reactiveParams = applyReactiveControls({
+                    baseParams,
+                    deltas,
+                    intensity: reactivity.amount,
+                    controls: {
+                        density: { enabled: reactivity.enabled.density, amount: reactivity.controlAmount.density },
+                        morph: { enabled: reactivity.enabled.morph, amount: reactivity.controlAmount.morph },
+                        color: { enabled: reactivity.enabled.color, amount: reactivity.controlAmount.color },
+                        chaos: { enabled: reactivity.enabled.chaos, amount: reactivity.controlAmount.chaos },
+                        rotation: { enabled: reactivity.enabled.rotation, amount: reactivity.controlAmount.rotation },
+                        camera: { enabled: reactivity.enabled.camera, amount: reactivity.controlAmount.camera }
+                    },
+                    limits: {
+                        gridDensity: { min: 0, max: 80 },
+                        morphFactor: { min: 0, max: 3 },
+                        saturation: { min: 0, max: 1 },
+                        chaos: { min: 0, max: 1 },
+                        speed: { min: 0, max: 3 }
+                    }
+                });
             }
+
+            Object.entries(reactiveParams).forEach(([key, value]) => {
+                visualizer.updateParameter(key, value);
+            });
 
             // Render
             if (visualizer.render) {
