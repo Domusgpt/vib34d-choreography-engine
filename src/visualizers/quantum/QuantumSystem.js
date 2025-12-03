@@ -7,8 +7,11 @@
  */
 
 import { BaseSystem } from '../shared/BaseSystem.js';
+import { BehaviorSweepEngine } from '../shared/BehaviorSweepEngine.js';
 import { QuantumHolographicVisualizer } from './QuantumVisualizer.js';
 import { ParameterManager } from '../../core/Parameters.js';
+
+const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
 export class QuantumSystem extends BaseSystem {
     constructor(config) {
@@ -21,6 +24,9 @@ export class QuantumSystem extends BaseSystem {
         this.role = config.role || 'content';
         this.reactivity = config.reactivity || 1.0;
         this.variant = config.variant || 0;
+
+        this.behaviorPreset = config.behaviorPreset || 'cinematic';
+        this.behaviorEngine = new BehaviorSweepEngine(this.behaviorPreset);
     }
 
     /**
@@ -72,9 +78,61 @@ export class QuantumSystem extends BaseSystem {
             this.visualizer.updateClickIntensity(deltaTime);
         }
 
+        const behavior = this.behaviorEngine.applyBehavioralReactivity({
+            audioFrame: audioData,
+            beatInfo: audioData?.beat,
+            preset: this.behaviorPreset,
+            deltaTime
+        });
+
+        const reactiveParams = { ...parameters };
+
+        reactiveParams.gridDensity = clamp(
+            (parameters.gridDensity || 0) + behavior.densityDelta * this.audioReactivity,
+            0,
+            140
+        );
+
+        reactiveParams.morphFactor = clamp(
+            (parameters.morphFactor || 0) + behavior.morphDelta * this.audioReactivity,
+            0,
+            3.5
+        );
+
+        reactiveParams.hue = (parameters.hue || 0) + behavior.color.hueShift;
+        reactiveParams.saturation = clamp(
+            (parameters.saturation || 0) + behavior.color.saturationPulse + behavior.color.spark * 0.2,
+            0,
+            1
+        );
+
+        reactiveParams.rot4dXW = (parameters.rot4dXW || 0) + behavior.motionRotation.xw;
+        reactiveParams.rot4dYW = (parameters.rot4dYW || 0) + behavior.motionRotation.yw;
+        reactiveParams.rot4dZW = (parameters.rot4dZW || 0) + behavior.motionRotation.zw;
+
+        reactiveParams.intensity = clamp(
+            (parameters.intensity || 1.0) + behavior.color.spark * this.audioReactivity * 0.55,
+            0.2,
+            3.5
+        );
+
+        reactiveParams.parallaxDepth = clamp(
+            (parameters.parallaxDepth || 0) + behavior.atmosphere.parallaxDepth * this.audioReactivity,
+            -1.1,
+            1.1
+        );
+
+        reactiveParams.gridDensityShift = clamp(
+            (parameters.gridDensityShift || 0) + behavior.atmosphere.gridShift * this.audioReactivity,
+            -2,
+            2
+        );
+
         // Update visualizer with parameters
-        if (this.visualizer.setParameters) {
-            this.visualizer.setParameters(parameters);
+        if (this.visualizer.updateParameters) {
+            this.visualizer.updateParameters(reactiveParams);
+        } else if (this.visualizer.setParameters) {
+            this.visualizer.setParameters(reactiveParams);
         }
 
         // Get color from color system
@@ -83,7 +141,7 @@ export class QuantumSystem extends BaseSystem {
             this.visualizer.mouseX,
             this.visualizer.mouseY,
             time,
-            parameters.hue || 200,
+            reactiveParams.hue || 200,
             audioData
         );
 
@@ -92,10 +150,15 @@ export class QuantumSystem extends BaseSystem {
             this.visualizer.setColor(color);
         }
 
+        if (this.visualizer) {
+            this.visualizer.parallaxDepth = reactiveParams.parallaxDepth ?? this.visualizer.parallaxDepth;
+            this.visualizer.gridDensityShift = reactiveParams.gridDensityShift ?? this.visualizer.gridDensityShift;
+        }
+
         // Apply audio reactivity to specific Quantum parameters
         if (audioData && this.audioEnabled) {
             // Enhance volumetric effects with audio
-            const volumetricBoost = audioData.rms * this.audioReactivity;
+            const volumetricBoost = (audioData.rms * this.audioReactivity) + behavior.cameraVelocity * 0.5;
 
             // Add particle intensity from high frequencies
             const particleIntensity = audioData.bands.high?.value || 0;
@@ -110,7 +173,7 @@ export class QuantumSystem extends BaseSystem {
         }
 
         // Render frame
-        this.visualizer.render(parameters);
+        this.visualizer.render(reactiveParams);
     }
 
     /**
