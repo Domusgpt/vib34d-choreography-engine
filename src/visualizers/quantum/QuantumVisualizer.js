@@ -51,7 +51,7 @@ export class QuantumHolographicVisualizer {
         this.mouseIntensity = 0.0;
         this.clickIntensity = 0.0;
         this.startTime = Date.now();
-        
+
         // Default parameters
         this.params = {
             geometry: 0,
@@ -67,6 +67,56 @@ export class QuantumHolographicVisualizer {
             rot4dYW: 0.0,
             rot4dZW: 0.0
         };
+
+        this.behaviorState = {
+            journeyPhase: 'orbit',
+            beatEnvelope: 0,
+            onsetEnvelope: 0,
+            volumetricDensity: 0.35,
+            hueSpan: [180, 240],
+            contrastCurve: 0.9,
+            cameraPreset: { tilt: 0.08, sway: 0.04 },
+            paletteBands: [
+                { position: 0.0, color: [0.05, 0.02, 0.12] },
+                { position: 0.32, color: [0.25, 0.15, 0.35] },
+                { position: 0.68, color: [0.68, 0.35, 0.15] },
+                { position: 1.0, color: [1.0, 0.65, 0.28] }
+            ],
+            rotationTargets: { xw: 0, yw: 0, zw: 0 }
+        };
+
+        this.behaviorTargets = {
+            hueSpan: [...this.behaviorState.hueSpan],
+            contrastCurve: this.behaviorState.contrastCurve,
+            cameraMotion: [this.behaviorState.cameraPreset.tilt, this.behaviorState.cameraPreset.sway],
+            paletteBands: this.behaviorState.paletteBands.map(b => ({ ...b })),
+            volumetricDensity: this.behaviorState.volumetricDensity
+        };
+
+        this.smoothedParams = {
+            gridDensity: this.params.gridDensity,
+            morphFactor: this.params.morphFactor,
+            chaos: this.params.chaos,
+            speed: this.params.speed,
+            hue: (this.params.hue % 360) / 360,
+            intensity: this.params.intensity,
+            saturation: this.params.saturation,
+            dimension: this.params.dimension,
+            rot4dXW: 0,
+            rot4dYW: 0,
+            rot4dZW: 0,
+            volumetricDensity: this.behaviorState.volumetricDensity
+        };
+
+        this.behaviorSmoothing = {
+            hueSpan: [...this.behaviorTargets.hueSpan],
+            contrastCurve: this.behaviorTargets.contrastCurve,
+            cameraMotion: [...this.behaviorTargets.cameraMotion],
+            paletteBands: this.behaviorTargets.paletteBands.map(b => ({ ...b })),
+            volumetricDensity: this.behaviorTargets.volumetricDensity
+        };
+        this.lastRenderTime = Date.now();
+        this.rotationTargets = { xw: 0, yw: 0, zw: 0 };
         
         this.init();
     }
@@ -254,6 +304,16 @@ uniform float u_rot4dZW;
 uniform float u_mouseIntensity;
 uniform float u_clickIntensity;
 uniform float u_roleIntensity;
+uniform vec3 u_paletteColors[6];
+uniform float u_paletteStops[6];
+uniform int u_paletteCount;
+uniform vec2 u_hueSpan;
+uniform float u_contrastCurve;
+uniform float u_volumetricDensity;
+uniform float u_journeyPhase;
+uniform float u_beatEnvelope;
+uniform float u_onsetEnvelope;
+uniform vec2 u_cameraMotion;
 
 // 4D rotation matrices
 mat4 rotateXW(float theta) {
@@ -518,37 +578,73 @@ vec3 extremeRGBSeparation(vec3 baseColor, vec2 uv, float intensity, int layerInd
     }
 }
 
+// Palette sampler for multi-stop bands driven by journey hue spans
+vec3 samplePalette(float t, vec3 fallback) {
+    if (u_paletteCount < 2) {
+        return fallback;
+    }
+
+    float prevPos = 0.0;
+    vec3 prevColor = u_paletteColors[0];
+
+    for (int i = 1; i < 6; i++) {
+        if (i >= u_paletteCount) {
+            break;
+        }
+
+        float pos = u_paletteStops[i];
+        float segmentT = smoothstep(prevPos, pos, clamp(t, 0.0, 1.0));
+        vec3 blended = mix(prevColor, u_paletteColors[i], segmentT);
+
+        if (t <= pos || i == u_paletteCount - 1) {
+            return blended;
+        }
+
+        prevPos = pos;
+        prevColor = u_paletteColors[i];
+    }
+
+    return prevColor;
+}
+
 void main() {
-    vec2 uv = (gl_FragCoord.xy - u_resolution.xy * 0.5) / min(u_resolution.x, u_resolution.y);
-    
+    vec2 cameraDrift = vec2(
+        sin(u_time * 0.0006 + u_journeyPhase * 1.4) * u_cameraMotion.x,
+        cos(u_time * 0.0004 + u_journeyPhase) * u_cameraMotion.y
+    );
+    vec2 uv = (gl_FragCoord.xy - u_resolution.xy * 0.5) / min(u_resolution.x, u_resolution.y) + cameraDrift;
+
     // Enhanced 4D position with holographic depth
     float timeSpeed = u_time * 0.0001 * u_speed;
     vec4 pos = vec4(uv * 3.0, sin(timeSpeed * 3.0), cos(timeSpeed * 2.0));
     pos.xy += (u_mouse - 0.5) * u_mouseIntensity * 2.0;
-    
+    pos.xy += cameraDrift * 2.0;
+
     // Apply 4D rotations
     pos = rotateXW(u_rot4dXW) * pos;
     pos = rotateYW(u_rot4dYW) * pos;
     pos = rotateZW(u_rot4dZW) * pos;
-    
+
     // Calculate enhanced geometry value
     float value = geometryFunction(pos);
-    
+
     // Enhanced chaos with holographic effects
     float noise = sin(pos.x * 7.0) * cos(pos.y * 11.0) * sin(pos.z * 13.0);
     value += noise * u_chaos;
-    
+
     // Enhanced intensity calculation with holographic glow
     float geometryIntensity = 1.0 - clamp(abs(value * 0.8), 0.0, 1.0);
     geometryIntensity = pow(geometryIntensity, 1.5); // More dramatic falloff
     geometryIntensity += u_clickIntensity * 0.3;
-    
+
     // Holographic shimmer effect
     float shimmer = sin(uv.x * 20.0 + timeSpeed * 5.0) * cos(uv.y * 15.0 + timeSpeed * 3.0) * 0.1;
     geometryIntensity += shimmer * geometryIntensity;
-    
+    geometryIntensity += (u_beatEnvelope * 0.35 + u_onsetEnvelope * 0.45);
+
     // Apply user intensity control
     float finalIntensity = geometryIntensity * u_intensity;
+    finalIntensity *= mix(0.6, 1.6, u_volumetricDensity);
     
     // Old hemispheric color system completely removed - now using extreme layer-by-layer system
     
@@ -565,31 +661,36 @@ void main() {
     float globalIntensity = u_hue; // Now 0-1 from JavaScript
     float colorTime = timeSpeed * 2.0 + value * 3.0 + globalIntensity * 5.0;
     vec3 layerColor = getLayerColorPalette(layerIndex, colorTime) * (0.5 + globalIntensity * 1.5);
+    float paletteCoord = clamp(value * 0.6 + u_beatEnvelope * 0.4 + u_onsetEnvelope * 0.3, 0.0, 1.0);
+    vec3 journeyColor = samplePalette(paletteCoord, layerColor);
+    float hueJourney = mix(u_hueSpan.x, u_hueSpan.y, 0.5 + 0.5 * sin(timeSpeed * 0.8 + u_journeyPhase));
+    journeyColor *= mix(0.7, 1.3, hueJourney);
+    journeyColor = pow(max(journeyColor, 0.0), vec3(u_contrastCurve));
     
     // Apply geometry-based intensity modulation per layer
     vec3 extremeBaseColor;
     if (layerIndex == 0) {
         // Background: Subtle, fills empty space
-        extremeBaseColor = layerColor * (0.3 + geometryIntensity * 0.4);
+        extremeBaseColor = journeyColor * (0.3 + geometryIntensity * 0.4);
     }
     else if (layerIndex == 1) {
         // Shadow: Aggressive, high contrast where geometry is weak
         float shadowIntensity = pow(1.0 - geometryIntensity, 2.0); // Inverted for shadows
-        extremeBaseColor = layerColor * (shadowIntensity * 0.8 + 0.1);
+        extremeBaseColor = journeyColor * (shadowIntensity * 0.8 + 0.1);
     }
     else if (layerIndex == 2) {
         // Content: Dominant, follows geometry strongly
-        extremeBaseColor = layerColor * (geometryIntensity * 1.2 + 0.2);
+        extremeBaseColor = journeyColor * (geometryIntensity * 1.2 + 0.2);
     }
     else if (layerIndex == 3) {
         // Highlight: Electric, peaks only
         float peakIntensity = pow(geometryIntensity, 3.0); // Cubic for sharp peaks
-        extremeBaseColor = layerColor * (peakIntensity * 1.5 + 0.1);
+        extremeBaseColor = journeyColor * (peakIntensity * 1.5 + 0.1);
     }
     else {
         // Accent: Chaotic, random bursts
         float randomBurst = sin(value * 50.0 + timeSpeed * 10.0) * 0.5 + 0.5;
-        extremeBaseColor = layerColor * (randomBurst * geometryIntensity * 2.0 + 0.05);
+        extremeBaseColor = journeyColor * (randomBurst * geometryIntensity * 2.0 + 0.05);
     }
     
     // Apply extreme RGB separation per layer
@@ -663,7 +764,17 @@ void main() {
             rot4dZW: this.gl.getUniformLocation(this.program, 'u_rot4dZW'),
             mouseIntensity: this.gl.getUniformLocation(this.program, 'u_mouseIntensity'),
             clickIntensity: this.gl.getUniformLocation(this.program, 'u_clickIntensity'),
-            roleIntensity: this.gl.getUniformLocation(this.program, 'u_roleIntensity')
+            roleIntensity: this.gl.getUniformLocation(this.program, 'u_roleIntensity'),
+            paletteColors: this.gl.getUniformLocation(this.program, 'u_paletteColors[0]'),
+            paletteStops: this.gl.getUniformLocation(this.program, 'u_paletteStops[0]'),
+            paletteCount: this.gl.getUniformLocation(this.program, 'u_paletteCount'),
+            hueSpan: this.gl.getUniformLocation(this.program, 'u_hueSpan'),
+            contrastCurve: this.gl.getUniformLocation(this.program, 'u_contrastCurve'),
+            volumetricDensity: this.gl.getUniformLocation(this.program, 'u_volumetricDensity'),
+            journeyPhase: this.gl.getUniformLocation(this.program, 'u_journeyPhase'),
+            beatEnvelope: this.gl.getUniformLocation(this.program, 'u_beatEnvelope'),
+            onsetEnvelope: this.gl.getUniformLocation(this.program, 'u_onsetEnvelope'),
+            cameraMotion: this.gl.getUniformLocation(this.program, 'u_cameraMotion')
         };
     }
     
@@ -861,6 +972,75 @@ void main() {
         this.mouseY = y;
         this.mouseIntensity = intensity;
     }
+
+    /**
+     * Apply behavior/sweep engine state for cinematic journeys
+     */
+    applyBehaviorState(behaviorState) {
+        this.behaviorState = {
+            ...this.behaviorState,
+            ...behaviorState,
+            hueSpan: behaviorState.hueSpan || this.behaviorState.hueSpan,
+            paletteBands: behaviorState.paletteBands || this.behaviorState.paletteBands,
+            rotationTargets: behaviorState.rotationTargets || this.behaviorState.rotationTargets,
+            cameraPreset: behaviorState.cameraPreset || this.behaviorState.cameraPreset
+        };
+
+        this.behaviorTargets = {
+            ...this.behaviorTargets,
+            hueSpan: [...(this.behaviorState.hueSpan || [0, 360])],
+            contrastCurve: this.behaviorState.contrastCurve,
+            cameraMotion: [
+                this.behaviorState.cameraPreset?.tilt || 0,
+                this.behaviorState.cameraPreset?.sway || 0
+            ],
+            paletteBands: (this.behaviorState.paletteBands || []).slice(0, 6).map(band => ({
+                position: band.position ?? 0,
+                color: band.color ? [...band.color] : [0, 0, 0]
+            })),
+            volumetricDensity: behaviorState.volumetricDensity ?? this.behaviorTargets.volumetricDensity
+        };
+
+        if (behaviorState.rotationTargets) {
+            this.rotationTargets = behaviorState.rotationTargets;
+        }
+
+        if (behaviorState.volumetricDensity !== undefined) {
+            this.smoothedParams.volumetricDensity = behaviorState.volumetricDensity;
+        }
+    }
+
+    updateBehaviorSmoothing(lerpFactor) {
+        const smoothing = Math.min(1, lerpFactor * 1.25);
+        const targetSpan = this.behaviorTargets.hueSpan || [0, 360];
+
+        this.behaviorSmoothing.hueSpan[0] += (targetSpan[0] - this.behaviorSmoothing.hueSpan[0]) * smoothing;
+        this.behaviorSmoothing.hueSpan[1] += (targetSpan[1] - this.behaviorSmoothing.hueSpan[1]) * smoothing;
+        this.behaviorSmoothing.contrastCurve += (this.behaviorTargets.contrastCurve - this.behaviorSmoothing.contrastCurve) * smoothing;
+
+        this.behaviorSmoothing.cameraMotion[0] += (this.behaviorTargets.cameraMotion[0] - this.behaviorSmoothing.cameraMotion[0]) * smoothing;
+        this.behaviorSmoothing.cameraMotion[1] += (this.behaviorTargets.cameraMotion[1] - this.behaviorSmoothing.cameraMotion[1]) * smoothing;
+
+        const targetBands = this.behaviorTargets.paletteBands?.length ? this.behaviorTargets.paletteBands : this.behaviorSmoothing.paletteBands;
+        const maxBands = 6;
+        const activeBands = Math.min(maxBands, Math.max(2, targetBands.length || 2));
+
+        for (let i = 0; i < activeBands; i++) {
+            const targetBand = targetBands[Math.min(i, targetBands.length - 1)] || { position: i / Math.max(1, activeBands - 1), color: [0, 0, 0] };
+            const smoothingBand = this.behaviorSmoothing.paletteBands[i] || { position: targetBand.position, color: [...targetBand.color] };
+
+            smoothingBand.position += (targetBand.position - smoothingBand.position) * smoothing;
+            smoothingBand.color = smoothingBand.color || [0, 0, 0];
+
+            smoothingBand.color[0] += (targetBand.color[0] - smoothingBand.color[0]) * smoothing;
+            smoothingBand.color[1] += (targetBand.color[1] - smoothingBand.color[1]) * smoothing;
+            smoothingBand.color[2] += (targetBand.color[2] - smoothingBand.color[2]) * smoothing;
+
+            this.behaviorSmoothing.paletteBands[i] = smoothingBand;
+        }
+
+        this.behaviorSmoothing.paletteBands.length = activeBands;
+    }
     
     /**
      * Render frame
@@ -903,47 +1083,105 @@ void main() {
         };
         
         const time = Date.now() - this.startTime;
-        
+        const now = Date.now();
+        const deltaMs = now - this.lastRenderTime;
+        this.lastRenderTime = now;
+        const lerpFactor = 1 - Math.exp(-deltaMs / 180);
+
+        this.updateBehaviorSmoothing(lerpFactor);
+
         // Set uniforms
         this.gl.uniform2f(this.uniforms.resolution, this.canvas.width, this.canvas.height);
         this.gl.uniform1f(this.uniforms.time, time);
         this.gl.uniform2f(this.uniforms.mouse, this.mouseX, this.mouseY);
         this.gl.uniform1f(this.uniforms.geometry, this.params.geometry);
-        // 🎵 QUANTUM AUDIO REACTIVITY - Direct and effective
-        let gridDensity = this.params.gridDensity;
-        let morphFactor = this.params.morphFactor;
-        let hue = this.params.hue;
-        let chaos = this.params.chaos;
-        
+
+        // 🎵 QUANTUM AUDIO REACTIVITY - smoothed for cinematic pacing
+        let gridDensityTarget = this.params.gridDensity;
+        let morphFactorTarget = this.params.morphFactor;
+        let hueTarget = this.params.hue;
+        let chaosTarget = this.params.chaos;
+        let intensityTarget = this.params.intensity * (0.85 + this.behaviorState.beatEnvelope * 0.4 + this.behaviorState.onsetEnvelope * 0.35);
+
         if (window.audioEnabled && window.audioReactive) {
-            // Quantum audio mapping: Enhanced complex lattice response
-            gridDensity += window.audioReactive.bass * 40;      // Bass creates dense lattice structures
-            morphFactor += window.audioReactive.mid * 1.2;      // Mid frequencies morph the geometry
-            hue += window.audioReactive.high * 120;             // High frequencies shift colors dramatically
-            chaos += window.audioReactive.energy * 0.6;         // Overall energy adds chaos/complexity
-            
-            // Debug logging every 10 seconds to verify audio reactivity is working
-            if (Date.now() % 10000 < 16) {
-                console.log(`🌌 Quantum audio reactivity: Density+${(window.audioReactive.bass * 40).toFixed(1)} Morph+${(window.audioReactive.mid * 1.2).toFixed(2)} Hue+${(window.audioReactive.high * 120).toFixed(1)} Chaos+${(window.audioReactive.energy * 0.6).toFixed(2)}`);
-            }
+            gridDensityTarget += window.audioReactive.bass * 40;
+            morphFactorTarget += window.audioReactive.mid * 1.2;
+            hueTarget += window.audioReactive.high * 120;
+            chaosTarget += window.audioReactive.energy * 0.6;
         }
-        
-        this.gl.uniform1f(this.uniforms.gridDensity, Math.min(100, gridDensity));
-        this.gl.uniform1f(this.uniforms.morphFactor, Math.min(2, morphFactor));
-        this.gl.uniform1f(this.uniforms.chaos, Math.min(1, chaos));
-        this.gl.uniform1f(this.uniforms.speed, this.params.speed);
-        // Hue now used as global intensity modifier for extreme layer system
-        this.gl.uniform1f(this.uniforms.hue, (hue % 360) / 360.0); // Normalize to 0-1
-        this.gl.uniform1f(this.uniforms.intensity, this.params.intensity);
-        this.gl.uniform1f(this.uniforms.saturation, this.params.saturation);
-        this.gl.uniform1f(this.uniforms.dimension, this.params.dimension);
-        this.gl.uniform1f(this.uniforms.rot4dXW, this.params.rot4dXW);
-        this.gl.uniform1f(this.uniforms.rot4dYW, this.params.rot4dYW);
-        this.gl.uniform1f(this.uniforms.rot4dZW, this.params.rot4dZW);
+
+        this.smoothedParams.gridDensity += (Math.min(100, gridDensityTarget) - this.smoothedParams.gridDensity) * lerpFactor;
+        this.smoothedParams.morphFactor += (Math.min(2, morphFactorTarget) - this.smoothedParams.morphFactor) * lerpFactor;
+        this.smoothedParams.chaos += (Math.min(1, chaosTarget) - this.smoothedParams.chaos) * lerpFactor;
+        this.smoothedParams.speed += (this.params.speed - this.smoothedParams.speed) * lerpFactor;
+        this.smoothedParams.hue += (((hueTarget % 360) / 360.0) - this.smoothedParams.hue) * lerpFactor;
+        this.smoothedParams.intensity += (intensityTarget - this.smoothedParams.intensity) * lerpFactor;
+        this.smoothedParams.saturation += (this.params.saturation - this.smoothedParams.saturation) * lerpFactor;
+        this.smoothedParams.dimension += (this.params.dimension - this.smoothedParams.dimension) * lerpFactor;
+
+        const motionScale = 0.15 + this.behaviorState.beatEnvelope * 0.6 + this.behaviorState.onsetEnvelope * 0.55;
+        const rotationTarget = {
+            xw: (this.rotationTargets.xw || 0) * motionScale,
+            yw: (this.rotationTargets.yw || 0) * motionScale,
+            zw: (this.rotationTargets.zw || 0) * motionScale
+        };
+
+        this.smoothedParams.rot4dXW += (rotationTarget.xw - this.smoothedParams.rot4dXW) * lerpFactor;
+        this.smoothedParams.rot4dYW += (rotationTarget.yw - this.smoothedParams.rot4dYW) * lerpFactor;
+        this.smoothedParams.rot4dZW += (rotationTarget.zw - this.smoothedParams.rot4dZW) * lerpFactor;
+        this.smoothedParams.volumetricDensity += ((this.behaviorState.volumetricDensity || 0.35) - this.smoothedParams.volumetricDensity) * lerpFactor;
+
+        this.gl.uniform1f(this.uniforms.gridDensity, this.smoothedParams.gridDensity);
+        this.gl.uniform1f(this.uniforms.morphFactor, this.smoothedParams.morphFactor);
+        this.gl.uniform1f(this.uniforms.chaos, this.smoothedParams.chaos);
+        this.gl.uniform1f(this.uniforms.speed, this.smoothedParams.speed);
+        this.gl.uniform1f(this.uniforms.hue, this.smoothedParams.hue);
+        this.gl.uniform1f(this.uniforms.intensity, this.smoothedParams.intensity);
+        this.gl.uniform1f(this.uniforms.saturation, this.smoothedParams.saturation);
+        this.gl.uniform1f(this.uniforms.dimension, this.smoothedParams.dimension);
+        this.gl.uniform1f(this.uniforms.rot4dXW, this.smoothedParams.rot4dXW);
+        this.gl.uniform1f(this.uniforms.rot4dYW, this.smoothedParams.rot4dYW);
+        this.gl.uniform1f(this.uniforms.rot4dZW, this.smoothedParams.rot4dZW);
         this.gl.uniform1f(this.uniforms.mouseIntensity, this.mouseIntensity);
         this.gl.uniform1f(this.uniforms.clickIntensity, this.clickIntensity);
         this.gl.uniform1f(this.uniforms.roleIntensity, roleIntensities[this.role] || 1.0);
-        
+
+        // Behavior-driven uniforms
+        const palette = this.behaviorSmoothing.paletteBands || [];
+        const paletteColors = new Float32Array(18).fill(0);
+        const paletteStops = new Float32Array(6).fill(0);
+        const paletteCount = Math.min(6, palette.length || 0);
+
+        for (let i = 0; i < paletteCount; i++) {
+            const band = palette[i];
+            const normalizedPos = Math.max(0, Math.min(1, band.position ?? (i / Math.max(1, paletteCount - 1))));
+
+            paletteColors.set(band.color || [0, 0, 0], i * 3);
+            paletteStops[i] = i === 0 ? 0 : normalizedPos;
+        }
+
+        const hueSpan = this.behaviorSmoothing.hueSpan || [0.0, 1.0];
+        const normalizedHueSpan = [
+            Math.max(0, Math.min(1, hueSpan[0] / 360)),
+            Math.max(0, Math.min(1, hueSpan[1] / 360))
+        ];
+
+        const cameraMotion = [
+            (this.behaviorSmoothing.cameraMotion?.[0] || 0) * (0.3 + this.behaviorState.beatEnvelope * 0.7),
+            (this.behaviorSmoothing.cameraMotion?.[1] || 0) * (0.25 + this.behaviorState.onsetEnvelope * 0.75)
+        ];
+
+        this.gl.uniform3fv(this.uniforms.paletteColors, paletteColors);
+        this.gl.uniform1fv(this.uniforms.paletteStops, paletteStops);
+        this.gl.uniform1i(this.uniforms.paletteCount, paletteCount);
+        this.gl.uniform2f(this.uniforms.hueSpan, normalizedHueSpan[0], normalizedHueSpan[1]);
+        this.gl.uniform1f(this.uniforms.contrastCurve, this.behaviorSmoothing.contrastCurve || 1.0);
+        this.gl.uniform1f(this.uniforms.volumetricDensity, this.smoothedParams.volumetricDensity);
+        this.gl.uniform1f(this.uniforms.journeyPhase, this.behaviorState.journeyPhase === 'spiral' ? 2.0 : this.behaviorState.journeyPhase === 'pendulum' ? 1.0 : 0.0);
+        this.gl.uniform1f(this.uniforms.beatEnvelope, this.behaviorState.beatEnvelope || 0);
+        this.gl.uniform1f(this.uniforms.onsetEnvelope, this.behaviorState.onsetEnvelope || 0);
+        this.gl.uniform2f(this.uniforms.cameraMotion, cameraMotion[0], cameraMotion[1]);
+
         this.gl.drawArrays(this.gl.TRIANGLE_STRIP, 0, 4);
     }
     
