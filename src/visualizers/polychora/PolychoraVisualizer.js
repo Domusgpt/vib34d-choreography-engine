@@ -1043,7 +1043,11 @@ export class PolychoraSystem {
     getPolytopeNames() {
         return this.polytopes.map(p => p.name);
     }
-    
+
+    applyBehaviorState(state) {
+        this.behaviorState = { ...(this.behaviorState || {}), ...(state || {}) };
+    }
+
     /**
      * Destroy system and clean up resources
      */
