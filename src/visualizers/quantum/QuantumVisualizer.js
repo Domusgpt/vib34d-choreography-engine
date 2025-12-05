@@ -65,7 +65,15 @@ export class QuantumHolographicVisualizer {
             dimension: 3.5,
             rot4dXW: 0.0,
             rot4dYW: 0.0,
-            rot4dZW: 0.0
+            rot4dZW: 0.0,
+            parallaxDepth: 0.0,
+            gridDensityShift: 0.0,
+            shimmer: 0.0,
+            warp: 0.0,
+            haze: 0.0,
+            bloom: 0.0,
+            glow: 0.0,
+            strobe: 0.0
         };
         
         this.init();
@@ -241,6 +249,7 @@ uniform float u_time;
 uniform vec2 u_mouse;
 uniform float u_geometry;
 uniform float u_gridDensity;
+uniform float u_gridShift;
 uniform float u_morphFactor;
 uniform float u_chaos;
 uniform float u_speed;
@@ -251,6 +260,13 @@ uniform float u_dimension;
 uniform float u_rot4dXW;
 uniform float u_rot4dYW;
 uniform float u_rot4dZW;
+uniform float u_parallaxDepth;
+uniform float u_shimmer;
+uniform float u_warp;
+uniform float u_haze;
+uniform float u_bloom;
+uniform float u_glow;
+uniform float u_strobe;
 uniform float u_mouseIntensity;
 uniform float u_clickIntensity;
 uniform float u_roleIntensity;
@@ -521,10 +537,12 @@ vec3 extremeRGBSeparation(vec3 baseColor, vec2 uv, float intensity, int layerInd
 void main() {
     vec2 uv = (gl_FragCoord.xy - u_resolution.xy * 0.5) / min(u_resolution.x, u_resolution.y);
     
-    // Enhanced 4D position with holographic depth
+    // Enhanced 4D position with holographic depth and warp
     float timeSpeed = u_time * 0.0001 * u_speed;
-    vec4 pos = vec4(uv * 3.0, sin(timeSpeed * 3.0), cos(timeSpeed * 2.0));
+    vec2 warpedUV = uv + vec2(sin(timeSpeed * 6.0 + uv.y * 8.0), cos(timeSpeed * 4.0 + uv.x * 6.0)) * u_warp * 0.15;
+    vec4 pos = vec4(warpedUV * (3.0 + u_parallaxDepth * 0.6), sin(timeSpeed * 3.0 + u_parallaxDepth), cos(timeSpeed * 2.0 - u_parallaxDepth * 0.5));
     pos.xy += (u_mouse - 0.5) * u_mouseIntensity * 2.0;
+    pos.z += u_parallaxDepth * 1.5;
     
     // Apply 4D rotations
     pos = rotateXW(u_rot4dXW) * pos;
@@ -532,10 +550,10 @@ void main() {
     pos = rotateZW(u_rot4dZW) * pos;
     
     // Calculate enhanced geometry value
-    float value = geometryFunction(pos);
+    float value = geometryFunction(pos + vec4(u_gridShift * 0.15, u_gridShift * -0.12, u_gridShift * 0.08, 0.0));
     
     // Enhanced chaos with holographic effects
-    float noise = sin(pos.x * 7.0) * cos(pos.y * 11.0) * sin(pos.z * 13.0);
+    float noise = sin(pos.x * 7.0 + u_shimmer * 2.0) * cos(pos.y * 11.0 - u_shimmer * 1.5) * sin(pos.z * 13.0 + u_warp * 1.5);
     value += noise * u_chaos;
     
     // Enhanced intensity calculation with holographic glow
@@ -545,10 +563,13 @@ void main() {
     
     // Holographic shimmer effect
     float shimmer = sin(uv.x * 20.0 + timeSpeed * 5.0) * cos(uv.y * 15.0 + timeSpeed * 3.0) * 0.1;
-    geometryIntensity += shimmer * geometryIntensity;
-    
+    geometryIntensity += shimmer * geometryIntensity + u_shimmer * 0.3;
+    geometryIntensity += u_glow * 0.2;
+
     // Apply user intensity control
     float finalIntensity = geometryIntensity * u_intensity;
+    finalIntensity += u_strobe * (sin(timeSpeed * 40.0) * 0.25 + 0.25);
+    finalIntensity += u_bloom * 0.15;
     
     // Old hemispheric color system completely removed - now using extreme layer-by-layer system
     
@@ -565,6 +586,7 @@ void main() {
     float globalIntensity = u_hue; // Now 0-1 from JavaScript
     float colorTime = timeSpeed * 2.0 + value * 3.0 + globalIntensity * 5.0;
     vec3 layerColor = getLayerColorPalette(layerIndex, colorTime) * (0.5 + globalIntensity * 1.5);
+    layerColor += vec3(u_glow * 0.15 + u_bloom * 0.1);
     
     // Apply geometry-based intensity modulation per layer
     vec3 extremeBaseColor;
@@ -641,7 +663,8 @@ void main() {
     else if (layerIndex == 3) layerAlpha = 0.8;   // Highlight: High
     else layerAlpha = 0.3;                        // Accent: Subtle bursts
     
-    gl_FragColor = vec4(finalColor, finalIntensity * layerAlpha);
+    vec3 hazeColor = mix(finalColor, vec3(0.85, 0.95, 1.05), clamp(u_haze * 0.7, 0.0, 1.0));
+    gl_FragColor = vec4(hazeColor, finalIntensity * layerAlpha);
 }`;
         
         this.program = this.createProgram(vertexShaderSource, fragmentShaderSource);
@@ -651,6 +674,7 @@ void main() {
             mouse: this.gl.getUniformLocation(this.program, 'u_mouse'),
             geometry: this.gl.getUniformLocation(this.program, 'u_geometry'),
             gridDensity: this.gl.getUniformLocation(this.program, 'u_gridDensity'),
+            gridShift: this.gl.getUniformLocation(this.program, 'u_gridShift'),
             morphFactor: this.gl.getUniformLocation(this.program, 'u_morphFactor'),
             chaos: this.gl.getUniformLocation(this.program, 'u_chaos'),
             speed: this.gl.getUniformLocation(this.program, 'u_speed'),
@@ -661,6 +685,13 @@ void main() {
             rot4dXW: this.gl.getUniformLocation(this.program, 'u_rot4dXW'),
             rot4dYW: this.gl.getUniformLocation(this.program, 'u_rot4dYW'),
             rot4dZW: this.gl.getUniformLocation(this.program, 'u_rot4dZW'),
+            parallaxDepth: this.gl.getUniformLocation(this.program, 'u_parallaxDepth'),
+            shimmer: this.gl.getUniformLocation(this.program, 'u_shimmer'),
+            warp: this.gl.getUniformLocation(this.program, 'u_warp'),
+            haze: this.gl.getUniformLocation(this.program, 'u_haze'),
+            bloom: this.gl.getUniformLocation(this.program, 'u_bloom'),
+            glow: this.gl.getUniformLocation(this.program, 'u_glow'),
+            strobe: this.gl.getUniformLocation(this.program, 'u_strobe'),
             mouseIntensity: this.gl.getUniformLocation(this.program, 'u_mouseIntensity'),
             clickIntensity: this.gl.getUniformLocation(this.program, 'u_clickIntensity'),
             roleIntensity: this.gl.getUniformLocation(this.program, 'u_roleIntensity')
@@ -927,8 +958,9 @@ void main() {
                 console.log(`🌌 Quantum audio reactivity: Density+${(window.audioReactive.bass * 40).toFixed(1)} Morph+${(window.audioReactive.mid * 1.2).toFixed(2)} Hue+${(window.audioReactive.high * 120).toFixed(1)} Chaos+${(window.audioReactive.energy * 0.6).toFixed(2)}`);
             }
         }
-        
+
         this.gl.uniform1f(this.uniforms.gridDensity, Math.min(100, gridDensity));
+        this.gl.uniform1f(this.uniforms.gridShift, this.params.gridDensityShift || 0.0);
         this.gl.uniform1f(this.uniforms.morphFactor, Math.min(2, morphFactor));
         this.gl.uniform1f(this.uniforms.chaos, Math.min(1, chaos));
         this.gl.uniform1f(this.uniforms.speed, this.params.speed);
@@ -940,6 +972,13 @@ void main() {
         this.gl.uniform1f(this.uniforms.rot4dXW, this.params.rot4dXW);
         this.gl.uniform1f(this.uniforms.rot4dYW, this.params.rot4dYW);
         this.gl.uniform1f(this.uniforms.rot4dZW, this.params.rot4dZW);
+        this.gl.uniform1f(this.uniforms.parallaxDepth, this.params.parallaxDepth || 0.0);
+        this.gl.uniform1f(this.uniforms.shimmer, this.params.shimmer || 0.0);
+        this.gl.uniform1f(this.uniforms.warp, this.params.warp || 0.0);
+        this.gl.uniform1f(this.uniforms.haze, this.params.haze || 0.0);
+        this.gl.uniform1f(this.uniforms.bloom, this.params.bloom || 0.0);
+        this.gl.uniform1f(this.uniforms.glow, this.params.glow || 0.0);
+        this.gl.uniform1f(this.uniforms.strobe, this.params.strobe || 0.0);
         this.gl.uniform1f(this.uniforms.mouseIntensity, this.mouseIntensity);
         this.gl.uniform1f(this.uniforms.clickIntensity, this.clickIntensity);
         this.gl.uniform1f(this.uniforms.roleIntensity, roleIntensities[this.role] || 1.0);
