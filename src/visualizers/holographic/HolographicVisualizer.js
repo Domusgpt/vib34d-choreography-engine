@@ -77,6 +77,51 @@ export class HolographicVisualizer {
         this.audioChaosBoost = 0.0;
         this.audioColorShift = 0.0;
 
+        // Journey/behavior state
+        this.lastRenderTime = Date.now();
+        this.behaviorState = {
+            hueSpan: [this.variantParams.hue || 0, (this.variantParams.hue || 0) + 40],
+            paletteBands: [],
+            rotationTargets: { xw: 0, yw: 0, zw: 0 },
+            cameraPreset: { tilt: 0, sway: 0 },
+            volumetricDensity: 0.25,
+            contrastCurve: 0.85,
+            beatEnvelope: 0,
+            onsetEnvelope: 0
+        };
+
+        this.behaviorTargets = {
+            hueSpan: [...this.behaviorState.hueSpan],
+            paletteBands: [],
+            cameraMotion: [0, 0],
+            contrastCurve: this.behaviorState.contrastCurve,
+            volumetricDensity: this.behaviorState.volumetricDensity
+        };
+
+        this.behaviorSmoothing = {
+            hueSpan: [...this.behaviorState.hueSpan],
+            paletteBands: [],
+            cameraMotion: [0, 0],
+            contrastCurve: this.behaviorState.contrastCurve,
+            volumetricDensity: this.behaviorState.volumetricDensity
+        };
+
+        this.rotationTargets = { ...this.behaviorState.rotationTargets };
+        this.envelopeSmoothing = { beat: 0, onset: 0 };
+
+        this.smoothedVariant = {
+            density: this.variantParams.density || 1.0,
+            speed: this.variantParams.speed || 0.5,
+            chaos: this.variantParams.chaos || 0,
+            morph: this.variantParams.morph || 0,
+            hue: this.variantParams.hue || 0,
+            intensity: this.variantParams.intensity || 0.5,
+            saturation: this.variantParams.saturation || 0.8,
+            rot4dXW: this.variantParams.rot4dXW || 0,
+            rot4dYW: this.variantParams.rot4dYW || 0,
+            rot4dZW: this.variantParams.rot4dZW || 0
+        };
+
         this.startTime = Date.now();
         this.initShaders();
         this.initBuffers();
@@ -657,6 +702,109 @@ export class HolographicVisualizer {
         this.scrollVelocity += deltaY * 0.001;
         this.scrollVelocity = Math.max(-2.0, Math.min(2.0, this.scrollVelocity));
     }
+
+    normalizePaletteBands(bands, hueSpan = this.behaviorState.hueSpan) {
+        const safeBands = (bands || []).map((band, idx) => ({
+            position: band.position ?? (idx / Math.max(1, (bands.length || 1) - 1)),
+            color: (band.color || [0, 0, 0]).map(component => Math.min(1, Math.max(0, component)))
+        }));
+
+        if (!safeBands.length) {
+            const [startHue, endHue] = hueSpan || [0, 360];
+            const anchors = [0, 0.35, 0.7, 1];
+
+            return anchors.map((anchor, idx) => {
+                const hue = startHue + (endHue - startHue) * anchor + (idx === 1 ? 6 : idx === 2 ? -6 : 0);
+                return {
+                    position: anchor,
+                    color: [
+                        Math.sin((hue / 360) * 6.28318 + 0.0) * 0.5 + 0.5,
+                        Math.sin((hue / 360) * 6.28318 + 2.0943) * 0.5 + 0.5,
+                        Math.sin((hue / 360) * 6.28318 + 4.1887) * 0.5 + 0.5
+                    ]
+                };
+            });
+        }
+
+        const sorted = safeBands
+            .map(band => ({ position: Math.min(1, Math.max(0, band.position)), color: band.color }))
+            .sort((a, b) => a.position - b.position);
+
+        if (sorted[0].position !== 0) {
+            sorted.unshift({ position: 0, color: sorted[0].color.slice() });
+        }
+        if (sorted[sorted.length - 1].position !== 1) {
+            sorted.push({ position: 1, color: sorted[sorted.length - 1].color.slice() });
+        }
+
+        return sorted.slice(0, 6);
+    }
+
+    applyBehaviorState(behaviorState) {
+        const resolvedHueSpan = behaviorState.hueSpan || this.behaviorState.hueSpan;
+        const normalizedPalette = this.normalizePaletteBands(behaviorState.paletteBands, resolvedHueSpan);
+
+        this.behaviorState = {
+            ...this.behaviorState,
+            ...behaviorState,
+            hueSpan: resolvedHueSpan,
+            paletteBands: normalizedPalette,
+            rotationTargets: behaviorState.rotationTargets || this.behaviorState.rotationTargets,
+            cameraPreset: behaviorState.cameraPreset || this.behaviorState.cameraPreset
+        };
+
+        this.behaviorTargets = {
+            ...this.behaviorTargets,
+            hueSpan: [...(this.behaviorState.hueSpan || [0, 360])],
+            paletteBands: normalizedPalette.slice(0, 6).map(band => ({
+                position: band.position ?? 0,
+                color: band.color ? [...band.color] : [0, 0, 0]
+            })),
+            cameraMotion: [
+                this.behaviorState.cameraPreset?.tilt || 0,
+                this.behaviorState.cameraPreset?.sway || 0
+            ],
+            contrastCurve: this.behaviorState.contrastCurve,
+            volumetricDensity: behaviorState.volumetricDensity ?? this.behaviorTargets.volumetricDensity
+        };
+
+        if (behaviorState.rotationTargets) {
+            this.rotationTargets = behaviorState.rotationTargets;
+        }
+    }
+
+    updateBehaviorSmoothing(lerpFactor) {
+        const smoothing = Math.min(1, lerpFactor * 1.25);
+        const targetSpan = this.behaviorTargets.hueSpan || [0, 360];
+
+        this.behaviorSmoothing.hueSpan[0] += (targetSpan[0] - this.behaviorSmoothing.hueSpan[0]) * smoothing;
+        this.behaviorSmoothing.hueSpan[1] += (targetSpan[1] - this.behaviorSmoothing.hueSpan[1]) * smoothing;
+        this.behaviorSmoothing.contrastCurve += (this.behaviorTargets.contrastCurve - this.behaviorSmoothing.contrastCurve) * smoothing;
+
+        this.behaviorSmoothing.cameraMotion[0] += (this.behaviorTargets.cameraMotion[0] - this.behaviorSmoothing.cameraMotion[0]) * smoothing;
+        this.behaviorSmoothing.cameraMotion[1] += (this.behaviorTargets.cameraMotion[1] - this.behaviorSmoothing.cameraMotion[1]) * smoothing;
+
+        const targetBands = this.behaviorTargets.paletteBands?.length ? this.behaviorTargets.paletteBands : this.behaviorSmoothing.paletteBands;
+        const maxBands = 6;
+        const activeBands = Math.min(maxBands, Math.max(2, targetBands.length || 2));
+
+        for (let i = 0; i < activeBands; i++) {
+            const targetBand = targetBands[Math.min(i, targetBands.length - 1)] || { position: i / Math.max(1, activeBands - 1), color: [0, 0, 0] };
+            const smoothingBand = this.behaviorSmoothing.paletteBands[i] || { position: targetBand.position, color: [...targetBand.color] };
+
+            smoothingBand.position += (targetBand.position - smoothingBand.position) * smoothing;
+            smoothingBand.color = smoothingBand.color || [0, 0, 0];
+
+            smoothingBand.color[0] += (targetBand.color[0] - smoothingBand.color[0]) * smoothing;
+            smoothingBand.color[1] += (targetBand.color[1] - smoothingBand.color[1]) * smoothing;
+            smoothingBand.color[2] += (targetBand.color[2] - smoothingBand.color[2]) * smoothing;
+
+            this.behaviorSmoothing.paletteBands[i] = smoothingBand;
+        }
+
+        this.behaviorSmoothing.paletteBands.length = activeBands;
+        this.behaviorSmoothing.volumetricDensity += (this.behaviorTargets.volumetricDensity - this.behaviorSmoothing.volumetricDensity) * smoothing;
+    }
     
     // Audio reactivity now handled directly in render() loop
     updateAudio_DISABLED() {
@@ -732,14 +880,56 @@ export class HolographicVisualizer {
         this.densityVariation += (this.densityTarget - this.densityVariation) * 0.05;
         this.clickIntensity *= this.clickDecay;
         this.updateScrollPhysics();
-        
+
         const time = Date.now() - this.startTime;
-        
-        // Convert HSL to RGB for color uniform
-        const hue = (this.variantParams.hue || 0) / 360; // Convert to 0-1 range
+        const now = Date.now();
+        const deltaMs = now - this.lastRenderTime;
+        this.lastRenderTime = now;
+        const lerpFactor = 1 - Math.exp(-deltaMs / 180);
+
+        this.updateBehaviorSmoothing(lerpFactor);
+
+        const beatTarget = this.behaviorState.beatEnvelope || 0;
+        const onsetTarget = this.behaviorState.onsetEnvelope || 0;
+        const beatSmoothing = beatTarget > this.envelopeSmoothing.beat ? 0.45 : 0.18;
+        const onsetSmoothing = onsetTarget > this.envelopeSmoothing.onset ? 0.38 : 0.16;
+
+        this.envelopeSmoothing.beat += (beatTarget - this.envelopeSmoothing.beat) * beatSmoothing;
+        this.envelopeSmoothing.onset += (onsetTarget - this.envelopeSmoothing.onset) * onsetSmoothing;
+
+        const beatEnvelope = this.envelopeSmoothing.beat;
+        const onsetEnvelope = this.envelopeSmoothing.onset;
+
+        const hueSpan = this.behaviorSmoothing.hueSpan;
+        const hueTarget = hueSpan[0] + (hueSpan[1] - hueSpan[0]) * (0.4 + beatEnvelope * 0.3 + onsetEnvelope * 0.35);
+
+        const palette = this.behaviorSmoothing.paletteBands || [];
+        const paletteSampleT = Math.min(1, Math.max(0, 0.5 + beatEnvelope * 0.25 + onsetEnvelope * 0.25 + this.mouseIntensity * 0.1));
+        let paletteColor = null;
+        let paletteLuma = 0;
+        if (palette.length) {
+            let prev = palette[0];
+            for (let i = 1; i < palette.length; i++) {
+                const band = palette[i];
+                if (paletteSampleT <= band.position + 0.0001) {
+                    const span = Math.max(0.0001, band.position - prev.position);
+                    const localT = Math.min(1, Math.max(0, (paletteSampleT - prev.position) / span));
+                    paletteColor = [
+                        prev.color[0] + (band.color[0] - prev.color[0]) * localT,
+                        prev.color[1] + (band.color[1] - prev.color[1]) * localT,
+                        prev.color[2] + (band.color[2] - prev.color[2]) * localT
+                    ];
+                    break;
+                }
+                prev = band;
+            }
+            paletteColor = paletteColor || (palette[palette.length - 1]?.color || null);
+            paletteLuma = paletteColor ? (paletteColor[0] + paletteColor[1] + paletteColor[2]) / 3 : 0;
+        }
+
         const saturation = this.variantParams.saturation || 0.8;
         const lightness = Math.max(0.2, Math.min(0.8, this.variantParams.intensity || 0.5)); // Use intensity for lightness
-        
+
         // HSL to RGB conversion
         const hslToRgb = (h, s, l) => {
             let r, g, b;
@@ -762,31 +952,64 @@ export class HolographicVisualizer {
             }
             return [r, g, b];
         };
+
+        const hue = (hueTarget % 360) / 360;
+        const baseRgb = hslToRgb(hue, saturation, lightness);
+        const rgbColor = paletteColor ? [
+            baseRgb[0] * 0.4 + paletteColor[0] * 0.6,
+            baseRgb[1] * 0.4 + paletteColor[1] * 0.6,
+            baseRgb[2] * 0.4 + paletteColor[2] * 0.6
+        ] : baseRgb;
         
-        const rgbColor = hslToRgb(hue, saturation, lightness);
-        
+        const audioDensity = window.audioEnabled && window.audioReactive ? window.audioReactive.bass * 1.5 : 0;
+        const audioMorph = window.audioEnabled && window.audioReactive ? window.audioReactive.mid * 1.2 : 0;
+        const audioSpeed = window.audioEnabled && window.audioReactive ? window.audioReactive.high * 0.8 : 0;
+        const audioChaos = window.audioEnabled && window.audioReactive ? window.audioReactive.energy * 0.6 : 0;
+        const audioColor = window.audioEnabled && window.audioReactive ? window.audioReactive.bass * 45 : 0;
+
+        const densityTarget = (this.variantParams.density || 1.0) * (0.85 + beatEnvelope * 0.35 + onsetEnvelope * 0.3 + this.behaviorSmoothing.volumetricDensity * 0.4) + audioDensity;
+        const morphTarget = (this.variantParams.morph || 0.0) + audioMorph;
+        const chaosTarget = (this.variantParams.chaos || 0.0) + audioChaos;
+        const speedTarget = (this.variantParams.speed || 0.5) * (0.18 + beatEnvelope * 0.18 + onsetEnvelope * 0.22) + audioSpeed * 0.1;
+        const intensityTarget = (this.variantParams.intensity || 0.5) * (0.7 + beatEnvelope * 0.3 + onsetEnvelope * 0.32 + paletteLuma * 0.15);
+
+        this.smoothedVariant.density += (densityTarget - this.smoothedVariant.density) * lerpFactor;
+        this.smoothedVariant.morph += (morphTarget - this.smoothedVariant.morph) * lerpFactor;
+        this.smoothedVariant.chaos += (chaosTarget - this.smoothedVariant.chaos) * lerpFactor;
+        this.smoothedVariant.speed += (speedTarget - this.smoothedVariant.speed) * lerpFactor;
+        this.smoothedVariant.hue += (hueTarget - this.smoothedVariant.hue) * lerpFactor;
+        this.smoothedVariant.intensity += (intensityTarget - this.smoothedVariant.intensity) * lerpFactor;
+
+        const motionScale = 0.14 + beatEnvelope * 0.45 + onsetEnvelope * 0.4;
+        const rotationTarget = {
+            xw: (this.rotationTargets.xw || 0) * motionScale,
+            yw: (this.rotationTargets.yw || 0) * motionScale,
+            zw: (this.rotationTargets.zw || 0) * motionScale
+        };
+
+        this.smoothedVariant.rot4dXW += (rotationTarget.xw - this.smoothedVariant.rot4dXW) * lerpFactor;
+        this.smoothedVariant.rot4dYW += (rotationTarget.yw - this.smoothedVariant.rot4dYW) * lerpFactor;
+        this.smoothedVariant.rot4dZW += (rotationTarget.zw - this.smoothedVariant.rot4dZW) * lerpFactor;
+
         // Set uniforms with proper variant parameters
         this.gl.uniform2f(this.uniforms.resolution, this.canvas.width, this.canvas.height);
         this.gl.uniform1f(this.uniforms.time, time);
         this.gl.uniform2f(this.uniforms.mouse, this.mouseX, this.mouseY);
         this.gl.uniform1f(this.uniforms.geometryType, this.variantParams.geometryType || 0);
-        this.gl.uniform1f(this.uniforms.density, this.variantParams.density || 1.0);
-        // FIX: Controlled speed calculation - base speed controls main movement, audio provides subtle boost
-        const baseSpeed = (this.variantParams.speed || 0.5) * 0.2; // Much slower base speed
-        const audioBoost = (this.audioSpeedBoost || 0.0) * 0.1; // Subtle audio boost only
-        this.gl.uniform1f(this.uniforms.speed, baseSpeed + audioBoost);
+        this.gl.uniform1f(this.uniforms.density, this.smoothedVariant.density);
+        this.gl.uniform1f(this.uniforms.speed, this.smoothedVariant.speed);
         this.gl.uniform3fv(this.uniforms.color, new Float32Array(rgbColor));
-        this.gl.uniform1f(this.uniforms.intensity, (this.variantParams.intensity || 0.5) * this.roleParams.intensity);
+        this.gl.uniform1f(this.uniforms.intensity, this.smoothedVariant.intensity * this.roleParams.intensity);
         this.gl.uniform1f(this.uniforms.roleDensity, this.roleParams.densityMult);
         this.gl.uniform1f(this.uniforms.roleSpeed, this.roleParams.speedMult);
-        this.gl.uniform1f(this.uniforms.colorShift, this.roleParams.colorShift + (this.variantParams.hue || 0) / 360);
-        this.gl.uniform1f(this.uniforms.chaosIntensity, this.variantParams.chaos || 0.0);
+        this.gl.uniform1f(this.uniforms.colorShift, this.roleParams.colorShift + (this.smoothedVariant.hue || 0) / 360);
+        this.gl.uniform1f(this.uniforms.chaosIntensity, this.smoothedVariant.chaos || 0.0);
         this.gl.uniform1f(this.uniforms.mouseIntensity, this.mouseIntensity);
         this.gl.uniform1f(this.uniforms.clickIntensity, this.clickIntensity);
         this.gl.uniform1f(this.uniforms.densityVariation, this.densityVariation);
         this.gl.uniform1f(this.uniforms.geometryType, this.variantParams.geometryType !== undefined ? this.variantParams.geometryType : this.variant || 0);
-        this.gl.uniform1f(this.uniforms.chaos, this.variantParams.chaos || 0.0);
-        this.gl.uniform1f(this.uniforms.morph, this.variantParams.morph || 0.0);
+        this.gl.uniform1f(this.uniforms.chaos, this.smoothedVariant.chaos || 0.0);
+        this.gl.uniform1f(this.uniforms.morph, this.smoothedVariant.morph || 0.0);
         
         // Touch and scroll uniforms
         this.gl.uniform1f(this.uniforms.touchMorph, this.touchMorph);
@@ -796,22 +1019,6 @@ export class HolographicVisualizer {
         this.gl.uniform1f(this.uniforms.colorScrollShift, this.colorScrollShift);
         
         // 🎵 HOLOGRAPHIC AUDIO REACTIVITY - Direct and beautiful
-        let audioDensity = 0, audioMorph = 0, audioSpeed = 0, audioChaos = 0, audioColor = 0;
-        
-        if (window.audioEnabled && window.audioReactive) {
-            // Holographic audio mapping: Rich volumetric effects
-            audioDensity = window.audioReactive.bass * 1.5;     // Bass creates density in holographic layers
-            audioMorph = window.audioReactive.mid * 1.2;        // Mid frequencies morph the hologram
-            audioSpeed = window.audioReactive.high * 0.8;       // High frequencies speed up animation
-            audioChaos = window.audioReactive.energy * 0.6;     // Energy creates chaotic holographic distortion
-            audioColor = window.audioReactive.bass * 45;        // Bass affects holographic color shifts
-            
-            // Debug logging every 10 seconds to verify holographic audio reactivity
-            if (Date.now() % 10000 < 16) {
-                console.log(`✨ Holographic audio reactivity: Density+${audioDensity.toFixed(2)} Morph+${audioMorph.toFixed(2)} Speed+${audioSpeed.toFixed(2)} Chaos+${audioChaos.toFixed(2)} Color+${audioColor.toFixed(1)}`);
-            }
-        }
-        
         this.gl.uniform1f(this.uniforms.audioDensityBoost, audioDensity);
         this.gl.uniform1f(this.uniforms.audioMorphBoost, audioMorph);
         this.gl.uniform1f(this.uniforms.audioSpeedBoost, audioSpeed);
@@ -819,9 +1026,9 @@ export class HolographicVisualizer {
         this.gl.uniform1f(this.uniforms.audioColorShift, audioColor);
         
         // 4D rotation uniforms
-        this.gl.uniform1f(this.uniforms.rot4dXW, this.variantParams.rot4dXW || 0.0);
-        this.gl.uniform1f(this.uniforms.rot4dYW, this.variantParams.rot4dYW || 0.0);
-        this.gl.uniform1f(this.uniforms.rot4dZW, this.variantParams.rot4dZW || 0.0);
+        this.gl.uniform1f(this.uniforms.rot4dXW, this.smoothedVariant.rot4dXW || 0.0);
+        this.gl.uniform1f(this.uniforms.rot4dYW, this.smoothedVariant.rot4dYW || 0.0);
+        this.gl.uniform1f(this.uniforms.rot4dZW, this.smoothedVariant.rot4dZW || 0.0);
         
         this.gl.drawArrays(this.gl.TRIANGLE_STRIP, 0, 4);
     }
