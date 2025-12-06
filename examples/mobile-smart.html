@@ -343,6 +343,54 @@
             transition: width 0.1s;
             width: 0;
         }
+
+        textarea {
+            width: 100%;
+            background: rgba(0, 255, 255, 0.05);
+            border: 1px solid rgba(0, 255, 255, 0.3);
+            color: #0f0;
+            font-family: 'Courier New', monospace;
+            border-radius: 6px;
+            padding: 10px;
+            resize: vertical;
+            min-height: 70px;
+        }
+
+        .pill-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin: 8px 0;
+        }
+
+        .pill {
+            padding: 6px 10px;
+            border-radius: 999px;
+            border: 1px solid rgba(0, 255, 255, 0.4);
+            background: rgba(0, 255, 255, 0.1);
+            color: #0ff;
+            font-size: 11px;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .pill .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #0ff;
+        }
+
+        .warning {
+            color: #ffb347;
+            font-size: 11px;
+            margin-top: 6px;
+            padding: 6px 8px;
+            border: 1px dashed rgba(255, 179, 71, 0.4);
+            border-radius: 6px;
+            background: rgba(255, 179, 71, 0.08);
+        }
     </style>
 </head>
 <body>
@@ -445,6 +493,27 @@
                 </div>
                 <div class="control">
                     <div class="control-label">
+                        <span>Trail Persistence</span>
+                        <span class="control-value" id="val-trailPersistence">0.0</span>
+                    </div>
+                    <input type="range" id="trailPersistence" min="0" max="2" step="0.05" value="0">
+                </div>
+                <div class="control">
+                    <div class="control-label">
+                        <span>Chroma Fringe</span>
+                        <span class="control-value" id="val-chromaFringe">0.0</span>
+                    </div>
+                    <input type="range" id="chromaFringe" min="0" max="2" step="0.05" value="0">
+                </div>
+                <div class="control">
+                    <div class="control-label">
+                        <span>Flare Boost</span>
+                        <span class="control-value" id="val-flare">0.0</span>
+                    </div>
+                    <input type="range" id="flare" min="0" max="2.5" step="0.05" value="0">
+                </div>
+                <div class="control">
+                    <div class="control-label">
                         <span>Rotation XW</span>
                         <span class="control-value" id="val-rot4dXW">0.0</span>
                     </div>
@@ -502,6 +571,30 @@
                     <input type="range" id="reactivity" min="0" max="3" step="0.1" value="1">
                 </div>
 
+                <div class="section-header">LLM PRESET (NO JSON)</div>
+                <div class="control">
+                    <div class="control-label">
+                        <span>Copy template + prompt</span>
+                    </div>
+                    <textarea id="llmPrompt" placeholder="Dreamy stargazing intro with gentle build"></textarea>
+                    <div class="pill-row">
+                        <span class="pill"><span class="dot"></span>Preset: <strong id="llmPreset">(unchanged)</strong></span>
+                        <span class="pill"><span class="dot"></span>Intensity: <strong id="llmIntensity">1.0</strong>x</span>
+                        <span class="pill"><span class="dot"></span>Notes: <strong id="llmNotes">—</strong></span>
+                    </div>
+                    <div class="btn-grid" style="margin-top: 8px;">
+                        <button id="copyLLMPrompt">Copy Template</button>
+                        <button id="applyLLMResponse">Apply Response</button>
+                    </div>
+                </div>
+                <div class="control">
+                    <div class="control-label">
+                        <span>Paste LLM reply</span>
+                    </div>
+                    <textarea id="llmResponse" placeholder="Preset: hyper\nIntensity: 2\nChaos: on amount 1.3\nCamera: on amount 0.6\nNotes: supernova vibe"></textarea>
+                    <div id="llmWarnings" class="warning" style="display:none;"></div>
+                </div>
+
                 <div class="section-header">TOGGLE REACTIVITY</div>
                 <div class="btn-grid">
                     <button class="active" id="toggle-density" onclick="toggleReactivity('density')">Density</button>
@@ -509,6 +602,10 @@
                     <button class="active" id="toggle-color" onclick="toggleReactivity('color')">Color</button>
                     <button class="active" id="toggle-chaos" onclick="toggleReactivity('chaos')">Chaos</button>
                     <button class="active" id="toggle-rotation" onclick="toggleReactivity('rotation')">Rotation</button>
+                    <button class="active" id="toggle-camera" onclick="toggleReactivity('camera')">Camera</button>
+                    <button class="active" id="toggle-atmosphere" onclick="toggleReactivity('atmosphere')">Atmosphere</button>
+                    <button class="active" id="toggle-light" onclick="toggleReactivity('light')">Light</button>
+                    <button class="active" id="toggle-fx" onclick="toggleReactivity('fx')">FX</button>
                 </div>
 
                 <div class="section-header">7-BAND AUDIO</div>
@@ -552,6 +649,7 @@
         import { HolographicVisualizer } from '../src/visualizers/holographic/HolographicVisualizer.js';
         import { AudioAnalyzer } from '../src/audio/AudioAnalyzer.js';
         import { GeometryLibrary } from '../src/geometry/GeometryLibrary.js';
+        import { BehaviorSweepEngine, applyReactiveControls, createBehaviorPrompt, parseBehaviorPromptResponse } from '../src/visualizers/shared/BehaviorSweepEngine.js';
 
         const canvas = document.getElementById('canvas');
         canvas.width = window.innerWidth * (window.devicePixelRatio || 1);
@@ -572,6 +670,10 @@
         visualizer.updateParameter('saturation', 1.0);
         visualizer.updateParameter('gridDensity', 25);
 
+        const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
+        const bandVal = (band) => typeof band === 'number' ? band : (band?.value || 0);
+        const sweepEngine = new BehaviorSweepEngine('hyper');
+
         let currentGeometry = 0; // Start with Tetrahedron (index 0)
 
         // Base parameters - ALL of them like ultimate-controls.html
@@ -586,7 +688,18 @@
             dimension: 3.5,
             rot4dXW: 0,
             rot4dYW: 0,
-            rot4dZW: 0
+            rot4dZW: 0,
+            parallaxDepth: 0,
+            gridDensityShift: 0,
+            shimmer: 0,
+            haze: 0,
+            warp: 0,
+            glow: 0.2,
+            bloom: 0.3,
+            strobe: 0,
+            trailPersistence: 0,
+            chromaFringe: 0,
+            flare: 0
         };
 
         // Reactivity
@@ -597,9 +710,92 @@
                 morph: true,
                 color: true,
                 chaos: true,
-                rotation: true
+                rotation: true,
+                camera: true,
+                atmosphere: true,
+                light: true,
+                fx: true
+            },
+            controlAmount: {
+                density: 1.0,
+                morph: 1.0,
+                color: 1.0,
+                chaos: 1.0,
+                rotation: 1.0,
+                camera: 1.0,
+                atmosphere: 1.0,
+                light: 1.0,
+                fx: 1.0
             }
         };
+
+        const llmWarningEl = document.getElementById('llmWarnings');
+        const llmPresetEl = document.getElementById('llmPreset');
+        const llmIntensityEl = document.getElementById('llmIntensity');
+        const llmNotesEl = document.getElementById('llmNotes');
+        const llmPromptInput = document.getElementById('llmPrompt');
+        const llmResponseInput = document.getElementById('llmResponse');
+
+        function renderLLMStatus(parsed) {
+            llmPresetEl.textContent = parsed.preset ?? '(unchanged)';
+            const displayIntensity = parsed.defaultedIntensity ? reactivity.amount : (parsed.intensity ?? reactivity.amount);
+            llmIntensityEl.textContent = displayIntensity.toFixed(1);
+            llmNotesEl.textContent = parsed.notes?.trim() || '—';
+            if (parsed.warnings?.length) {
+                llmWarningEl.textContent = parsed.warnings.join('\n');
+                llmWarningEl.style.display = 'block';
+            } else {
+                llmWarningEl.style.display = 'none';
+            }
+        }
+
+        window.copyBehaviorPrompt = (userPrompt = '') => createBehaviorPrompt(userPrompt);
+
+        document.getElementById('copyLLMPrompt').onclick = async () => {
+            const promptText = createBehaviorPrompt(llmPromptInput.value || '');
+            try {
+                await navigator.clipboard.writeText(promptText);
+                llmWarningEl.textContent = 'Template copied. Paste it into your LLM, then paste the reply below.';
+                llmWarningEl.style.display = 'block';
+            } catch (err) {
+                llmWarningEl.textContent = 'Clipboard blocked; you can still manually copy the template.';
+                llmWarningEl.style.display = 'block';
+            }
+        };
+
+        const applyLLMBehaviorSettings = (responseText = '') => {
+            const parsed = parseBehaviorPromptResponse(responseText || llmResponseInput.value || '');
+
+            if (parsed.preset) {
+                sweepEngine.setPreset(parsed.preset);
+            }
+
+            if (!parsed.defaultedIntensity && typeof parsed.intensity === 'number') {
+                reactivity.amount = clamp(parsed.intensity, 0, 3);
+                const slider = document.getElementById('reactivity');
+                if (slider) slider.value = reactivity.amount;
+                document.getElementById('val-reactivity').textContent = reactivity.amount.toFixed(1);
+            }
+
+            Object.entries(parsed.controls || {}).forEach(([key, control]) => {
+                if (!control) return;
+                if (typeof control.enabled === 'boolean') {
+                    reactivity.enabled[key] = control.enabled;
+                    const toggle = document.getElementById('toggle-' + key);
+                    if (toggle) toggle.classList.toggle('active', control.enabled);
+                }
+                if (typeof control.amount === 'number') {
+                    reactivity.controlAmount[key] = clamp(control.amount, 0, 3);
+                }
+            });
+
+            renderLLMStatus(parsed);
+            console.log('🧠 Applied mobile LLM behavior settings:', parsed);
+        };
+
+        document.getElementById('applyLLMResponse').onclick = () => applyLLMBehaviorSettings();
+        window.applyLLMBehaviorSettings = applyLLMBehaviorSettings;
+        renderLLMStatus({});
 
         // Audio
         let audioContext = null;
@@ -813,91 +1009,64 @@
 
             barIds.forEach((id, i) => {
                 const bar = document.getElementById(id);
-                const bandData = bands[bandKeys[i]];
-                const val = bandData?.value || 0;  // CRITICAL: bands are objects with .value
+                const val = bandVal(bands[bandKeys[i]]);
                 if (bar) bar.style.height = (val * 100) + '%';
             });
 
             // Strength - sum all band values
-            const bandValues = Object.values(bands).map(b => b?.value || 0);
+            const bandValues = Object.values(bands).map(bandVal);
             const avgReactivity = bandValues.reduce((a, b) => a + b, 0) / bandValues.length;
             document.getElementById('reactivityBar').style.width = (avgReactivity * 100) + '%';
 
-            // APPLY PARAMETERS - bands are OBJECTS with .value property!
+            const deltas = sweepEngine.applyBehavioralReactivity({
+                audioFrame: audioData,
+                beatInfo: audioData?.beat,
+                preset: 'hyper',
+                deltaTime: dt
+            });
+
+            let reactiveParams = { ...baseParams };
+
             if (audioPlaying) {
-                // Audio is playing - apply base + modulation
-                const mult = reactivity.amount;
-                const b = audioData.bands || {};
-
-                // CRITICAL FIX: Extract .value from band objects
-                const bassVal = b.bass?.value || 0;
-                const midVal = b.mid?.value || 0;
-                const lowMidVal = b.lowMid?.value || 0;
-                const highVal = b.high?.value || 0;
-                const rmsVal = audioData.rms || 0;
-
-                // Log once per second
-                if (frameCount % 60 === 0) {
-                    console.log(`🎵 AUDIO: bass=${bassVal.toFixed(2)} mid=${midVal.toFixed(2)} high=${highVal.toFixed(2)} mult=${mult}`);
-                }
-
-                // Apply ALL parameters with modulation
-                if (reactivity.enabled.density) {
-                    const modded = Math.min(80, baseParams.gridDensity + bassVal * 40 * mult);
-                    visualizer.updateParameter('gridDensity', modded);
-                } else {
-                    visualizer.updateParameter('gridDensity', baseParams.gridDensity);
-                }
-
-                if (reactivity.enabled.morph) {
-                    visualizer.updateParameter('morphFactor', Math.min(3.0, baseParams.morphFactor + midVal * 1.5 * mult));
-                } else {
-                    visualizer.updateParameter('morphFactor', baseParams.morphFactor);
-                }
-
-                if (reactivity.enabled.color) {
-                    visualizer.updateParameter('hue', (baseParams.hue + highVal * 120 * mult) % 360);
-                    visualizer.updateParameter('saturation', Math.min(1.0, baseParams.saturation + midVal * 0.3 * mult));
-                } else {
-                    visualizer.updateParameter('hue', baseParams.hue);
-                    visualizer.updateParameter('saturation', baseParams.saturation);
-                }
-
-                if (reactivity.enabled.chaos) {
-                    visualizer.updateParameter('chaos', Math.min(1.0, baseParams.chaos + rmsVal * 0.6 * mult));
-                } else {
-                    visualizer.updateParameter('chaos', baseParams.chaos);
-                }
-
-                visualizer.updateParameter('speed', Math.min(3.0, baseParams.speed + ((bassVal + rmsVal) * 0.8 * mult)));
-                visualizer.updateParameter('intensity', baseParams.intensity);
-                visualizer.updateParameter('dimension', baseParams.dimension);
-
-                // Apply 4D rotations with audio modulation if enabled
-                if (reactivity.enabled.rotation) {
-                    visualizer.updateParameter('rot4dXW', baseParams.rot4dXW + lowMidVal * 0.5 * mult);
-                    visualizer.updateParameter('rot4dYW', baseParams.rot4dYW + midVal * 0.6 * mult);
-                    visualizer.updateParameter('rot4dZW', baseParams.rot4dZW + highVal * 0.8 * mult);
-                } else {
-                    visualizer.updateParameter('rot4dXW', baseParams.rot4dXW);
-                    visualizer.updateParameter('rot4dYW', baseParams.rot4dYW);
-                    visualizer.updateParameter('rot4dZW', baseParams.rot4dZW);
-                }
-            } else {
-                // NO audio playing - still need to apply base params every frame
-                // This makes sliders work even without audio
-                visualizer.updateParameter('gridDensity', baseParams.gridDensity);
-                visualizer.updateParameter('morphFactor', baseParams.morphFactor);
-                visualizer.updateParameter('hue', baseParams.hue);
-                visualizer.updateParameter('saturation', baseParams.saturation);
-                visualizer.updateParameter('chaos', baseParams.chaos);
-                visualizer.updateParameter('speed', baseParams.speed);
-                visualizer.updateParameter('intensity', baseParams.intensity);
-                visualizer.updateParameter('dimension', baseParams.dimension);
-                visualizer.updateParameter('rot4dXW', baseParams.rot4dXW);
-                visualizer.updateParameter('rot4dYW', baseParams.rot4dYW);
-                visualizer.updateParameter('rot4dZW', baseParams.rot4dZW);
+                reactiveParams = applyReactiveControls({
+                    baseParams,
+                    deltas,
+                    intensity: reactivity.amount,
+                    controls: {
+                        density: { enabled: reactivity.enabled.density, amount: reactivity.controlAmount.density },
+                        morph: { enabled: reactivity.enabled.morph, amount: reactivity.controlAmount.morph },
+                        color: { enabled: reactivity.enabled.color, amount: reactivity.controlAmount.color },
+                        chaos: { enabled: reactivity.enabled.chaos, amount: reactivity.controlAmount.chaos },
+                        rotation: { enabled: reactivity.enabled.rotation, amount: reactivity.controlAmount.rotation },
+                        camera: { enabled: reactivity.enabled.camera, amount: reactivity.controlAmount.camera },
+                        atmosphere: { enabled: reactivity.enabled.atmosphere, amount: reactivity.controlAmount.atmosphere },
+                        light: { enabled: reactivity.enabled.light, amount: reactivity.controlAmount.light },
+                        fx: { enabled: reactivity.enabled.fx, amount: reactivity.controlAmount.fx }
+                    },
+                    limits: {
+                        gridDensity: { min: 0, max: 80 },
+                        morphFactor: { min: 0, max: 3 },
+                        saturation: { min: 0, max: 1 },
+                        chaos: { min: 0, max: 1 },
+                        speed: { min: 0, max: 3 },
+                        parallaxDepth: { min: -1.5, max: 1.5 },
+                        gridDensityShift: { min: -2.5, max: 2.5 },
+                        shimmer: { min: 0, max: 2 },
+                        glow: { min: 0, max: 2 },
+                        bloom: { min: 0, max: 2 },
+                        warp: { min: -1.5, max: 1.5 },
+                        haze: { min: 0, max: 2 },
+                        strobe: { min: 0, max: 2 },
+                        trailPersistence: { min: 0, max: 2 },
+                        chromaFringe: { min: 0, max: 2 },
+                        flare: { min: 0, max: 2.5 }
+                    }
+                });
             }
+
+            Object.entries(reactiveParams).forEach(([key, value]) => {
+                visualizer.updateParameter(key, value);
+            });
 
             // Render
             if (visualizer.render) {
