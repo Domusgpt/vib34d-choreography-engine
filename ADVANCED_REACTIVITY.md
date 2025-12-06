@@ -6,6 +6,13 @@ The **Advanced Audio Reactivity System** is a next-generation multi-layer audio-
 
 Unlike simple audio reactivity that just modulates a few parameters, this system creates **intelligent, musical responses** across multiple dimensions of the visualization.
 
+All reference demos now ship with **real input paths** out of the box. You can feed the analyzer with:
+- **Live microphone** capture for in-room testing without assets.
+- A **procedural demo beat** that drives the analyzer with actual oscillators (no mock data) when you just need instant movement.
+- The existing **file loader**, which now runs through a properly configured `AnalyserNode` for true 7-band data.
+
+The status banners in both Ultimate and Mobile surfaces show which path is active (file, mic, or demo), so you never unknowingly fall back to mock values.
+
 ---
 
 ## 🌟 Key Features
