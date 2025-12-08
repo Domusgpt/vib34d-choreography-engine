@@ -13,6 +13,53 @@
  * PolychoraVisualizer - Individual layer renderer for 4D polytopes
  * Renders glassmorphic line-based effects with WebGL
  */
+const clamp01 = (value) => Math.max(0, Math.min(1, value));
+const lerp = (a, b, t) => a + (b - a) * t;
+
+function normalizePaletteBands(bands = []) {
+    if (!Array.isArray(bands) || bands.length === 0) {
+        return [
+            { position: 0.0, color: [0.08, 0.1, 0.22] },
+            { position: 0.38, color: [0.26, 0.28, 0.42] },
+            { position: 0.74, color: [0.64, 0.34, 0.26] },
+            { position: 1.0, color: [0.96, 0.68, 0.34] }
+        ];
+    }
+
+    const sorted = [...bands]
+        .map(b => ({
+            position: clamp01(Number.isFinite(b.position) ? b.position : 0),
+            color: Array.isArray(b.color) && b.color.length >= 3 ? b.color.slice(0, 3).map(clamp01) : [0, 0, 0]
+        }))
+        .sort((a, b) => a.position - b.position);
+
+    if (sorted[0].position !== 0) {
+        sorted.unshift({ position: 0, color: sorted[0].color });
+    }
+    if (sorted[sorted.length - 1].position !== 1) {
+        sorted.push({ position: 1, color: sorted[sorted.length - 1].color });
+    }
+
+    return sorted.slice(0, 6); // cap at 6 bands for shader perf
+}
+
+function samplePaletteBand(bands, t) {
+    const clampedT = clamp01(t);
+    for (let i = 0; i < bands.length - 1; i++) {
+        const a = bands[i];
+        const b = bands[i + 1];
+        if (clampedT >= a.position && clampedT <= b.position) {
+            const localT = (clampedT - a.position) / Math.max(1e-5, b.position - a.position);
+            return [
+                lerp(a.color[0], b.color[0], localT),
+                lerp(a.color[1], b.color[1], localT),
+                lerp(a.color[2], b.color[2], localT)
+            ];
+        }
+    }
+    return bands[bands.length - 1]?.color || [1, 1, 1];
+}
+
 class PolychoraVisualizer {
     constructor(canvasId, role, config) {
         this.canvasId = canvasId;
@@ -419,7 +466,7 @@ class PolychoraVisualizer {
             
             u_dimension: Math.min(4, dimension),
             u_hue: hue % 360,
-            u_layerColor: this.config.color,
+            u_layerColor: parameters.layerColor || this.config.color,
             u_layerScale: this.config.scale * (parameters.layerScale || 1.0),
             u_layerOpacity: this.config.opacity * (parameters.translucency || 1.0),
             u_lineWidth: this.config.lineWidth * (parameters.lineThickness || 1.0),
@@ -585,6 +632,36 @@ export class PolychoraSystem {
             magneticField: 0.0,       // Magnetic field strength
             fluidFlow: 0.5,          // Fluid current strength
         };
+
+        this.behaviorState = {
+            journeyPhase: 'orbit',
+            beatEnvelope: 0,
+            onsetEnvelope: 0,
+            hueSpan: [240, 310],
+            contrastCurve: 0.9,
+            volumetricDensity: 0.24,
+            paletteBands: normalizePaletteBands(),
+            rotationTargets: { xw: 0, yw: 0, zw: 0 },
+            cameraPreset: { tilt: 0.05, sway: 0.04 }
+        };
+
+        this.behaviorTargets = {
+            hueSpan: [...this.behaviorState.hueSpan],
+            contrastCurve: this.behaviorState.contrastCurve,
+            volumetricDensity: this.behaviorState.volumetricDensity,
+            paletteBands: this.behaviorState.paletteBands.map(b => ({ ...b })),
+            cameraMotion: [this.behaviorState.cameraPreset.tilt, this.behaviorState.cameraPreset.sway]
+        };
+
+        this.behaviorSmoothing = {
+            hueSpan: [...this.behaviorTargets.hueSpan],
+            contrastCurve: this.behaviorTargets.contrastCurve,
+            volumetricDensity: this.behaviorTargets.volumetricDensity,
+            paletteBands: this.behaviorTargets.paletteBands.map(b => ({ ...b })),
+            cameraMotion: [...this.behaviorTargets.cameraMotion]
+        };
+
+        this.envelopeSmoothing = { beat: 0, onset: 0 };
         
         // Layer-specific configurations for glassmorphic effects
         this.layerConfigs = {
@@ -739,21 +816,70 @@ export class PolychoraSystem {
     startRenderLoop() {
         const render = () => {
             if (!this.isActive) return;
-            
+
             // MVEP-STYLE AUDIO PROCESSING: Process audio directly in render loop
             // This eliminates conflicts with holographic system and ensures proper audio reactivity
             // Audio reactivity now handled directly in visualizer render loops
-            
+
+            // Smooth beat/onset envelopes to avoid jolts
+            this.envelopeSmoothing.beat = lerp(this.envelopeSmoothing.beat, this.behaviorState.beatEnvelope || 0, 0.18);
+            this.envelopeSmoothing.onset = lerp(this.envelopeSmoothing.onset, this.behaviorState.onsetEnvelope || 0, 0.2);
+
+            // Ease behavior targets for cinematic pacing
+            const ease = 0.1;
+            this.behaviorSmoothing.volumetricDensity = lerp(this.behaviorSmoothing.volumetricDensity, this.behaviorTargets.volumetricDensity, ease);
+            this.behaviorSmoothing.contrastCurve = lerp(this.behaviorSmoothing.contrastCurve, this.behaviorTargets.contrastCurve, ease);
+            this.behaviorSmoothing.hueSpan = this.behaviorSmoothing.hueSpan.map((v, i) => lerp(v, this.behaviorTargets.hueSpan[i], ease));
+            this.behaviorSmoothing.cameraMotion = this.behaviorSmoothing.cameraMotion.map((v, i) => lerp(v, this.behaviorTargets.cameraMotion[i], ease));
+            this.behaviorSmoothing.paletteBands = normalizePaletteBands(this.behaviorTargets.paletteBands).map((target, i) => {
+                const current = normalizePaletteBands(this.behaviorSmoothing.paletteBands)[i] || target;
+                return {
+                    position: lerp(current.position, target.position, ease),
+                    color: [
+                        lerp(current.color[0], target.color[0], ease),
+                        lerp(current.color[1], target.color[1], ease),
+                        lerp(current.color[2], target.color[2], ease)
+                    ]
+                };
+            });
+
+            const hueSpan = this.behaviorSmoothing.hueSpan;
+            const beat = this.envelopeSmoothing.beat;
+            const onset = this.envelopeSmoothing.onset;
+            const paletteBands = normalizePaletteBands(this.behaviorSmoothing.paletteBands);
+
+            const spanWidth = Math.max(1, hueSpan[1] - hueSpan[0]);
+            const journeyHue = hueSpan[0] + spanWidth * (0.35 + beat * 0.25 + onset * 0.3);
+            const density = this.behaviorSmoothing.volumetricDensity + beat * 0.25 + onset * 0.3;
+
+            this.parameters.hue = journeyHue;
+            this.parameters.glassBlur = 2.5 + density * 3.5;
+            this.parameters.translucency = clamp01(0.65 + this.behaviorSmoothing.contrastCurve * 0.25 + onset * 0.1);
+            this.parameters.lineThickness = 2.0 + beat * 1.2 + onset * 0.8;
+            this.parameters.layerScale = 0.9 + this.behaviorSmoothing.cameraMotion[0] * 0.6 + beat * 0.1;
+            this.parameters.edgeThickness = 1.6 + density * 1.2;
+            this.parameters.dimension = 3.2 + density * 1.8;
+
             // Step physics simulation if enabled
             if (this.parameters.physicsEnabled && this.physicsEnabled) {
                 this.physics.step();
                 this.updatePhysicsVisuals();
             }
-            
+
+            const layerPaletteLookup = {
+                background: 0.08,
+                shadow: 0.22,
+                content: 0.45,
+                highlight: 0.68,
+                accent: 0.88
+            };
+
             this.visualizers.forEach(visualizer => {
-                visualizer.render(this.parameters);
+                const sampleT = layerPaletteLookup[visualizer.role] ?? 0.5;
+                const layerColor = samplePaletteBand(paletteBands, sampleT);
+                visualizer.render({ ...this.parameters, layerColor });
             });
-            
+
             this.animationId = requestAnimationFrame(render);
         };
         render();
@@ -1043,7 +1169,26 @@ export class PolychoraSystem {
     getPolytopeNames() {
         return this.polytopes.map(p => p.name);
     }
-    
+
+    applyBehaviorState(state) {
+        const normalizedBands = normalizePaletteBands(state?.paletteBands || this.behaviorState.paletteBands);
+        this.behaviorTargets = {
+            hueSpan: state?.hueSpan || this.behaviorTargets.hueSpan || this.behaviorState.hueSpan,
+            contrastCurve: state?.contrastCurve ?? this.behaviorTargets.contrastCurve ?? this.behaviorState.contrastCurve,
+            volumetricDensity: state?.volumetricDensity ?? this.behaviorTargets.volumetricDensity ?? this.behaviorState.volumetricDensity,
+            paletteBands: normalizedBands,
+            cameraMotion: state?.cameraPreset
+                ? [state.cameraPreset.tilt ?? this.behaviorTargets.cameraMotion?.[0] ?? 0, state.cameraPreset.sway ?? this.behaviorTargets.cameraMotion?.[1] ?? 0]
+                : this.behaviorTargets.cameraMotion || [0.05, 0.04]
+        };
+
+        this.behaviorState = {
+            ...(this.behaviorState || {}),
+            ...(state || {}),
+            paletteBands: normalizedBands
+        };
+    }
+
     /**
      * Destroy system and clean up resources
      */
