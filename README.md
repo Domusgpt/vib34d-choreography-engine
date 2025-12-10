@@ -44,6 +44,8 @@ executeSequence("bass_drop_cascade", {
 
 **🎚️ ENHANCED VERSION** (Recommended): Real-time threshold controls, audio level monitoring, instant parameter adjustment
 
+**📱 BEST LOCAL DEMO**: Serve the repo root and open `examples/mobile-smart.html` for the latest calibrated, LLM-ready console.
+
 **📚 [TUNING GUIDE](TUNING_GUIDE.md)**: Complete guide to optimizing for your music genre
 
 ```bash
