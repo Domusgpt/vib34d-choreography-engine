@@ -8,6 +8,7 @@
 
 import { BaseSystem } from '../shared/BaseSystem.js';
 import { ParameterManager } from '../../core/Parameters.js';
+import { BehaviorPreviewDriver } from '../shared/BehaviorPreview.js';
 
 export class PolychoraSystem extends BaseSystem {
     constructor(config) {
@@ -26,6 +27,14 @@ export class PolychoraSystem extends BaseSystem {
             yw: 0,
             zw: 0
         };
+
+        this.previewDriver = new BehaviorPreviewDriver({
+            baseHue: config.previewHue || 215,
+            paletteStops: 6,
+            densityFloor: 0.18
+        });
+
+        this._reactiveProfilesInitialized = false;
     }
 
     /**
@@ -144,6 +153,88 @@ export class PolychoraSystem extends BaseSystem {
             audioData
         );
 
+        const previewBehavior = this.previewDriver.sample(performance.now());
+        const behaviorState = parameters?.behaviorState || audioData?.behaviorState || previewBehavior;
+        const sweepState = parameters?.sweepState || audioData?.sweepState || {};
+        const baseHue = parameters?.hue ?? 200;
+
+        const journeyPhase = behaviorState.journeyPhase || 'orbit';
+        const journeyPresets = {
+            orbit: {
+                camera: { tilt: 0.04, sway: 0.03 },
+                volumetric: 0.26,
+                hueSpan: [baseHue - 18, baseHue + 28],
+                contrast: 0.84,
+                rotation: { xw: 0.09, yw: 0.06, zw: 0.04 }
+            },
+            pendulum: {
+                camera: { tilt: 0.02, sway: 0.1 },
+                volumetric: 0.22,
+                hueSpan: [baseHue - 10, baseHue + 24],
+                contrast: 0.9,
+                rotation: { xw: 0.07, yw: 0.12, zw: 0.06 }
+            },
+            spiral: {
+                camera: { tilt: 0.12, sway: 0.1 },
+                volumetric: 0.32,
+                hueSpan: [baseHue - 26, baseHue + 44],
+                contrast: 0.96,
+                rotation: { xw: 0.14, yw: 0.12, zw: 0.1 }
+            }
+        };
+
+        const activePreset = journeyPresets[journeyPhase] || journeyPresets.orbit;
+        const beatEnvelope = Math.min(1, behaviorState.beatEnvelope ?? (audioData?.beatEnvelope || audioData?.rms || 0));
+        const onsetEnvelope = Math.min(1, behaviorState.onsetEnvelope ?? audioData?.onset ?? 0);
+
+        const paletteBands = behaviorState.paletteBands || sweepState.paletteBands || [
+            { position: 0.0, color: [0.08, 0.1, 0.22] },
+            { position: 0.38, color: [0.26, 0.28, 0.42] },
+            { position: 0.74, color: [0.64, 0.34, 0.26] },
+            { position: 1.0, color: [0.96, 0.68, 0.34] }
+        ];
+
+        const rotationTargets = sweepState.rotations || behaviorState.rotationTargets || behaviorState.rotations || activePreset.rotation;
+
+        if (!this._reactiveProfilesInitialized) {
+            this.parameters.setProfiles({
+                volumetricDensity: { range: 0.28, min: 0, max: 1 },
+                contrastCurve: { range: 0.22, min: 0.4, max: 1.4 },
+                hueStart: { range: -16 },
+                hueEnd: { range: 40 },
+                cameraTilt: { range: 0.05, min: -1, max: 1 },
+                cameraSway: { range: 0.05, min: -1, max: 1 },
+                dimensionBoost: { range: 0.28, min: -1, max: 4 }
+            });
+            this._reactiveProfilesInitialized = true;
+        }
+
+        this.parameters.setBaseline({
+            volumetricDensity: activePreset.volumetric,
+            contrastCurve: activePreset.contrast,
+            hueStart: activePreset.hueSpan[0],
+            hueEnd: activePreset.hueSpan[1],
+            cameraTilt: activePreset.camera.tilt,
+            cameraSway: activePreset.camera.sway,
+            dimensionBoost: (parameters.dimension || 4.0) + activePreset.volumetric * 0.3
+        });
+
+        const resolved = this.parameters.resolve({
+            beatEnvelope,
+            onsetEnvelope,
+            audioLevel: audioData?.rms || 0
+        });
+
+        const hueSpan = [resolved.hueStart, resolved.hueEnd];
+        const journeyHue = hueSpan[0] + (hueSpan[1] - hueSpan[0]) * (0.42 + beatEnvelope * 0.3 + onsetEnvelope * 0.32);
+
+        const motionScale = 0.15 + beatEnvelope * 0.45 + onsetEnvelope * 0.48;
+        const behaviorRotation = {
+            xw: (rotationTargets.xw || 0) * motionScale,
+            yw: (rotationTargets.yw || 0) * motionScale,
+            zw: (rotationTargets.zw || 0) * motionScale
+        };
+
         // 4D rotation from audio
         if (audioData && this.audioEnabled) {
             // Each frequency band controls a different rotation plane
@@ -172,11 +263,30 @@ export class PolychoraSystem extends BaseSystem {
         // Apply parameters with 4D enhancements
         const enhanced4DParams = {
             ...parameters,
-            rot4dXW: (parameters.rot4dXW || 0) + this.rotation4D.xw,
-            rot4dYW: (parameters.rot4dYW || 0) + this.rotation4D.yw,
-            rot4dZW: (parameters.rot4dZW || 0) + this.rotation4D.zw,
-            dimension: parameters.dimension || 4.0
+            hue: journeyHue,
+            paletteBands,
+            rot4dXW: (parameters.rot4dXW || 0) + this.rotation4D.xw + behaviorRotation.xw,
+            rot4dYW: (parameters.rot4dYW || 0) + this.rotation4D.yw + behaviorRotation.yw,
+            rot4dZW: (parameters.rot4dZW || 0) + this.rotation4D.zw + behaviorRotation.zw,
+            dimension: resolved.dimensionBoost
         };
+
+        if (this.visualizer?.applyBehaviorState) {
+            this.visualizer.applyBehaviorState({
+                journeyPhase,
+                beatEnvelope,
+                onsetEnvelope,
+                hueSpan,
+                paletteBands,
+                rotationTargets,
+                volumetricDensity: resolved.volumetricDensity,
+                cameraPreset: {
+                    tilt: resolved.cameraTilt,
+                    sway: resolved.cameraSway
+                },
+                contrastCurve: resolved.contrastCurve
+            });
+        }
 
         // Update visualizer
         if (this.visualizer.setParameters) {
