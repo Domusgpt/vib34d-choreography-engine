@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Behavior Preview Driver • VIB34D</title>
+    <style>
+        :root {
+            color-scheme: dark;
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            background: radial-gradient(circle at 20% 20%, rgba(0, 255, 200, 0.08), transparent 35%),
+                        radial-gradient(circle at 80% 10%, rgba(255, 120, 0, 0.08), transparent 40%),
+                        #020409;
+            color: #bfe9ff;
+            font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            overflow: hidden;
+        }
+        #container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+        canvas {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            display: block;
+            background: #000;
+        }
+        .panel {
+            position: absolute;
+            top: 12px;
+            left: 12px;
+            min-width: 320px;
+            padding: 14px 16px;
+            background: rgba(6, 10, 18, 0.82);
+            border: 1px solid rgba(94, 214, 255, 0.35);
+            border-radius: 12px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+        }
+        h1 {
+            margin: 0 0 8px;
+            font-size: 18px;
+            color: #e7f7ff;
+            letter-spacing: 0.3px;
+        }
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+        select, button {
+            appearance: none;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            background: rgba(255, 255, 255, 0.06);
+            color: #e7f7ff;
+            padding: 10px 12px;
+            border-radius: 10px;
+            font-weight: 600;
+            letter-spacing: 0.2px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        select:focus, button:focus { outline: 2px solid rgba(94, 214, 255, 0.8); }
+        button:hover, select:hover {
+            border-color: rgba(94, 214, 255, 0.5);
+            background: rgba(94, 214, 255, 0.08);
+            transform: translateY(-1px);
+        }
+        .status {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(140px, 1fr));
+            gap: 6px 10px;
+            font-size: 12px;
+            color: #c8ddff;
+        }
+        .status strong { color: #9fe8ff; font-weight: 700; }
+        .section-heading {
+            margin: 10px 0 6px;
+            font-size: 12px;
+            letter-spacing: 0.3px;
+            color: #b7dfff;
+            text-transform: uppercase;
+        }
+        .pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            border-radius: 999px;
+            background: rgba(94, 214, 255, 0.12);
+            border: 1px solid rgba(94, 214, 255, 0.2);
+            font-size: 11px;
+            color: #9fe8ff;
+        }
+        .palette {
+            display: flex;
+            gap: 4px;
+            margin-top: 8px;
+        }
+        .swatch {
+            flex: 1;
+            min-width: 0;
+            border-radius: 6px;
+            height: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.35);
+        }
+        .param-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            margin-top: 8px;
+            font-size: 12px;
+        }
+        .param-row {
+            display: grid;
+            grid-template-columns: 120px 1fr 70px;
+            align-items: center;
+            gap: 10px;
+        }
+        .bar {
+            position: relative;
+            height: 10px;
+            border-radius: 999px;
+            background: linear-gradient(90deg, rgba(94, 214, 255, 0.3), rgba(255, 139, 217, 0.28));
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .bar .fill {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            left: 50%;
+            transform-origin: left;
+            background: linear-gradient(90deg, rgba(94, 214, 255, 0.8), rgba(255, 139, 217, 0.7));
+            box-shadow: 0 0 10px rgba(94, 214, 255, 0.3);
+        }
+        .bar .baseline {
+            position: absolute;
+            top: -2px;
+            bottom: -2px;
+            width: 2px;
+            left: 50%;
+            background: rgba(255, 255, 255, 0.65);
+            opacity: 0.65;
+        }
+        .small-note {
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.62);
+            margin-top: 8px;
+            line-height: 1.4;
+        }
+        .footer {
+            position: absolute;
+            bottom: 12px;
+            right: 12px;
+            padding: 10px 12px;
+            border-radius: 10px;
+            background: rgba(6, 10, 18, 0.82);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 11px;
+            letter-spacing: 0.2px;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <canvas id="mainCanvas"></canvas>
+        <div class="panel">
+            <h1>Behavior Preview Driver</h1>
+            <div class="controls">
+                <select id="systemSelect" aria-label="Choose visualizer">
+                    <option value="quantum">Quantum (Holographic)</option>
+                    <option value="faceted">Faceted</option>
+                    <option value="holographic">Holographic</option>
+                    <option value="polychora">Polychora (experimental)</option>
+                </select>
+                <button id="regenHue">Shuffle Hue</button>
+                <button id="regenDensity">Shuffle Density</button>
+            </div>
+            <div class="status" id="status"></div>
+            <div class="palette" id="palette"></div>
+            <div class="section-heading">Baseline + Reactive Overlay</div>
+            <div class="param-grid" id="params"></div>
+            <div class="small-note">Baseline values remain the source of truth; reactive offsets add and decay back toward the baseline when envelopes fade.</div>
+        </div>
+        <div class="footer">Preview driver cycles journey phases, envelopes, hue spans, and palette bands for offline visual QA. Polychora remains experimental and may diverge.</div>
+    </div>
+
+    <script type="module">
+        import { FacetedSystem } from '../src/visualizers/faceted/FacetedSystem.js';
+        import { HolographicSystem } from '../src/visualizers/holographic/HolographicSystem.js';
+        import { PolychoraSystem } from '../src/visualizers/polychora/PolychoraSystem.js';
+        import { QuantumSystem } from '../src/visualizers/quantum/QuantumSystem.js';
+
+        const statusEl = document.getElementById('status');
+        const paletteEl = document.getElementById('palette');
+        const paramsEl = document.getElementById('params');
+        const systemSelect = document.getElementById('systemSelect');
+        const regenHueBtn = document.getElementById('regenHue');
+        const regenDensityBtn = document.getElementById('regenDensity');
+
+        const systems = {
+            faceted: FacetedSystem,
+            holographic: HolographicSystem,
+            polychora: PolychoraSystem,
+            quantum: QuantumSystem
+        };
+
+        let activeSystem = null;
+        let activeConfig = { previewHue: 200, densityFloor: 0.22 };
+
+        const stopActiveSystem = () => {
+            if (activeSystem) {
+                activeSystem.stop();
+                if (activeSystem.destroy) {
+                    activeSystem.destroy();
+                }
+                activeSystem = null;
+            }
+        };
+
+        const startSystem = async (key) => {
+            stopActiveSystem();
+            const SystemCtor = systems[key] || QuantumSystem;
+            activeSystem = new SystemCtor({ canvasId: 'mainCanvas', role: 'content', variant: 0, previewHue: activeConfig.previewHue, densityFloor: activeConfig.densityFloor });
+
+            await activeSystem.initialize();
+            activeSystem.setAudioEnabled(false);
+            activeSystem.render();
+        };
+
+        const updateStatus = () => {
+            if (!activeSystem || !activeSystem.visualizer) return;
+            const { behaviorState, behaviorTargets } = activeSystem.visualizer;
+            if (!behaviorState) return;
+
+            statusEl.innerHTML = `
+                <div><strong>Journey</strong><br>${behaviorState.journeyPhase}</div>
+                <div><strong>Beat / Onset</strong><br>${behaviorState.beatEnvelope?.toFixed(2)} / ${behaviorState.onsetEnvelope?.toFixed(2)}</div>
+                <div><strong>Hue Span</strong><br>${behaviorState.hueSpan?.map(v => Math.round(v)).join(' → ')}</div>
+                <div><strong>Contrast</strong><br>${(behaviorState.contrastCurve ?? 0).toFixed(2)}</div>
+                <div><strong>Volumetric</strong><br>${(behaviorTargets?.volumetricDensity ?? 0).toFixed(2)}</div>
+                <div><strong>Camera</strong><br>tilt ${(behaviorTargets?.cameraMotion?.[0] ?? 0).toFixed(2)} / sway ${(behaviorTargets?.cameraMotion?.[1] ?? 0).toFixed(2)}</div>
+            `;
+
+            const bands = behaviorState.paletteBands || [];
+            paletteEl.innerHTML = '';
+            bands.slice(0, 8).forEach(({ color }) => {
+                const [r, g, b] = color || [0, 0, 0];
+                const swatch = document.createElement('div');
+                swatch.className = 'swatch';
+                swatch.style.background = `rgb(${Math.round(r * 255)}, ${Math.round(g * 255)}, ${Math.round(b * 255)})`;
+                paletteEl.appendChild(swatch);
+            });
+
+            const diagnostics = activeSystem.visualizer.parameterDiagnostics;
+            paramsEl.innerHTML = '';
+
+            if (diagnostics && diagnostics.parameters) {
+                const keys = [
+                    { key: 'volumetricDensity', label: 'Volumetric' },
+                    { key: 'contrastCurve', label: 'Contrast Curve' },
+                    { key: 'hueStart', label: 'Hue Start' },
+                    { key: 'hueEnd', label: 'Hue End' },
+                    { key: 'cameraTilt', label: 'Camera Tilt' },
+                    { key: 'cameraSway', label: 'Camera Sway' }
+                ];
+
+                keys.forEach(({ key, label }) => {
+                    const info = diagnostics.parameters[key];
+                    if (!info) return;
+                    const row = document.createElement('div');
+                    row.className = 'param-row';
+
+                    const name = document.createElement('div');
+                    name.textContent = label;
+
+                    const bar = document.createElement('div');
+                    bar.className = 'bar';
+                    const fill = document.createElement('div');
+                    fill.className = 'fill';
+
+                    const normalizedRange = Math.max(Math.abs(info.range || 1), 0.0001);
+                    const proportion = Math.max(-1, Math.min(1, info.offset / normalizedRange));
+                    fill.style.width = `${Math.abs(proportion) * 50}%`;
+                    fill.style.left = proportion >= 0 ? '50%' : `${50 + proportion * 50}%`;
+
+                    const baseline = document.createElement('div');
+                    baseline.className = 'baseline';
+
+                    bar.appendChild(fill);
+                    bar.appendChild(baseline);
+
+                    const value = document.createElement('div');
+                    value.textContent = `${info.resolved.toFixed(3)}`;
+
+                    row.appendChild(name);
+                    row.appendChild(bar);
+                    row.appendChild(value);
+                    paramsEl.appendChild(row);
+                });
+
+                const driverRow = document.createElement('div');
+                driverRow.className = 'small-note';
+                driverRow.textContent = `Reactive driver mix (beat/onset/audio): ${(diagnostics.driver * 100).toFixed(1)}%`;
+                paramsEl.appendChild(driverRow);
+            }
+        };
+
+        systemSelect.addEventListener('change', (e) => startSystem(e.target.value));
+        regenHueBtn.addEventListener('click', () => {
+            activeConfig.previewHue = Math.floor(Math.random() * 360);
+            startSystem(systemSelect.value);
+        });
+        regenDensityBtn.addEventListener('click', () => {
+            activeConfig.densityFloor = 0.12 + Math.random() * 0.35;
+            startSystem(systemSelect.value);
+        });
+
+        startSystem(systemSelect.value);
+        setInterval(updateStatus, 400);
+    </script>
+</body>
+</html>
