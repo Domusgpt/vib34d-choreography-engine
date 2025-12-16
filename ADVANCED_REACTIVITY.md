@@ -6,6 +6,20 @@ The **Advanced Audio Reactivity System** is a next-generation multi-layer audio-
 
 Unlike simple audio reactivity that just modulates a few parameters, this system creates **intelligent, musical responses** across multiple dimensions of the visualization.
 
+All reference demos now ship with **real input paths** out of the box. You can feed the analyzer with:
+- **Live microphone** capture for in-room testing without assets.
+- A **procedural demo beat** that drives the analyzer with actual oscillators (no mock data) when you just need instant movement.
+- The existing **file loader**, which now runs through a properly configured `AnalyserNode` for true 7-band data.
+
+The status banners in both Ultimate and Mobile surfaces show which path is active (file, mic, or demo), so you never unknowingly fall back to mock values.
+
+New **input calibration + health badges** sit alongside these paths. `calibrateAudioFrame` boosts or gates incoming band data before it reaches the Behavior Sweep Engine, while `computeSignalHealth` powers RMS/peak meters, coverage dots, and gain hints so users can quickly nudge levels out of silence or clipping.
+
+Fresh **tone followers** expose the engine's `{ bass, mid, air }` spectral bias directly to UI surfaces: each console ships with a Tone toggle plus influence slider so you can lean visuals toward sub-heavy warmth, mid presence, or air/shimmer without touching JSON.
+
+### Canvas layer orchestration
+`CanvasLayerManager` (at `src/visualizers/shared/CanvasLayerManager.js`) owns a single stack of five layered canvases (background, shadow, content, highlight, accent) and rebuilds the visualizers on top of those elements whenever the system toggle changes. That guarantees only one five-layer set is live at a time, automatically destroys the previous visualizer instances, and keeps sizing in sync with the viewport without scattering canvas setup code throughout the demos.
+
 ---
 
 ## 🌟 Key Features
@@ -461,6 +475,12 @@ Potential additions to the system:
    - Harmonic/percussive separation
    - Chord detection
    - Genre classification
+
+## Layered Canvas Health Checks
+
+- `CanvasLayerManager` now prunes stray `.viz-layer` elements, resets WebGL contexts between system swaps, and rebuilds the five-layer stack before rehydrating any visualizer type.
+- Ultimate and Mobile Smart demos surface the stack state (idle/partial/ready) via a status pill so testers can confirm the active system has working contexts after toggling visualizers.
+- WebGL context-loss events on any layer now trigger an automatic stack rebuild and a state refresh so testers can recover a blank render without manually refreshing the page.
 
 ---
 
