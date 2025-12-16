@@ -11,6 +11,7 @@
 import { BaseSystem } from '../shared/BaseSystem.js';
 import { HolographicVisualizer } from './HolographicVisualizer.js';
 import { ParameterManager } from '../../core/Parameters.js';
+import { BehaviorPreviewDriver } from '../shared/BehaviorPreview.js';
 
 export class HolographicSystem extends BaseSystem {
     constructor(config) {
@@ -24,9 +25,45 @@ export class HolographicSystem extends BaseSystem {
         this.reactivity = config.reactivity || 1.0;
         this.variant = config.variant || 0;
 
+        this.previewDriver = new BehaviorPreviewDriver({
+            baseHue: config.previewHue || 205,
+            paletteStops: 6
+        });
+
         // Holographic-specific state
         this.scrollRotation = 0;
         this.touchRotation = 0;
+
+        this.parameterTuning = {
+            baselineOverrides: {},
+            reactiveLimits: {},
+            reactiveEnabled: {}
+        };
+
+        this._reactiveProfilesInitialized = false;
+    }
+
+    setParameterTuning(tuning = {}) {
+        this.parameterTuning = {
+            baselineOverrides: {
+                ...this.parameterTuning.baselineOverrides,
+                ...(tuning.baselineOverrides || {})
+            },
+            reactiveLimits: {
+                ...this.parameterTuning.reactiveLimits,
+                ...(tuning.reactiveLimits || {})
+            },
+            reactiveEnabled: {
+                ...this.parameterTuning.reactiveEnabled,
+                ...(tuning.reactiveEnabled || {})
+            }
+        };
+
+        if (this.parameters) {
+            this.parameters.setBaselineOverrides(this.parameterTuning.baselineOverrides);
+            this.parameters.setReactiveLimits(this.parameterTuning.reactiveLimits);
+            this.parameters.setReactiveEnabled(this.parameterTuning.reactiveEnabled);
+        }
     }
 
     /**
@@ -37,6 +74,14 @@ export class HolographicSystem extends BaseSystem {
 
         // Initialize parameter manager
         this.parameters = new ParameterManager();
+        this.parameters.registerParameters({
+            volumetricDensity: { baseline: 0.26, profile: { range: 0.36, min: 0, max: 1, limit: this.parameterTuning.reactiveLimits.volumetricDensity } },
+            contrastCurve: { baseline: 0.84, profile: { range: 0.24, min: 0.4, max: 1.4, limit: this.parameterTuning.reactiveLimits.contrastCurve } },
+            hueStart: { baseline: 165, profile: { range: -16, limit: this.parameterTuning.reactiveLimits.hueStart } },
+            hueEnd: { baseline: 225, profile: { range: 40, limit: this.parameterTuning.reactiveLimits.hueEnd } },
+            cameraTilt: { baseline: 0.05, profile: { range: 0.06, min: -1, max: 1, limit: this.parameterTuning.reactiveLimits.cameraTilt } },
+            cameraSway: { baseline: 0.05, profile: { range: 0.06, min: -1, max: 1, limit: this.parameterTuning.reactiveLimits.cameraSway } }
+        });
 
         // Create visualizer
         this.visualizer = new HolographicVisualizer(
@@ -121,6 +166,101 @@ export class HolographicSystem extends BaseSystem {
         if (this.visualizer.setParameters) {
             this.visualizer.setParameters(parameters);
         }
+
+        const previewBehavior = this.previewDriver.sample(performance.now());
+        const behaviorState = parameters?.behaviorState || audioData?.behaviorState || previewBehavior;
+        const sweepState = parameters?.sweepState || audioData?.sweepState || {};
+        const baseHue = parameters?.hue ?? 200;
+
+        const journeyPhase = behaviorState.journeyPhase || 'orbit';
+        const journeyPresets = {
+            orbit: {
+                camera: { tilt: 0.05, sway: 0.04 },
+                volumetric: 0.28,
+                hueSpan: [baseHue - 10, baseHue + 30],
+                contrast: 0.82,
+                rotation: { xw: 0.1, yw: 0.08, zw: 0.04 }
+            },
+            pendulum: {
+                camera: { tilt: 0.02, sway: 0.12 },
+                volumetric: 0.24,
+                hueSpan: [baseHue - 8, baseHue + 24],
+                contrast: 0.88,
+                rotation: { xw: 0.08, yw: 0.14, zw: 0.06 }
+            },
+            spiral: {
+                camera: { tilt: 0.12, sway: 0.1 },
+                volumetric: 0.32,
+                hueSpan: [baseHue - 22, baseHue + 42],
+                contrast: 0.94,
+                rotation: { xw: 0.14, yw: 0.12, zw: 0.09 }
+            }
+        };
+
+        const activePreset = journeyPresets[journeyPhase] || journeyPresets.orbit;
+
+        const beatEnvelope = Math.min(1, behaviorState.beatEnvelope ?? (audioData?.beatEnvelope || audioData?.rms || 0));
+        const onsetEnvelope = Math.min(1, behaviorState.onsetEnvelope ?? audioData?.onset ?? 0);
+
+        const paletteBands = behaviorState.paletteBands || sweepState.paletteBands || [
+            { position: 0.0, color: [0.06, 0.12, 0.24] },
+            { position: 0.38, color: [0.22, 0.3, 0.48] },
+            { position: 0.7, color: [0.56, 0.32, 0.24] },
+            { position: 1.0, color: [0.94, 0.68, 0.36] }
+        ];
+
+        const rotationTargets = sweepState.rotations || behaviorState.rotationTargets || behaviorState.rotations || activePreset.rotation;
+
+        if (!this._reactiveProfilesInitialized) {
+            this.parameters.setProfiles({
+                volumetricDensity: { range: 0.3, min: 0, max: 1 },
+                contrastCurve: { range: 0.22, min: 0.35, max: 1.3 },
+                hueStart: { range: -16 },
+                hueEnd: { range: 38 },
+                cameraTilt: { range: 0.05, min: -1, max: 1 },
+                cameraSway: { range: 0.05, min: -1, max: 1 }
+            });
+            this._reactiveProfilesInitialized = true;
+        }
+
+        this.parameters.setBaselineOverrides(this.parameterTuning.baselineOverrides);
+        this.parameters.setReactiveLimits(this.parameterTuning.reactiveLimits);
+
+        this.parameters.setBaseline({
+            volumetricDensity: activePreset.volumetric,
+            contrastCurve: activePreset.contrast,
+            hueStart: activePreset.hueSpan[0],
+            hueEnd: activePreset.hueSpan[1],
+            cameraTilt: activePreset.camera.tilt,
+            cameraSway: activePreset.camera.sway
+        });
+
+        const resolved = this.parameters.resolve({
+            beatEnvelope,
+            onsetEnvelope,
+            audioLevel: audioData?.rms || 0
+        });
+        const parameterDiagnostics = this.parameters.getDiagnostics();
+
+        if (this.visualizer.applyBehaviorState) {
+            this.visualizer.applyBehaviorState({
+                journeyPhase,
+                beatEnvelope,
+                onsetEnvelope,
+                volumetricDensity: resolved.volumetricDensity,
+                hueSpan: [resolved.hueStart, resolved.hueEnd],
+                contrastCurve: resolved.contrastCurve,
+                paletteBands,
+                rotationTargets,
+                cameraPreset: {
+                    tilt: resolved.cameraTilt,
+                    sway: resolved.cameraSway
+                },
+                parameterDiagnostics
+            });
+        }
+
+        this.visualizer.parameterDiagnostics = parameterDiagnostics;
 
         // Get color from color system
         const time = this.visualizer.getTime();
