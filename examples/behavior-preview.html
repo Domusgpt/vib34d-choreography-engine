@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Behavior Preview Driver • VIB34D</title>
+    <style>
+        :root {
+            color-scheme: dark;
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            background: radial-gradient(circle at 20% 20%, rgba(0, 255, 200, 0.08), transparent 35%),
+                        radial-gradient(circle at 80% 10%, rgba(255, 120, 0, 0.08), transparent 40%),
+                        #020409;
+            color: #bfe9ff;
+            font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            overflow: hidden;
+        }
+        #container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+        canvas {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            display: block;
+            background: #000;
+        }
+        .panel {
+            position: absolute;
+            top: 12px;
+            left: 12px;
+            min-width: 320px;
+            padding: 14px 16px;
+            background: rgba(6, 10, 18, 0.82);
+            border: 1px solid rgba(94, 214, 255, 0.35);
+            border-radius: 12px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+        }
+        h1 {
+            margin: 0 0 8px;
+            font-size: 18px;
+            color: #e7f7ff;
+            letter-spacing: 0.3px;
+        }
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+        select, button {
+            appearance: none;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            background: rgba(255, 255, 255, 0.06);
+            color: #e7f7ff;
+            padding: 10px 12px;
+            border-radius: 10px;
+            font-weight: 600;
+            letter-spacing: 0.2px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        select:focus, button:focus { outline: 2px solid rgba(94, 214, 255, 0.8); }
+        button:hover, select:hover {
+            border-color: rgba(94, 214, 255, 0.5);
+            background: rgba(94, 214, 255, 0.08);
+            transform: translateY(-1px);
+        }
+        .status {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(140px, 1fr));
+            gap: 6px 10px;
+            font-size: 12px;
+            color: #c8ddff;
+        }
+        .status strong { color: #9fe8ff; font-weight: 700; }
+        .section-heading {
+            margin: 10px 0 6px;
+            font-size: 12px;
+            letter-spacing: 0.3px;
+            color: #b7dfff;
+            text-transform: uppercase;
+        }
+        .pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 10px;
+            border-radius: 999px;
+            background: rgba(94, 214, 255, 0.12);
+            border: 1px solid rgba(94, 214, 255, 0.2);
+            font-size: 11px;
+            color: #9fe8ff;
+        }
+        .palette {
+            display: flex;
+            gap: 4px;
+            margin-top: 8px;
+        }
+        .swatch {
+            flex: 1;
+            min-width: 0;
+            border-radius: 6px;
+            height: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.35);
+        }
+        .param-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            margin-top: 8px;
+            font-size: 12px;
+        }
+        .param-row {
+            display: grid;
+            grid-template-columns: 120px 1fr 70px;
+            align-items: center;
+            gap: 10px;
+        }
+        .tuning-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .tuning-row {
+            display: grid;
+            grid-template-columns: 120px 1fr 1fr;
+            gap: 8px;
+            align-items: center;
+            font-size: 12px;
+            padding: 6px 8px;
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 10px;
+            border: 1px solid rgba(94, 214, 255, 0.08);
+        }
+        .tuning-row label { color: #d7ecff; font-weight: 600; }
+        .tuning-row .descriptor { color: #95b5d8; font-size: 11px; }
+        .slider-wrap { display: flex; flex-direction: column; gap: 4px; }
+        .slider-wrap input[type="range"] {
+            width: 100%;
+            accent-color: #5ed6ff;
+        }
+        .slider-value { font-size: 11px; color: #9fe8ff; text-align: right; }
+        .toggles {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 6px;
+            margin-top: 6px;
+        }
+        .toggle {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 10px;
+            border-radius: 10px;
+            border: 1px solid rgba(94, 214, 255, 0.12);
+            background: rgba(255, 255, 255, 0.02);
+            font-size: 12px;
+            color: #d7ecff;
+        }
+        .toggle input { accent-color: #5ed6ff; width: 16px; height: 16px; }
+        .driver-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: 6px;
+        }
+        .driver-row {
+            display: grid;
+            grid-template-columns: 120px 1fr 60px;
+            gap: 10px;
+            align-items: center;
+            font-size: 12px;
+            padding: 6px 8px;
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 10px;
+            border: 1px solid rgba(94, 214, 255, 0.08);
+        }
+        .driver-row label { color: #d7ecff; font-weight: 600; }
+        .bar {
+            position: relative;
+            height: 10px;
+            border-radius: 999px;
+            background: linear-gradient(90deg, rgba(94, 214, 255, 0.3), rgba(255, 139, 217, 0.28));
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        .bar .fill {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            left: 50%;
+            transform-origin: left;
+            background: linear-gradient(90deg, rgba(94, 214, 255, 0.8), rgba(255, 139, 217, 0.7));
+            box-shadow: 0 0 10px rgba(94, 214, 255, 0.3);
+        }
+        .bar .baseline {
+            position: absolute;
+            top: -2px;
+            bottom: -2px;
+            width: 2px;
+            left: 50%;
+            background: rgba(255, 255, 255, 0.65);
+            opacity: 0.65;
+        }
+        .bar .limit {
+            position: absolute;
+            top: -3px;
+            bottom: -3px;
+            width: 2px;
+            background: rgba(255, 194, 120, 0.8);
+            box-shadow: 0 0 8px rgba(255, 194, 120, 0.35);
+        }
+        .bar .resolved {
+            position: absolute;
+            top: -4px;
+            width: 8px;
+            height: 18px;
+            border-radius: 6px;
+            background: rgba(156, 255, 210, 0.9);
+            border: 1px solid rgba(156, 255, 210, 0.65);
+            box-shadow: 0 0 10px rgba(156, 255, 210, 0.35);
+        }
+        .small-note {
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.62);
+            margin-top: 8px;
+            line-height: 1.4;
+        }
+        .footer {
+            position: absolute;
+            bottom: 12px;
+            right: 12px;
+            padding: 10px 12px;
+            border-radius: 10px;
+            background: rgba(6, 10, 18, 0.82);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 11px;
+            letter-spacing: 0.2px;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <canvas id="mainCanvas"></canvas>
+        <div class="panel">
+            <h1>Behavior Preview Driver</h1>
+            <div class="controls">
+                <select id="systemSelect" aria-label="Choose visualizer">
+                    <option value="quantum">Quantum (Holographic)</option>
+                    <option value="faceted">Faceted</option>
+                    <option value="holographic">Holographic</option>
+                </select>
+                <button id="regenHue">Shuffle Hue</button>
+                <button id="regenDensity">Shuffle Density</button>
+            </div>
+            <div class="status" id="status"></div>
+            <div class="palette" id="palette"></div>
+            <div class="section-heading">Baseline + Reactive Overlay</div>
+            <div class="param-grid" id="params"></div>
+            <div class="section-heading">Tuning (Baseline offsets + Reactive limits)</div>
+            <div class="tuning-grid" id="tuning"></div>
+            <div class="section-heading">Reactive gating</div>
+            <div class="toggles" id="reactive"></div>
+            <div class="section-heading">Driver mix &amp; silence floor</div>
+            <div class="driver-grid" id="driver"></div>
+            <div class="small-note">Baseline values remain the source of truth; reactive offsets add and decay back toward the baseline when envelopes fade. Use the tuning sliders to nudge baselines or clamp how far audio-reactive modulation can deviate.</div>
+        </div>
+        <div class="footer">Preview driver cycles journey phases, envelopes, hue spans, and palette bands for offline visual QA. Polychora content has been intentionally excluded from this harness.</div>
+    </div>
+
+    <script type="module">
+        import { FacetedSystem } from '../src/visualizers/faceted/FacetedSystem.js';
+        import { HolographicSystem } from '../src/visualizers/holographic/HolographicSystem.js';
+        import { QuantumSystem } from '../src/visualizers/quantum/QuantumSystem.js';
+
+        const normalizeWeights = (weights = {}) => {
+            const beat = Math.max(0, Number(weights.beat ?? 0));
+            const onset = Math.max(0, Number(weights.onset ?? 0));
+            const audio = Math.max(0, Number(weights.audio ?? 0));
+            const total = beat + onset + audio;
+            if (total <= 0) return { beat: 0.5, onset: 0.5, audio: 0 };
+            return { beat: beat / total, onset: onset / total, audio: audio / total };
+        };
+
+        const statusEl = document.getElementById('status');
+        const paletteEl = document.getElementById('palette');
+        const paramsEl = document.getElementById('params');
+        const tuningEl = document.getElementById('tuning');
+        const reactiveEl = document.getElementById('reactive');
+        const driverEl = document.getElementById('driver');
+        const systemSelect = document.getElementById('systemSelect');
+        const regenHueBtn = document.getElementById('regenHue');
+        const regenDensityBtn = document.getElementById('regenDensity');
+
+        const systems = {
+            faceted: FacetedSystem,
+            holographic: HolographicSystem,
+            quantum: QuantumSystem
+        };
+
+        let activeSystem = null;
+        let activeConfig = { previewHue: 200, densityFloor: 0.22 };
+        let tuningRangesInitialized = false;
+        let activeTuning = {
+            baselineOverrides: {
+                volumetricDensity: 0,
+                contrastCurve: 0,
+                hueStart: 0,
+                hueEnd: 0,
+                cameraTilt: 0,
+                cameraSway: 0
+            },
+            reactiveLimits: {
+                volumetricDensity: 0.3,
+                contrastCurve: 0.25,
+                hueStart: 28,
+                hueEnd: 36,
+                cameraTilt: 0.08,
+                cameraSway: 0.08
+            },
+            reactiveEnabled: {
+                volumetricDensity: true,
+                contrastCurve: true,
+                hueStart: true,
+                hueEnd: true,
+                cameraTilt: true,
+                cameraSway: true
+            },
+            driverWeights: { beat: 0.65, onset: 0.35, audio: 0 },
+            driverFloor: 0.015
+        };
+
+        const tuningSchema = [
+            { key: 'volumetricDensity', label: 'Volumetric', overrideRange: 0.4, limitRange: 0.6, format: (v) => v.toFixed(2) },
+            { key: 'contrastCurve', label: 'Contrast Curve', overrideRange: 0.35, limitRange: 0.4, format: (v) => v.toFixed(2) },
+            { key: 'hueStart', label: 'Hue Start', overrideRange: 40, limitRange: 45, format: (v) => `${v.toFixed(0)}°` },
+            { key: 'hueEnd', label: 'Hue End', overrideRange: 40, limitRange: 45, format: (v) => `${v.toFixed(0)}°` },
+            { key: 'cameraTilt', label: 'Camera Tilt', overrideRange: 0.25, limitRange: 0.2, format: (v) => v.toFixed(3) },
+            { key: 'cameraSway', label: 'Camera Sway', overrideRange: 0.25, limitRange: 0.2, format: (v) => v.toFixed(3) }
+        ];
+
+        const stopActiveSystem = () => {
+            if (activeSystem) {
+                activeSystem.stop();
+                if (activeSystem.destroy) {
+                    activeSystem.destroy();
+                }
+                activeSystem = null;
+            }
+        };
+
+        const startSystem = async (key) => {
+            stopActiveSystem();
+            const SystemCtor = systems[key] || QuantumSystem;
+            activeSystem = new SystemCtor({ canvasId: 'mainCanvas', role: 'content', variant: 0, previewHue: activeConfig.previewHue, densityFloor: activeConfig.densityFloor });
+
+            await activeSystem.initialize();
+            activeSystem.setAudioEnabled(false);
+            activeSystem.render();
+
+            if (activeSystem.setParameterTuning) {
+                activeSystem.setParameterTuning(activeTuning);
+            }
+
+            tuningRangesInitialized = false;
+        };
+
+        const updateStatus = () => {
+            if (!activeSystem || !activeSystem.visualizer) return;
+            const { behaviorState, behaviorTargets } = activeSystem.visualizer;
+            if (!behaviorState) return;
+
+            statusEl.innerHTML = `
+                <div><strong>Journey</strong><br>${behaviorState.journeyPhase}</div>
+                <div><strong>Beat / Onset</strong><br>${behaviorState.beatEnvelope?.toFixed(2)} / ${behaviorState.onsetEnvelope?.toFixed(2)}</div>
+                <div><strong>Hue Span</strong><br>${behaviorState.hueSpan?.map(v => Math.round(v)).join(' → ')}</div>
+                <div><strong>Contrast</strong><br>${(behaviorState.contrastCurve ?? 0).toFixed(2)}</div>
+                <div><strong>Volumetric</strong><br>${(behaviorTargets?.volumetricDensity ?? 0).toFixed(2)}</div>
+                <div><strong>Camera</strong><br>tilt ${(behaviorTargets?.cameraMotion?.[0] ?? 0).toFixed(2)} / sway ${(behaviorTargets?.cameraMotion?.[1] ?? 0).toFixed(2)}</div>
+            `;
+
+            const bands = behaviorState.paletteBands || [];
+            paletteEl.innerHTML = '';
+            bands.slice(0, 8).forEach(({ color }) => {
+                const [r, g, b] = color || [0, 0, 0];
+                const swatch = document.createElement('div');
+                swatch.className = 'swatch';
+                swatch.style.background = `rgb(${Math.round(r * 255)}, ${Math.round(g * 255)}, ${Math.round(b * 255)})`;
+                paletteEl.appendChild(swatch);
+            });
+
+            const diagnostics = activeSystem.visualizer.parameterDiagnostics;
+            paramsEl.innerHTML = '';
+
+            if (diagnostics && diagnostics.parameters) {
+                const keys = [
+                    { key: 'volumetricDensity', label: 'Volumetric' },
+                    { key: 'contrastCurve', label: 'Contrast Curve' },
+                    { key: 'hueStart', label: 'Hue Start' },
+                    { key: 'hueEnd', label: 'Hue End' },
+                    { key: 'cameraTilt', label: 'Camera Tilt' },
+                    { key: 'cameraSway', label: 'Camera Sway' }
+                ];
+
+                keys.forEach(({ key, label }) => {
+                    const info = diagnostics.parameters[key];
+                    if (!info) return;
+                    const row = document.createElement('div');
+                    row.className = 'param-row';
+
+                    const name = document.createElement('div');
+                    name.textContent = label;
+
+                    const bar = document.createElement('div');
+                    bar.className = 'bar';
+                    const fill = document.createElement('div');
+                    fill.className = 'fill';
+
+                    const baselineValue = diagnostics.baseline?.[key] ?? diagnostics.baselineSource?.[key] ?? 0;
+                    const spanMin = Number.isFinite(info.min) ? info.min : baselineValue - Math.abs(info.range || 1);
+                    const spanMax = Number.isFinite(info.max) ? info.max : baselineValue + Math.abs(info.range || 1);
+                    const clampedMin = Math.min(spanMin, spanMax);
+                    const clampedMax = Math.max(spanMin, spanMax);
+                    const span = Math.max(0.0001, clampedMax - clampedMin);
+
+                    const baselinePct = ((baselineValue - clampedMin) / span) * 100;
+                    const resolvedPct = ((info.resolved - clampedMin) / span) * 100;
+                    const startPct = Math.max(0, Math.min(100, Math.min(baselinePct, resolvedPct)));
+                    const widthPct = Math.min(100, Math.abs(resolvedPct - baselinePct));
+
+                    const limit = Number.isFinite(info.limit) ? Math.abs(info.limit) : null;
+                    const limitLeftPct = limit !== null ? ((baselineValue - limit - clampedMin) / span) * 100 : null;
+                    const limitRightPct = limit !== null ? ((baselineValue + limit - clampedMin) / span) * 100 : null;
+
+                    fill.style.left = `${startPct}%`;
+                    fill.style.width = `${widthPct}%`;
+
+                    const baseline = document.createElement('div');
+                    baseline.className = 'baseline';
+                    baseline.style.left = `${Math.max(0, Math.min(100, baselinePct))}%`;
+
+                    if (limit !== null) {
+                        const leftLimit = document.createElement('div');
+                        leftLimit.className = 'limit';
+                        leftLimit.style.left = `${Math.max(0, Math.min(100, limitLeftPct))}%`;
+                        bar.appendChild(leftLimit);
+
+                        const rightLimit = document.createElement('div');
+                        rightLimit.className = 'limit';
+                        rightLimit.style.left = `${Math.max(0, Math.min(100, limitRightPct))}%`;
+                        bar.appendChild(rightLimit);
+                    }
+
+                    const resolvedMarker = document.createElement('div');
+                    resolvedMarker.className = 'resolved';
+                    resolvedMarker.style.left = `${Math.max(0, Math.min(100, resolvedPct))}%`;
+
+                    bar.appendChild(fill);
+                    bar.appendChild(baseline);
+                    bar.appendChild(resolvedMarker);
+
+                    const value = document.createElement('div');
+                    const minText = Number.isFinite(info.min) ? info.min.toFixed(2) : '−∞';
+                    const maxText = Number.isFinite(info.max) ? info.max.toFixed(2) : '+∞';
+                    const limitText = Number.isFinite(info.limit) ? ` ±${info.limit.toFixed(2)} lim` : ' no limit';
+                    value.textContent = `${info.resolved.toFixed(3)} | ${minText}…${maxText}${limitText}`;
+
+                    row.appendChild(name);
+                    row.appendChild(bar);
+                    row.appendChild(value);
+                    paramsEl.appendChild(row);
+                });
+
+                const driverRow = document.createElement('div');
+                driverRow.className = 'small-note';
+                const weights = diagnostics.driverWeights || normalizeWeights(activeTuning.driverWeights);
+                driverRow.textContent = `Driver ${(diagnostics.driver ?? 0).toFixed(2)} (floor ${(diagnostics.driverFloor ?? 0).toFixed(3)}) · mix ${Math.round((weights.beat || 0) * 100)}% / ${Math.round((weights.onset || 0) * 100)}% / ${Math.round((weights.audio || 0) * 100)}%`;
+                paramsEl.appendChild(driverRow);
+            }
+
+            if (!tuningRangesInitialized) {
+                syncTuningRanges(diagnostics);
+            }
+
+            renderTuning(diagnostics);
+            renderReactiveSwitches(diagnostics);
+            renderDriverControls(diagnostics);
+        };
+
+        const syncTuningRanges = (diagnostics) => {
+            if (!diagnostics || !diagnostics.parameters || !tuningEl.hasChildNodes()) return;
+
+            const rows = tuningEl.querySelectorAll('.tuning-row');
+            rows.forEach((row, idx) => {
+                const schema = tuningSchema[idx];
+                const param = diagnostics.parameters[schema.key];
+                if (!param) return;
+
+                const baselineValue = diagnostics.baseline?.[schema.key] ?? diagnostics.baselineSource?.[schema.key] ?? 0;
+                const min = Number.isFinite(param.min) ? param.min : -Infinity;
+                const max = Number.isFinite(param.max) ? param.max : Infinity;
+                const baseRange = Math.max(Math.abs(baselineValue - min), Math.abs(max - baselineValue));
+                const overrideRange = Number.isFinite(baseRange) && baseRange > 0 ? Math.max(schema.overrideRange, baseRange * 0.6) : schema.overrideRange;
+                const limitRange = Number.isFinite(param.limit) ? Math.max(schema.limitRange, Math.abs(param.limit)) : schema.limitRange;
+
+                const baselineInput = row.querySelector('.slider-wrap:nth-child(2) input');
+                const baselineValueEl = row.querySelector('.slider-wrap:nth-child(2) .slider-value');
+                if (baselineInput) {
+                    baselineInput.min = -overrideRange;
+                    baselineInput.max = overrideRange;
+                    const clamped = Math.min(overrideRange, Math.max(-overrideRange, activeTuning.baselineOverrides[schema.key] ?? 0));
+                    activeTuning.baselineOverrides[schema.key] = clamped;
+                    baselineInput.value = clamped;
+                    if (baselineValueEl) baselineValueEl.textContent = schema.format(clamped);
+                }
+
+                const limitInput = row.querySelector('.slider-wrap:nth-child(3) input');
+                const limitValueEl = row.querySelector('.slider-wrap:nth-child(3) .slider-value');
+                if (limitInput) {
+                    limitInput.max = limitRange;
+                    const clampedLimit = Math.min(limitRange, Math.max(0, activeTuning.reactiveLimits[schema.key] ?? limitRange));
+                    activeTuning.reactiveLimits[schema.key] = clampedLimit;
+                    limitInput.value = clampedLimit;
+                    if (limitValueEl) limitValueEl.textContent = schema.format(clampedLimit);
+                }
+            });
+
+            if (activeSystem?.setParameterTuning) {
+                activeSystem.setParameterTuning(activeTuning);
+            }
+
+            tuningRangesInitialized = true;
+        };
+
+        const renderDriverControls = (diagnostics) => {
+            if (!driverEl) return;
+            const normalized = normalizeWeights(activeTuning.driverWeights || diagnostics?.driverWeights);
+            const rows = driverEl.querySelectorAll('.driver-row');
+
+            const updateRow = (row, key, label, min, max, step) => {
+                let value = key === 'floor' ? (activeTuning.driverFloor ?? 0.015) : (activeTuning.driverWeights[key] ?? 0);
+                const input = row.querySelector('input');
+                const valueLabel = row.querySelector('.slider-value');
+                if (!input || !valueLabel) return;
+                input.min = min;
+                input.max = max;
+                input.step = step;
+                if (Number.isNaN(value)) value = key === 'floor' ? 0.015 : 0;
+                input.value = value;
+                if (key === 'floor') {
+                    valueLabel.textContent = value.toFixed(3);
+                } else {
+                    const pct = Math.round((normalized[key] || 0) * 100);
+                    valueLabel.textContent = `${pct}%`;
+                }
+            };
+
+            if (!rows.length) {
+                const schema = [
+                    { key: 'beat', label: 'Beat weight', min: 0, max: 1, step: 0.01 },
+                    { key: 'onset', label: 'Onset weight', min: 0, max: 1, step: 0.01 },
+                    { key: 'audio', label: 'Audio level weight', min: 0, max: 1, step: 0.01 },
+                    { key: 'floor', label: 'Silence floor', min: 0, max: 0.2, step: 0.001 }
+                ];
+
+                schema.forEach(({ key, label, min, max, step }) => {
+                    const row = document.createElement('div');
+                    row.className = 'driver-row';
+                    row.dataset.key = key;
+
+                    const labelEl = document.createElement('label');
+                    labelEl.textContent = label;
+
+                    const wrap = document.createElement('div');
+                    wrap.className = 'slider-wrap';
+                    const input = document.createElement('input');
+                    input.type = 'range';
+                    input.min = min;
+                    input.max = max;
+                    input.step = step;
+                    input.value = key === 'floor' ? (activeTuning.driverFloor ?? 0.015) : (activeTuning.driverWeights[key] ?? 0);
+                    input.addEventListener('input', (e) => {
+                        const val = parseFloat(e.target.value);
+                        if (key === 'floor') {
+                            activeTuning.driverFloor = val;
+                        } else {
+                            activeTuning.driverWeights[key] = val;
+                        }
+                        if (activeSystem?.setParameterTuning) {
+                            activeSystem.setParameterTuning(activeTuning);
+                        }
+                        renderDriverControls(diagnostics);
+                    });
+                    wrap.appendChild(input);
+
+                    const valueEl = document.createElement('div');
+                    valueEl.className = 'slider-value';
+                    wrap.appendChild(valueEl);
+
+                    row.appendChild(labelEl);
+                    row.appendChild(wrap);
+                    row.appendChild(valueEl);
+
+                    driverEl.appendChild(row);
+                });
+            }
+
+            driverEl.querySelectorAll('.driver-row').forEach((row) => {
+                const schemaKey = row.dataset.key || 'beat';
+                if (schemaKey === 'floor') {
+                    updateRow(row, 'floor', schemaKey, 0, 0.2, 0.001);
+                } else {
+                    updateRow(row, schemaKey, schemaKey, 0, 1, 0.01);
+                }
+            });
+        };
+
+        const renderTuning = (diagnostics) => {
+            if (!diagnostics || !diagnostics.parameters) return;
+
+            if (!tuningEl.hasChildNodes()) {
+                tuningSchema.forEach((schema) => {
+                    const row = document.createElement('div');
+                    row.className = 'tuning-row';
+
+                    const label = document.createElement('div');
+                    label.innerHTML = `<div>${schema.label}</div><div class="descriptor">baseline offset & limit</div>`;
+
+                    const baselineWrap = document.createElement('div');
+                    baselineWrap.className = 'slider-wrap';
+                    const baselineRange = document.createElement('input');
+                    baselineRange.type = 'range';
+                    baselineRange.min = -schema.overrideRange;
+                    baselineRange.max = schema.overrideRange;
+                    baselineRange.step = schema.key.startsWith('hue') ? 1 : 0.01;
+                    baselineRange.value = activeTuning.baselineOverrides[schema.key] ?? 0;
+                    const baselineValue = document.createElement('div');
+                    baselineValue.className = 'slider-value';
+                    baselineValue.textContent = schema.format(activeTuning.baselineOverrides[schema.key] ?? 0);
+                    baselineRange.addEventListener('input', (e) => {
+                        activeTuning.baselineOverrides[schema.key] = parseFloat(e.target.value);
+                        baselineValue.textContent = schema.format(activeTuning.baselineOverrides[schema.key]);
+                        if (activeSystem?.setParameterTuning) {
+                            activeSystem.setParameterTuning(activeTuning);
+                        }
+                    });
+                    baselineWrap.appendChild(baselineRange);
+                    baselineWrap.appendChild(baselineValue);
+
+                    const limitWrap = document.createElement('div');
+                    limitWrap.className = 'slider-wrap';
+                    const limitRange = document.createElement('input');
+                    limitRange.type = 'range';
+                    limitRange.min = 0;
+                    limitRange.max = schema.limitRange;
+                    limitRange.step = schema.key.startsWith('hue') ? 1 : 0.01;
+                    limitRange.value = activeTuning.reactiveLimits[schema.key] ?? schema.limitRange;
+                    const limitValue = document.createElement('div');
+                    limitValue.className = 'slider-value';
+                    limitValue.textContent = schema.format(activeTuning.reactiveLimits[schema.key] ?? schema.limitRange);
+                    limitRange.addEventListener('input', (e) => {
+                        activeTuning.reactiveLimits[schema.key] = parseFloat(e.target.value);
+                        limitValue.textContent = schema.format(activeTuning.reactiveLimits[schema.key]);
+                        if (activeSystem?.setParameterTuning) {
+                            activeSystem.setParameterTuning(activeTuning);
+                        }
+                    });
+                    limitWrap.appendChild(limitRange);
+                    limitWrap.appendChild(limitValue);
+
+                    row.appendChild(label);
+                    row.appendChild(baselineWrap);
+                    row.appendChild(limitWrap);
+                    tuningEl.appendChild(row);
+                });
+            }
+
+            const rows = tuningEl.querySelectorAll('.tuning-row');
+            rows.forEach((row, idx) => {
+                const schema = tuningSchema[idx];
+                const param = diagnostics.parameters[schema.key];
+                if (!param) return;
+                const baselineValue = row.querySelector('.slider-wrap:nth-child(2) .slider-value');
+                const limitValue = row.querySelector('.slider-wrap:nth-child(3) .slider-value');
+                if (baselineValue) baselineValue.textContent = schema.format(activeTuning.baselineOverrides[schema.key] ?? 0);
+                if (limitValue) limitValue.textContent = schema.format(activeTuning.reactiveLimits[schema.key] ?? schema.limitRange);
+            });
+        };
+
+        const renderReactiveSwitches = (diagnostics) => {
+            if (!diagnostics || !diagnostics.parameters || !reactiveEl) return;
+            reactiveEl.innerHTML = '';
+
+            Object.entries(activeTuning.reactiveEnabled).forEach(([key, enabled]) => {
+                const param = diagnostics.parameters[key];
+                if (!param) return;
+
+                const label = tuningSchema.find((s) => s.key === key)?.label || key;
+                const toggle = document.createElement('label');
+                toggle.className = 'toggle';
+                const input = document.createElement('input');
+                input.type = 'checkbox';
+                input.checked = enabled;
+                input.addEventListener('change', (e) => {
+                    activeTuning.reactiveEnabled[key] = e.target.checked;
+                    if (activeSystem?.setParameterTuning) {
+                        activeSystem.setParameterTuning(activeTuning);
+                    }
+                });
+
+                const copy = document.createElement('div');
+                copy.innerHTML = `<div>${label}</div><div class="descriptor">${enabled ? 'Reactive offsets allowed' : 'Locked to baseline'}</div>`;
+
+                toggle.appendChild(input);
+                toggle.appendChild(copy);
+                reactiveEl.appendChild(toggle);
+            });
+        };
+
+        systemSelect.addEventListener('change', (e) => startSystem(e.target.value));
+        regenHueBtn.addEventListener('click', () => {
+            activeConfig.previewHue = Math.floor(Math.random() * 360);
+            startSystem(systemSelect.value);
+        });
+        regenDensityBtn.addEventListener('click', () => {
+            activeConfig.densityFloor = 0.12 + Math.random() * 0.35;
+            startSystem(systemSelect.value);
+        });
+
+        startSystem(systemSelect.value);
+        setInterval(updateStatus, 400);
+    </script>
+</body>
+</html>
