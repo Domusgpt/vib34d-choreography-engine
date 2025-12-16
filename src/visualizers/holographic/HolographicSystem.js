@@ -9,8 +9,11 @@
  */
 
 import { BaseSystem } from '../shared/BaseSystem.js';
+import { BehaviorSweepEngine } from '../shared/BehaviorSweepEngine.js';
 import { HolographicVisualizer } from './HolographicVisualizer.js';
 import { ParameterManager } from '../../core/Parameters.js';
+
+const clamp = (value, min, max) => Math.min(max, Math.max(min, value));
 
 export class HolographicSystem extends BaseSystem {
     constructor(config) {
@@ -23,6 +26,8 @@ export class HolographicSystem extends BaseSystem {
         this.role = config.role || 'content';
         this.reactivity = config.reactivity || 1.0;
         this.variant = config.variant || 0;
+        this.behaviorPreset = config.behaviorPreset || 'cinematic';
+        this.behaviorEngine = new BehaviorSweepEngine(this.behaviorPreset);
 
         // Holographic-specific state
         this.scrollRotation = 0;
@@ -117,9 +122,124 @@ export class HolographicSystem extends BaseSystem {
             this.visualizer.updateClickIntensity(deltaTime);
         }
 
+        const behavior = this.behaviorEngine.applyBehavioralReactivity({
+            audioFrame: audioData,
+            beatInfo: audioData?.beat,
+            preset: this.behaviorPreset,
+            deltaTime
+        });
+
+        const tone = behavior.tone || { bass: 0, mid: 0, air: 0 };
+
+        const reactiveParams = { ...parameters };
+
+        reactiveParams.gridDensity = clamp(
+            (parameters.gridDensity || 0) + behavior.densityDelta * this.audioReactivity,
+            0,
+            140
+        );
+
+        reactiveParams.morphFactor = clamp(
+            (parameters.morphFactor || 0) + behavior.morphDelta * this.audioReactivity,
+            0,
+            4
+        );
+
+        reactiveParams.hue = (parameters.hue || 0) + behavior.color.hueShift;
+        reactiveParams.saturation = clamp(
+            (parameters.saturation || 0)
+                + behavior.color.saturationPulse
+                + behavior.color.spark * 0.2
+                + tone.mid * 0.05,
+            0,
+            1
+        );
+
+        reactiveParams.rot4dXW = (parameters.rot4dXW || 0) + behavior.motionRotation.xw;
+        reactiveParams.rot4dYW = (parameters.rot4dYW || 0) + behavior.motionRotation.yw;
+        reactiveParams.rot4dZW = (parameters.rot4dZW || 0) + behavior.motionRotation.zw;
+
+        reactiveParams.intensity = clamp(
+            (parameters.intensity || 1.0)
+                + behavior.color.spark * this.audioReactivity * 0.5
+                + behavior.light.glow * 0.25
+                + tone.bass * 0.12
+                + tone.air * 0.1,
+            0.2,
+            3.5
+        );
+
+        reactiveParams.parallaxDepth = clamp(
+            (parameters.parallaxDepth || 0) + behavior.atmosphere.parallaxDepth * this.audioReactivity,
+            -1.5,
+            1.5
+        );
+
+        reactiveParams.gridDensityShift = clamp(
+            (parameters.gridDensityShift || 0) + behavior.atmosphere.gridShift * this.audioReactivity,
+            -2.5,
+            2.5
+        );
+
+        reactiveParams.shimmer = clamp(
+            (parameters.shimmer || 0) + behavior.atmosphere.shimmer * this.audioReactivity,
+            0,
+            2
+        );
+
+        reactiveParams.warp = clamp(
+            (parameters.warp || 0) + behavior.atmosphere.warp * this.audioReactivity,
+            -1.5,
+            1.5
+        );
+
+        reactiveParams.haze = clamp(
+            (parameters.haze || 0) + behavior.atmosphere.haze * this.audioReactivity,
+            0,
+            2
+        );
+
+        reactiveParams.trailPersistence = clamp(
+            (parameters.trailPersistence || 0) + behavior.fx.trail * this.audioReactivity,
+            0,
+            2
+        );
+
+        reactiveParams.chromaFringe = clamp(
+            (parameters.chromaFringe || 0) + behavior.fx.chroma * this.audioReactivity,
+            0,
+            2
+        );
+
+        reactiveParams.flare = clamp(
+            (parameters.flare || 0) + behavior.fx.flare * this.audioReactivity,
+            0,
+            2.5
+        );
+
+        reactiveParams.bloom = clamp(
+            (parameters.bloom || 0.3) + behavior.light.bloom * this.audioReactivity * 0.45,
+            0,
+            2.5
+        );
+
+        reactiveParams.glow = clamp(
+            (parameters.glow || 0.2) + behavior.light.glow * this.audioReactivity * 0.35,
+            0,
+            2.5
+        );
+
+        reactiveParams.strobe = clamp(
+            (parameters.strobe || 0) + behavior.light.strobe * this.audioReactivity,
+            0,
+            2
+        );
+
         // Update visualizer with parameters
-        if (this.visualizer.setParameters) {
-            this.visualizer.setParameters(parameters);
+        if (this.visualizer.updateParameters) {
+            this.visualizer.updateParameters(reactiveParams);
+        } else if (this.visualizer.setParameters) {
+            this.visualizer.setParameters(reactiveParams);
         }
 
         // Get color from color system
@@ -128,7 +248,7 @@ export class HolographicSystem extends BaseSystem {
             this.visualizer.mouseX,
             this.visualizer.mouseY,
             time,
-            parameters.hue || 200,
+            reactiveParams.hue || 200,
             audioData
         );
 
@@ -137,16 +257,26 @@ export class HolographicSystem extends BaseSystem {
             this.visualizer.setColor(color);
         }
 
+        if (this.visualizer) {
+            this.visualizer.parallaxDepth = reactiveParams.parallaxDepth ?? this.visualizer.parallaxDepth;
+            this.visualizer.gridDensityShift = reactiveParams.gridDensityShift ?? this.visualizer.gridDensityShift;
+            this.visualizer.colorScrollShift = (this.visualizer.colorScrollShift || 0) + behavior.color.spark * 0.1;
+            this.visualizer.shimmer = reactiveParams.shimmer ?? this.visualizer.shimmer;
+            this.visualizer.haze = reactiveParams.haze ?? this.visualizer.haze;
+            this.visualizer.warp = reactiveParams.warp ?? this.visualizer.warp;
+            this.visualizer.bloom = reactiveParams.bloom ?? this.visualizer.bloom;
+        }
+
         // Holographic system has MAXIMUM audio reactivity
         if (audioData && this.audioEnabled) {
             // Bass drives layer intensity
-            const bassIntensity = (audioData.bands.bass?.value || 0) * this.audioReactivity;
+            const bassIntensity = (audioData.bands.bass?.value || 0) * this.audioReactivity + (reactiveParams.glow || 0) * 0.25;
 
             // Mid frequencies drive layer speed
-            const midIntensity = (audioData.bands.mid?.value || 0) * this.audioReactivity;
+            const midIntensity = (audioData.bands.mid?.value || 0) * this.audioReactivity + (reactiveParams.warp || 0) * 0.2;
 
             // High frequencies drive shimmer
-            const highIntensity = (audioData.bands.high?.value || 0) * this.audioReactivity;
+            const highIntensity = (audioData.bands.high?.value || 0) * this.audioReactivity + (reactiveParams.shimmer || 0) * 0.25;
 
             // Onsets trigger layer bursts
             if (audioData.onset.detected && this.visualizer.triggerOnset) {
@@ -155,15 +285,15 @@ export class HolographicSystem extends BaseSystem {
 
             // Apply audio-specific effects
             if (this.visualizer.setLayerIntensity) {
-                this.visualizer.setLayerIntensity(bassIntensity);
+                this.visualizer.setLayerIntensity(bassIntensity + behavior.cameraVelocity * 0.25 + (reactiveParams.bloom || 0) * 0.15);
             }
 
             if (this.visualizer.setLayerSpeed) {
-                this.visualizer.setLayerSpeed(0.5 + midIntensity);
+                this.visualizer.setLayerSpeed(0.5 + midIntensity + behavior.cameraDrift + (reactiveParams.warp || 0) * 0.15);
             }
 
             if (this.visualizer.setShimmerIntensity) {
-                this.visualizer.setShimmerIntensity(highIntensity);
+                this.visualizer.setShimmerIntensity(highIntensity + behavior.atmosphere.shimmer * 0.6 + (reactiveParams.bloom || 0) * 0.25);
             }
 
             // BPM-locked effects
@@ -173,7 +303,7 @@ export class HolographicSystem extends BaseSystem {
         }
 
         // Render frame
-        this.visualizer.render(parameters);
+        this.visualizer.render(reactiveParams);
     }
 
     /**
