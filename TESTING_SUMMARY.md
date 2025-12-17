@@ -2,6 +2,14 @@
 
 ## ✅ All Issues Resolved
 
+**Test runner setup**
+- Run `npm install` before `npm test` to ensure `jest-environment-jsdom` and other dev dependencies are present; missing the jsdom environment will cause Jest to abort before any suites execute.
+
+### Latest smoke additions
+- `npm run visual:setup` installs the Playwright Chromium binary plus required system libraries (use once per host/container).
+- `npm run visual:smoke` runs a headless Playwright dev server session, logs the local environment (Node + Chromium path), triggers the built-in visual test cycle, and captures a screenshot of the Mobile Smart stack for quick verification.
+- The visual smoke harness will attempt to auto-install Playwright Chromium (with system dependencies) if the binary is missing in the current environment.
+
 ### Issue 1: No Visualization Visible
 **Problem**: User reported "why don't I see visualize"
 **Root Cause**: Canvas defaulted to 300x150px instead of fullscreen
@@ -170,6 +178,11 @@ Result: Balanced reactivity for most electronic music
 | "visualizer is black often" | ✅ FIXED | Increased intensity defaults + sequence minimums |
 | "constantly recognizing onset and making things dark" | ✅ FIXED | Raised thresholds + added real-time controls |
 | "test and refine this for best abiltiy" | ✅ COMPLETE | Enhanced UI + tuning guide + optimal presets |
+
+## 🧪 Automated Smoke Tests
+
+- `npm test` now runs Jest coverage for the Behavior Sweep Engine helpers (calibration, health, and LLM prompt parsing) so we can verify reactivity parsing without needing the full demo stack. The Jest default is `jsdom`, so DOM-facing utilities run without extra flags; add `@jest-environment node` to any spec that must stay in Node.
+- Added a jsdom-backed CanvasLayerManager test to assert full-stack layer creation, parameter propagation, and the single-layer fallback path when WebGL contexts fail.
 
 ## 🌟 Key Achievements
 
