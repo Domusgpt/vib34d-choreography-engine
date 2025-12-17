@@ -5,3 +5,4 @@ dist/
 .env
 .vscode/
 .idea/
+docs/assets/*.png
