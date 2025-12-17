@@ -64,6 +64,12 @@ Created `enhanced-visualizers.html` with:
 - ✅ Manual sequence triggers
 - ✅ System switching (Quantum/Faceted/Holographic)
 
+### Behavior Preview Diagnostics
+- ✅ Warning chips flag when parameters are clamped, limits are reached, or the silence floor mutes reactivity
+- ✅ Baseline/offset overlays visualize safe ranges while tuning
+- ✅ ParameterManager coverage verifies clamp ordering, limit handling, reactive gating reset paths, and driver-weight/floor handling
+- ✅ Preview capture script guards the output directory and writes git-ignored PNGs so binary artifacts stay out of the repo
+
 ## 📚 Documentation Created
 
 ### TUNING_GUIDE.md (305 lines)
@@ -198,6 +204,7 @@ Result: Balanced reactivity for most electronic music
 - [ ] Sequence recording/playback
 - [ ] More geometry types
 - [ ] Color scheme presets
+- [ ] Automate behavior-preview captures in CI using `npm run capture-preview`
 - [ ] VR/AR support
 - [ ] MIDI controller integration
 
