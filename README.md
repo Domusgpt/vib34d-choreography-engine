@@ -59,6 +59,35 @@ python3 -m http.server 8080
 # Open http://localhost:8080/examples/real-visualizers.html
 ```
 
+## 👀 View the latest visuals locally
+
+For the baseline behavior preview with ParameterManager overlays and diagnostics:
+
+```bash
+# Install dependencies (includes Vite and Playwright tooling)
+npm install
+
+# Build and launch the Vite preview server (defaults to port 4173)
+npm run build
+npm run preview -- --host --port 4173
+
+# Open the behavior preview in your browser
+# http://localhost:4173/examples/behavior-preview.html
+
+# (Optional) Fetch Playwright browsers for headless capture (run once)
+npm run setup-tools
+
+# Verify Playwright binaries are installed and reachable (fails fast otherwise)
+npm run verify-tools
+
+# (Optional) Capture a fresh snapshot with Playwright
+npm run capture-preview
+# Override defaults (host/port/url/output) or auto-install when needed:
+# npm run capture-preview -- --host 0.0.0.0 --port 4174 --out artifacts/behavior-preview.png --install
+```
+
+See [VIEWING.md](VIEWING.md) for troubleshooting tips and more example URLs.
+
 ## 📁 Project Structure
 
 ```
