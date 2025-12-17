@@ -712,3 +712,6 @@ void main() {
         }
     }
 }
+
+// Legacy compatibility for example pages expecting the older name
+export { IntegratedHolographicVisualizer as FacetedVisualizer };
