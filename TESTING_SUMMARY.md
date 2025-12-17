@@ -171,6 +171,11 @@ Result: Balanced reactivity for most electronic music
 | "constantly recognizing onset and making things dark" | ✅ FIXED | Raised thresholds + added real-time controls |
 | "test and refine this for best abiltiy" | ✅ COMPLETE | Enhanced UI + tuning guide + optimal presets |
 
+## 🧪 Automated Smoke Tests
+
+- `npm test` now runs Jest coverage for the Behavior Sweep Engine helpers (calibration, health, and LLM prompt parsing) so we can verify reactivity parsing without needing the full demo stack.
+- Added a jsdom-backed CanvasLayerManager test to assert full-stack layer creation, parameter propagation, and the single-layer fallback path when WebGL contexts fail.
+
 ## 🌟 Key Achievements
 
 1. **Fully Functional Demo**: All major features working
