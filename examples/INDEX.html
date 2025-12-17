@@ -49,6 +49,37 @@
             text-shadow: 0 0 10px #0f0;
         }
 
+        .cta-row {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 40px;
+            flex-wrap: wrap;
+        }
+
+        .cta-link {
+            background: linear-gradient(90deg, #0ff, #0f0);
+            color: #000;
+            text-decoration: none;
+            padding: 14px 28px;
+            border-radius: 8px;
+            font-weight: bold;
+            letter-spacing: 0.5px;
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.4);
+            transition: transform 0.3s, box-shadow 0.3s;
+            text-transform: uppercase;
+        }
+
+        .cta-link:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 0 25px rgba(0, 255, 255, 0.6);
+        }
+
+        .cta-link.secondary {
+            background: linear-gradient(90deg, #0f0, #0ff);
+            box-shadow: 0 0 15px rgba(0, 255, 0, 0.3);
+        }
+
         .version-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
@@ -306,6 +337,12 @@
         <h1>🌌 VIB34D Choreography Engine</h1>
         <div class="subtitle">Audio-Reactive 4D Geometric Visualization System</div>
 
+        <div class="cta-row">
+            <a class="cta-link" href="mobile-smart.html">📱 Launch Mobile Smart (Best)</a>
+            <a class="cta-link secondary" href="final-ultimate.html">🖥️ Desktop Ultimate</a>
+            <a class="cta-link secondary" href="#versions">📑 View All Demos</a>
+        </div>
+
         <div class="status-section">
             <h2>📊 System Status</h2>
             <div class="status-grid">
@@ -336,29 +373,47 @@
             </div>
         </div>
 
-        <h2 style="color: #0ff; font-size: 2em; margin-bottom: 30px; text-align: center; text-shadow: 0 0 10px #0ff;">
+        <h2 id="versions" style="color: #0ff; font-size: 2em; margin-bottom: 30px; text-align: center; text-shadow: 0 0 10px #0ff;">
             🎨 Demo Versions
         </h2>
 
         <div class="version-grid">
-            <!-- PRIMARY VERSION - FINAL ULTIMATE -->
+            <!-- PRIMARY VERSION - MOBILE SMART -->
             <div class="version-card primary">
-                <span class="version-badge primary">⭐ PRIMARY DEMO</span>
+                <span class="version-badge primary">⭐ BEST EXPERIENCE</span>
+                <h3 class="version-title">Mobile Smart</h3>
+                <p class="version-description">
+                    Lean, mobile-first console with real audio (mic/demo/file) routing, calibration meters, tone-aware sweep outputs, and LLM text presets. Optimized for phones and tablets while keeping every visualizer system active.
+                </p>
+                <ul class="version-features">
+                    <li>📱 Mobile-first UI with sticky status + health pills</li>
+                    <li>🎙️ Live mic + demo beat inputs with calibrated bands</li>
+                    <li>🧠 LLM prompt/paste controls for presets and limits</li>
+                    <li>🎚️ Gain/gate/floor sliders feeding the sweep engine</li>
+                    <li>🌈 Tone-aware bass/mid/air bias into colour + haze</li>
+                    <li>✨ FX, light, atmosphere, and geometry deltas applied each frame</li>
+                    <li>🔁 Control gating plus safety clamps on all channels</li>
+                    <li>🛰️ Quantum, Faceted, and Holographic outputs live</li>
+                    <li>🛟 Fallback-safe mock indicator so you know when audio is real</li>
+                </ul>
+                <a href="mobile-smart.html" class="version-link">Launch Mobile Smart →</a>
+            </div>
+
+            <!-- DESKTOP ULTIMATE -->
+            <div class="version-card">
+                <span class="version-badge">Desktop</span>
                 <h3 class="version-title">Final Ultimate</h3>
                 <p class="version-description">
-                    Complete production demo with REAL audio reactivity, collapsible UI, mobile-responsive design, and ALL 12 visual parameter controls. Status indicators show MOCK vs REAL audio state.
+                    Desktop-optimized console with full control stack, collapsible sections, and the latest sweep engine hooks for atmospheric/light/FX/tone outputs.
                 </p>
                 <ul class="version-features">
                     <li>✅ Collapsible organized sections</li>
-                    <li>✅ Perfect scrolling (mobile + desktop)</li>
                     <li>✅ REAL audio reactivity with status indicator</li>
-                    <li>✅ ALL 12 visual parameter sliders</li>
-                    <li>✅ 7-band audio visualization (SUB/BASS/LOW/MID/H-MID/HIGH/ULTRA)</li>
-                    <li>✅ Reactivity strength indicator</li>
-                    <li>✅ 8 geometry types + 3 visualizer systems</li>
-                    <li>✅ Reactivity toggles + amount slider</li>
-                    <li>✅ Mobile-first responsive design</li>
-                    <li>✅ Console logs proving real audio</li>
+                    <li>✅ Calibration pills and band-corrected inputs</li>
+                    <li>✅ ALL visual parameter sliders + new tone/FX toggles</li>
+                    <li>✅ 7-band visualization across three systems</li>
+                    <li>✅ Reactivity strength indicator and clamps</li>
+                    <li>✅ 8 geometry types + Quantum/Faceted/Holographic</li>
                 </ul>
                 <a href="final-ultimate.html" class="version-link">Launch Final Ultimate →</a>
             </div>

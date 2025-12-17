@@ -1,0 +1,161 @@
+import { chromium } from 'playwright';
+import { spawn, execSync } from 'child_process';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const ARTIFACT_DIR = path.resolve(__dirname, '../artifacts');
+const ARTIFACT_PATH = path.join(ARTIFACT_DIR, 'visual-smoke.png');
+const PREVIEW_PORT = 4173;
+const PREVIEW_URL = `http://127.0.0.1:${PREVIEW_PORT}/examples/mobile-smart.html`;
+const LAUNCH_ARGS = ['--no-sandbox', '--disable-dev-shm-usage'];
+const SMOKE_MODE = (process.env.VISUAL_SMOKE_MODE || 'dev').toLowerCase();
+
+function logEnvironment() {
+    const cwd = process.cwd();
+    const nodeVersion = process.version;
+    let chromiumPath = 'unknown (not yet installed)';
+
+    try {
+        chromiumPath = chromium.executablePath();
+    } catch (err) {
+        const msg = err?.message || String(err);
+        chromiumPath = `unavailable until install (${msg})`;
+    }
+
+    console.log('[visual:smoke] working directory:', cwd);
+    console.log('[visual:smoke] node version:', nodeVersion);
+    console.log('[visual:smoke] playwright chromium path:', chromiumPath);
+    console.log('[visual:smoke] mode:', SMOKE_MODE === 'preview' ? 'preview (build + preview server)' : 'dev (vite dev server)');
+}
+
+async function wait(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function waitForServer(url, timeout = 25000) {
+    const start = Date.now();
+    while (Date.now() - start < timeout) {
+        try {
+            const res = await fetch(url, { method: 'GET' });
+            if (res.ok) return true;
+        } catch (err) {
+            // keep retrying
+        }
+        await wait(300);
+    }
+    throw new Error('Preview server did not come online in time');
+}
+
+function spawnDevServer() {
+    if (SMOKE_MODE === 'preview') {
+        console.log('[visual:smoke] running build before preview…');
+        execSync('npm run build', { stdio: 'inherit' });
+
+        return spawn('npm', ['run', 'preview', '--', '--host', '0.0.0.0', '--port', String(PREVIEW_PORT), '--strictPort'], {
+            stdio: 'inherit',
+            env: process.env,
+        });
+    }
+
+    return spawn('npm', ['run', 'dev', '--', '--host', '0.0.0.0', '--port', String(PREVIEW_PORT), '--strictPort'], {
+        stdio: 'inherit',
+        env: process.env,
+    });
+}
+
+async function launchChromium() {
+    const launchOptions = { headless: true, args: LAUNCH_ARGS };
+    try {
+        return await chromium.launch(launchOptions);
+    } catch (err) {
+        const message = String(err?.message || err);
+        const missingBinary = message.includes("executable doesn't exist") || message.includes('chromium_headless_shell');
+        const missingDeps = message.includes('You can run "playwright install"') || message.includes('libatk');
+
+        console.warn('[visual:smoke] chromium launch failed:', message);
+
+        if (!missingBinary && !missingDeps) {
+            throw err;
+        }
+
+        console.warn('[visual:smoke] installing Playwright Chromium + deps for this environment…');
+        try {
+            execSync('npx playwright install --with-deps chromium', { stdio: 'inherit' });
+        } catch (installErr) {
+            console.warn('[visual:smoke] Playwright install encountered an error; rethrowing original launch error for visibility.');
+            throw err;
+        }
+
+        console.log('[visual:smoke] retrying Chromium launch after install…');
+        return await chromium.launch(launchOptions);
+    }
+}
+
+async function captureScreenshot(page) {
+    try {
+        await page.screenshot({ path: ARTIFACT_PATH, fullPage: true, timeout: 60000 });
+        return;
+    } catch (err) {
+        console.warn('[visual:smoke] full-page screenshot timed out, retrying with viewport-only capture…', err?.message || err);
+    }
+
+    await page.screenshot({ path: ARTIFACT_PATH, fullPage: false, timeout: 20000 });
+}
+
+async function forceVisibleClick(page, locator, label) {
+    if (!(await locator.count())) return false;
+
+    try {
+        await page.evaluate(() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'instant' }));
+        await locator.evaluate(el => el.scrollIntoView({ block: 'center', inline: 'center', behavior: 'instant' })).catch(() => {});
+        await page.mouse.wheel(0, 2000);
+        await page.waitForTimeout(250);
+        await locator.click({ delay: 50, timeout: 6000, force: true });
+        return true;
+    } catch (err) {
+        console.warn(`${label} trigger skipped:`, err.message || err);
+        return false;
+    }
+}
+
+async function run() {
+    fs.mkdirSync(ARTIFACT_DIR, { recursive: true });
+
+    logEnvironment();
+
+    const preview = spawnDevServer();
+    try {
+        await waitForServer(PREVIEW_URL);
+
+        const browser = await launchChromium();
+        const page = await browser.newPage({ viewport: { width: 1600, height: 1800 } });
+
+        console.log('Navigating to preview…');
+        await page.goto(PREVIEW_URL, { waitUntil: 'domcontentloaded', timeout: 22000 });
+        await page.waitForSelector('#visualizerCanvas, canvas', { timeout: 15000 }).catch(() => {});
+        await page.waitForTimeout(2000);
+        console.log('Page ready, triggering controls…');
+
+        const visualTriggered = await forceVisibleClick(page, page.locator('#runVisualTest'), 'Visual test');
+        if (visualTriggered) {
+            await page.waitForTimeout(900);
+        }
+
+        await forceVisibleClick(page, page.locator('#logStackState'), 'Stack log');
+
+        console.log('Capturing screenshot…');
+        await captureScreenshot(page);
+        await browser.close();
+        console.log(`Saved visual smoke artifact to ${ARTIFACT_PATH}`);
+    } finally {
+        preview.kill('SIGTERM');
+    }
+}
+
+run().catch(err => {
+    console.error(err);
+    process.exit(1);
+});
