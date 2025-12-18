@@ -44,6 +44,8 @@ executeSequence("bass_drop_cascade", {
 
 **🎚️ ENHANCED VERSION** (Recommended): Real-time threshold controls, audio level monitoring, instant parameter adjustment
 
+**📱 BEST LOCAL DEMO**: Serve the repo root and open `examples/mobile-smart.html` for the latest calibrated, LLM-ready console.
+
 **📚 [TUNING GUIDE](TUNING_GUIDE.md)**: Complete guide to optimizing for your music genre
 
 ```bash
@@ -57,6 +59,19 @@ npx serve
 python3 -m http.server 8080
 
 # Open http://localhost:8080/examples/real-visualizers.html
+
+# Automated checks (smoke)
+# - Behavior Sweep helpers + canvas-stack fallback
+npm test
+npm run build
+# Jest defaults to a jsdom environment so canvas-stack utilities are covered
+# without extra flags; add `@jest-environment node` atop any Node-only specs.
+# Optional: headless visual smoke to capture a canvas stack screenshot
+npm run visual:setup   # installs the Playwright Chromium + system deps (once per host)
+npm run visual:smoke   # drives the Mobile Smart demo and saves artifacts/visual-smoke.png (logs env details)
+# If your host needs a built preview (e.g., Pages-like deploy parity), run with:
+#   VISUAL_SMOKE_MODE=preview npm run visual:smoke
+# The visual smoke harness will auto-install Chromium if it detects a missing binary.
 ```
 
 ## 📁 Project Structure

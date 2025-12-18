@@ -55,9 +55,15 @@ export class IntegratedHolographicVisualizer {
             rot4dYW: 0.0,
             rot4dZW: 0.0
         };
-        
+
+        this.ready = false;
+
         // Initialization now happens in ensureCanvasSizedThenInitWebGL after sizing
         // this.init(); // MOVED
+    }
+
+    isContextHealthy() {
+        return Boolean(this.gl && !this.gl.isContextLost?.());
     }
     
     /**
@@ -149,14 +155,24 @@ export class IntegratedHolographicVisualizer {
      * Initialize WebGL rendering pipeline
      */
     init() {
-        this.initShaders();
-        this.initBuffers();
+        if (!this.isContextHealthy()) {
+            return false;
+        }
+
+        const shadersReady = this.initShaders();
+        const buffersReady = shadersReady && this.initBuffers();
+
+        if (!buffersReady) {
+            return false;
+        }
 
         // CRITICAL FIX: Enable alpha blending for transparency
         this.gl.enable(this.gl.BLEND);
         this.gl.blendFunc(this.gl.SRC_ALPHA, this.gl.ONE_MINUS_SRC_ALPHA);
 
         this.resize();
+        this.ready = true;
+        return true;
     }
     
     /**
@@ -329,6 +345,9 @@ void main() {
 }`;
         
         this.program = this.createProgram(vertexShaderSource, fragmentShaderSource);
+        if (!this.program) {
+            return false;
+        }
         this.uniforms = {
             resolution: this.gl.getUniformLocation(this.program, 'u_resolution'),
             time: this.gl.getUniformLocation(this.program, 'u_time'),
@@ -349,20 +368,27 @@ void main() {
             clickIntensity: this.gl.getUniformLocation(this.program, 'u_clickIntensity'),
             roleIntensity: this.gl.getUniformLocation(this.program, 'u_roleIntensity')
         };
+        return true;
     }
     
     /**
      * Create WebGL program from shaders
      */
     createProgram(vertexSource, fragmentSource) {
+        if (!this.isContextHealthy()) {
+            return null;
+        }
         const vertexShader = this.createShader(this.gl.VERTEX_SHADER, vertexSource);
         const fragmentShader = this.createShader(this.gl.FRAGMENT_SHADER, fragmentSource);
-        
+
         if (!vertexShader || !fragmentShader) {
             return null;
         }
-        
+
         const program = this.gl.createProgram();
+        if (!program) {
+            return null;
+        }
         this.gl.attachShader(program, vertexShader);
         this.gl.attachShader(program, fragmentShader);
         this.gl.linkProgram(program);
@@ -380,12 +406,7 @@ void main() {
      */
     createShader(type, source) {
         // CRITICAL FIX: Check WebGL context state before shader operations
-        if (!this.gl) {
-            console.error('❌ Cannot create shader: WebGL context is null');
-            return null;
-        }
-        
-        if (this.gl.isContextLost()) {
+        if (!this.isContextHealthy()) {
             console.error('❌ Cannot create shader: WebGL context is lost');
             return null;
         }
@@ -428,6 +449,9 @@ void main() {
      * Initialize vertex buffers
      */
     initBuffers() {
+        if (!this.isContextHealthy() || !this.program) {
+            return false;
+        }
         const positions = new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]);
         
         this.buffer = this.gl.createBuffer();
@@ -437,6 +461,7 @@ void main() {
         const positionLocation = this.gl.getAttribLocation(this.program, 'a_position');
         this.gl.enableVertexAttribArray(positionLocation);
         this.gl.vertexAttribPointer(positionLocation, 2, this.gl.FLOAT, false, 0, 0);
+        return true;
     }
     
     /**
@@ -559,18 +584,10 @@ void main() {
      * Render frame
      */
     render() {
-        if (!this.program) {
-            console.error(`❌ FACETED RENDER BLOCKED: No WebGL program! Canvas: ${this.canvas?.id}`);
+        if (!this.isReady()) {
+            console.error(`❌ FACETED RENDER BLOCKED: No healthy WebGL program for ${this.canvas?.id}`);
             if (window.mobileDebug) {
-                window.mobileDebug.log(`❌ ${this.canvas?.id}: No WebGL program compiled`);
-            }
-            return;
-        }
-
-        if (!this.gl) {
-            console.error(`❌ FACETED RENDER BLOCKED: No WebGL context! Canvas: ${this.canvas?.id}`);
-            if (window.mobileDebug) {
-                window.mobileDebug.log(`❌ ${this.canvas?.id}: No WebGL context`);
+                window.mobileDebug.log(`❌ ${this.canvas?.id}: Render blocked (context lost or no program)`);
             }
             return;
         }
@@ -651,6 +668,10 @@ void main() {
             }
         }
     }
+
+    isReady() {
+        return this.isContextHealthy() && Boolean(this.program);
+    }
     
     /**
      * CRITICAL FIX: Reinitialize WebGL program after context recreation
@@ -712,3 +733,6 @@ void main() {
         }
     }
 }
+
+// Legacy compatibility for example pages expecting the older name
+export { IntegratedHolographicVisualizer as FacetedVisualizer };

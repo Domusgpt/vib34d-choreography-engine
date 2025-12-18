@@ -65,10 +65,25 @@ export class QuantumHolographicVisualizer {
             dimension: 3.5,
             rot4dXW: 0.0,
             rot4dYW: 0.0,
-            rot4dZW: 0.0
+            rot4dZW: 0.0,
+            parallaxDepth: 0.0,
+            gridDensityShift: 0.0,
+            shimmer: 0.0,
+            warp: 0.0,
+            haze: 0.0,
+            bloom: 0.0,
+            glow: 0.0,
+            strobe: 0.0,
+            trailPersistence: 0.0,
+            chromaFringe: 0.0,
+            flare: 0.0
         };
-        
+        this.ready = false;
         this.init();
+    }
+
+    isContextHealthy() {
+        return Boolean(this.gl && !this.gl.isContextLost?.());
     }
     
     /**
@@ -164,14 +179,24 @@ export class QuantumHolographicVisualizer {
      * Initialize WebGL rendering pipeline
      */
     init() {
-        this.initShaders();
-        this.initBuffers();
+        if (!this.isContextHealthy()) {
+            return false;
+        }
+
+        const shadersReady = this.initShaders();
+        const buffersReady = shadersReady && this.initBuffers();
+
+        if (!buffersReady) {
+            return false;
+        }
 
         // CRITICAL FIX: Enable alpha blending for transparency
         this.gl.enable(this.gl.BLEND);
         this.gl.blendFunc(this.gl.SRC_ALPHA, this.gl.ONE_MINUS_SRC_ALPHA);
 
         this.resize();
+        this.ready = true;
+        return true;
     }
     
     /**
@@ -192,22 +217,17 @@ export class QuantumHolographicVisualizer {
                   this.canvas.getContext('webgl') ||
                   this.canvas.getContext('experimental-webgl');
         
-        if (!this.gl) {
-            console.error(`❌ No WebGL context available for ${this.canvas.id} - SmartCanvasPool should have created one`);
-            return false;
-        }
-        
-        if (this.gl.isContextLost()) {
+        if (!this.isContextHealthy()) {
             console.error(`❌ WebGL context is lost for ${this.canvas.id}`);
             return false;
         }
         
         // Reinitialize all WebGL resources with the existing context
         try {
-            this.initShaders();
-            this.initBuffers();
-            this.resize();
-            
+            if (!this.init()) {
+                return false;
+            }
+
             console.log(`✅ WebGL context reinitialized for ${this.canvas.id}`);
             return true;
         } catch (error) {
@@ -220,6 +240,9 @@ export class QuantumHolographicVisualizer {
      * Initialize shaders with complex 3D lattice functions and holographic effects
      */
     initShaders() {
+        if (!this.isContextHealthy()) {
+            return false;
+        }
         const vertexShaderSource = `attribute vec2 a_position;
 void main() {
     gl_Position = vec4(a_position, 0.0, 1.0);
@@ -241,6 +264,7 @@ uniform float u_time;
 uniform vec2 u_mouse;
 uniform float u_geometry;
 uniform float u_gridDensity;
+uniform float u_gridShift;
 uniform float u_morphFactor;
 uniform float u_chaos;
 uniform float u_speed;
@@ -251,6 +275,16 @@ uniform float u_dimension;
 uniform float u_rot4dXW;
 uniform float u_rot4dYW;
 uniform float u_rot4dZW;
+uniform float u_parallaxDepth;
+uniform float u_shimmer;
+uniform float u_warp;
+uniform float u_haze;
+uniform float u_bloom;
+uniform float u_glow;
+uniform float u_strobe;
+uniform float u_trail;
+uniform float u_chroma;
+uniform float u_flare;
 uniform float u_mouseIntensity;
 uniform float u_clickIntensity;
 uniform float u_roleIntensity;
@@ -521,10 +555,16 @@ vec3 extremeRGBSeparation(vec3 baseColor, vec2 uv, float intensity, int layerInd
 void main() {
     vec2 uv = (gl_FragCoord.xy - u_resolution.xy * 0.5) / min(u_resolution.x, u_resolution.y);
     
-    // Enhanced 4D position with holographic depth
+    // Enhanced 4D position with holographic depth and warp
     float timeSpeed = u_time * 0.0001 * u_speed;
-    vec4 pos = vec4(uv * 3.0, sin(timeSpeed * 3.0), cos(timeSpeed * 2.0));
+    vec2 trailOffset = vec2(
+        sin(timeSpeed * 5.0 + uv.y * 12.0),
+        cos(timeSpeed * 4.0 + uv.x * 14.0)
+    ) * u_trail * 0.035;
+    vec2 warpedUV = uv + vec2(sin(timeSpeed * 6.0 + uv.y * 8.0), cos(timeSpeed * 4.0 + uv.x * 6.0)) * u_warp * 0.15 + trailOffset;
+    vec4 pos = vec4(warpedUV * (3.0 + u_parallaxDepth * 0.6), sin(timeSpeed * 3.0 + u_parallaxDepth), cos(timeSpeed * 2.0 - u_parallaxDepth * 0.5));
     pos.xy += (u_mouse - 0.5) * u_mouseIntensity * 2.0;
+    pos.z += u_parallaxDepth * 1.5;
     
     // Apply 4D rotations
     pos = rotateXW(u_rot4dXW) * pos;
@@ -532,23 +572,30 @@ void main() {
     pos = rotateZW(u_rot4dZW) * pos;
     
     // Calculate enhanced geometry value
-    float value = geometryFunction(pos);
+    float value = geometryFunction(pos + vec4(u_gridShift * 0.15, u_gridShift * -0.12, u_gridShift * 0.08, 0.0));
     
     // Enhanced chaos with holographic effects
-    float noise = sin(pos.x * 7.0) * cos(pos.y * 11.0) * sin(pos.z * 13.0);
+    float noise = sin(pos.x * 7.0 + u_shimmer * 2.0) * cos(pos.y * 11.0 - u_shimmer * 1.5) * sin(pos.z * 13.0 + u_warp * 1.5);
     value += noise * u_chaos;
-    
+
     // Enhanced intensity calculation with holographic glow
     float geometryIntensity = 1.0 - clamp(abs(value * 0.8), 0.0, 1.0);
     geometryIntensity = pow(geometryIntensity, 1.5); // More dramatic falloff
     geometryIntensity += u_clickIntensity * 0.3;
+    geometryIntensity += u_trail * 0.12;
     
     // Holographic shimmer effect
     float shimmer = sin(uv.x * 20.0 + timeSpeed * 5.0) * cos(uv.y * 15.0 + timeSpeed * 3.0) * 0.1;
-    geometryIntensity += shimmer * geometryIntensity;
-    
+    geometryIntensity += shimmer * geometryIntensity + u_shimmer * 0.3;
+    geometryIntensity += u_glow * 0.2;
+
     // Apply user intensity control
     float finalIntensity = geometryIntensity * u_intensity;
+    finalIntensity += u_strobe * (sin(timeSpeed * 40.0) * 0.25 + 0.25);
+    finalIntensity += u_bloom * 0.15;
+    finalIntensity += u_trail * 0.2;
+    float flarePulse = smoothstep(0.25, 1.0, finalIntensity) * u_flare;
+    finalIntensity += flarePulse * 0.3;
     
     // Old hemispheric color system completely removed - now using extreme layer-by-layer system
     
@@ -563,8 +610,11 @@ void main() {
     // Get layer-specific base color with extreme dynamics
     // Use u_hue as global intensity modifier (0-1) affecting all layers
     float globalIntensity = u_hue; // Now 0-1 from JavaScript
-    float colorTime = timeSpeed * 2.0 + value * 3.0 + globalIntensity * 5.0;
-    vec3 layerColor = getLayerColorPalette(layerIndex, colorTime) * (0.5 + globalIntensity * 1.5);
+    vec2 chromaUV = uv + vec2(sin(timeSpeed * 2.5 + uv.y * 6.0), cos(timeSpeed * 3.0 - uv.x * 5.0)) * u_chroma * 0.02;
+    float colorTime = timeSpeed * 2.0 + value * 3.0 + globalIntensity * 5.0 + chromaUV.x * 6.0 * u_chroma;
+    vec3 layerColor = getLayerColorPalette(layerIndex, colorTime) * (0.5 + globalIntensity * 1.5 + u_chroma * 0.4);
+    layerColor += vec3(u_glow * 0.15 + u_bloom * 0.1);
+    layerColor += vec3(chromaUV.x, -chromaUV.y, chromaUV.x * chromaUV.y) * u_chroma * 0.6;
     
     // Apply geometry-based intensity modulation per layer
     vec3 extremeBaseColor;
@@ -593,7 +643,8 @@ void main() {
     }
     
     // Apply extreme RGB separation per layer
-    vec3 extremeColor = extremeRGBSeparation(extremeBaseColor, uv, finalIntensity, layerIndex);
+    vec3 extremeColor = extremeRGBSeparation(extremeBaseColor, uv + chromaUV * 0.5, finalIntensity + u_chroma * 0.3, layerIndex);
+    extremeColor += vec3(1.25, 0.85, 0.55) * flarePulse * 0.4;
     
     // Layer-specific particle systems with extreme colors
     float extremeParticles = 0.0;
@@ -641,16 +692,21 @@ void main() {
     else if (layerIndex == 3) layerAlpha = 0.8;   // Highlight: High
     else layerAlpha = 0.3;                        // Accent: Subtle bursts
     
-    gl_FragColor = vec4(finalColor, finalIntensity * layerAlpha);
+    vec3 hazeColor = mix(finalColor, vec3(0.85, 0.95, 1.05), clamp(u_haze * 0.7, 0.0, 1.0));
+    gl_FragColor = vec4(hazeColor, finalIntensity * layerAlpha);
 }`;
         
         this.program = this.createProgram(vertexShaderSource, fragmentShaderSource);
+        if (!this.program) {
+            return false;
+        }
         this.uniforms = {
             resolution: this.gl.getUniformLocation(this.program, 'u_resolution'),
             time: this.gl.getUniformLocation(this.program, 'u_time'),
             mouse: this.gl.getUniformLocation(this.program, 'u_mouse'),
             geometry: this.gl.getUniformLocation(this.program, 'u_geometry'),
             gridDensity: this.gl.getUniformLocation(this.program, 'u_gridDensity'),
+            gridShift: this.gl.getUniformLocation(this.program, 'u_gridShift'),
             morphFactor: this.gl.getUniformLocation(this.program, 'u_morphFactor'),
             chaos: this.gl.getUniformLocation(this.program, 'u_chaos'),
             speed: this.gl.getUniformLocation(this.program, 'u_speed'),
@@ -661,16 +717,31 @@ void main() {
             rot4dXW: this.gl.getUniformLocation(this.program, 'u_rot4dXW'),
             rot4dYW: this.gl.getUniformLocation(this.program, 'u_rot4dYW'),
             rot4dZW: this.gl.getUniformLocation(this.program, 'u_rot4dZW'),
+            parallaxDepth: this.gl.getUniformLocation(this.program, 'u_parallaxDepth'),
+            shimmer: this.gl.getUniformLocation(this.program, 'u_shimmer'),
+            warp: this.gl.getUniformLocation(this.program, 'u_warp'),
+            haze: this.gl.getUniformLocation(this.program, 'u_haze'),
+            bloom: this.gl.getUniformLocation(this.program, 'u_bloom'),
+            glow: this.gl.getUniformLocation(this.program, 'u_glow'),
+            strobe: this.gl.getUniformLocation(this.program, 'u_strobe'),
+            trail: this.gl.getUniformLocation(this.program, 'u_trail'),
+            chroma: this.gl.getUniformLocation(this.program, 'u_chroma'),
+            flare: this.gl.getUniformLocation(this.program, 'u_flare'),
             mouseIntensity: this.gl.getUniformLocation(this.program, 'u_mouseIntensity'),
             clickIntensity: this.gl.getUniformLocation(this.program, 'u_clickIntensity'),
             roleIntensity: this.gl.getUniformLocation(this.program, 'u_roleIntensity')
         };
+        return true;
     }
     
     /**
      * Create WebGL program from shaders
      */
     createProgram(vertexSource, fragmentSource) {
+        if (!this.isContextHealthy()) {
+            return null;
+        }
+
         const vertexShader = this.createShader(this.gl.VERTEX_SHADER, vertexSource);
         const fragmentShader = this.createShader(this.gl.FRAGMENT_SHADER, fragmentSource);
         
@@ -679,6 +750,9 @@ void main() {
         }
         
         const program = this.gl.createProgram();
+        if (!program) {
+            return null;
+        }
         this.gl.attachShader(program, vertexShader);
         this.gl.attachShader(program, fragmentShader);
         this.gl.linkProgram(program);
@@ -704,15 +778,7 @@ void main() {
      */
     createShader(type, source) {
         // CRITICAL FIX: Check WebGL context state before shader operations
-        if (!this.gl) {
-            console.error('❌ Cannot create shader: WebGL context is null');
-            if (window.mobileDebug) {
-                window.mobileDebug.log(`❌ ${this.canvas?.id}: Cannot create shader - WebGL context is null`);
-            }
-            return null;
-        }
-        
-        if (this.gl.isContextLost()) {
+        if (!this.isContextHealthy()) {
             console.error('❌ Cannot create shader: WebGL context is lost');
             if (window.mobileDebug) {
                 window.mobileDebug.log(`❌ ${this.canvas?.id}: Cannot create shader - WebGL context is lost`);
@@ -778,8 +844,11 @@ void main() {
      * Initialize vertex buffers
      */
     initBuffers() {
+        if (!this.isContextHealthy() || !this.program) {
+            return false;
+        }
         const positions = new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]);
-        
+
         this.buffer = this.gl.createBuffer();
         this.gl.bindBuffer(this.gl.ARRAY_BUFFER, this.buffer);
         this.gl.bufferData(this.gl.ARRAY_BUFFER, positions, this.gl.STATIC_DRAW);
@@ -787,6 +856,7 @@ void main() {
         const positionLocation = this.gl.getAttribLocation(this.program, 'a_position');
         this.gl.enableVertexAttribArray(positionLocation);
         this.gl.vertexAttribPointer(positionLocation, 2, this.gl.FLOAT, false, 0, 0);
+        return true;
     }
     
     /**
@@ -866,10 +936,10 @@ void main() {
      * Render frame
      */
     render() {
-        if (!this.program) {
-            console.error(`❌ QUANTUM RENDER BLOCKED: No WebGL program! Canvas: ${this.canvas?.id}`);
+        if (!this.isReady()) {
+            console.error(`❌ QUANTUM RENDER BLOCKED: No healthy WebGL program for ${this.canvas?.id}`);
             if (window.mobileDebug && !this._noProgramWarned) {
-                window.mobileDebug.log(`❌ ${this.canvas?.id}: No WebGL program for render`);
+                window.mobileDebug.log(`❌ ${this.canvas?.id}: Render blocked (context lost or no program)`);
                 this._noProgramWarned = true;
             }
             return;
@@ -927,8 +997,9 @@ void main() {
                 console.log(`🌌 Quantum audio reactivity: Density+${(window.audioReactive.bass * 40).toFixed(1)} Morph+${(window.audioReactive.mid * 1.2).toFixed(2)} Hue+${(window.audioReactive.high * 120).toFixed(1)} Chaos+${(window.audioReactive.energy * 0.6).toFixed(2)}`);
             }
         }
-        
+
         this.gl.uniform1f(this.uniforms.gridDensity, Math.min(100, gridDensity));
+        this.gl.uniform1f(this.uniforms.gridShift, this.params.gridDensityShift || 0.0);
         this.gl.uniform1f(this.uniforms.morphFactor, Math.min(2, morphFactor));
         this.gl.uniform1f(this.uniforms.chaos, Math.min(1, chaos));
         this.gl.uniform1f(this.uniforms.speed, this.params.speed);
@@ -940,11 +1011,25 @@ void main() {
         this.gl.uniform1f(this.uniforms.rot4dXW, this.params.rot4dXW);
         this.gl.uniform1f(this.uniforms.rot4dYW, this.params.rot4dYW);
         this.gl.uniform1f(this.uniforms.rot4dZW, this.params.rot4dZW);
+        this.gl.uniform1f(this.uniforms.parallaxDepth, this.params.parallaxDepth || 0.0);
+        this.gl.uniform1f(this.uniforms.shimmer, this.params.shimmer || 0.0);
+        this.gl.uniform1f(this.uniforms.warp, this.params.warp || 0.0);
+        this.gl.uniform1f(this.uniforms.haze, this.params.haze || 0.0);
+        this.gl.uniform1f(this.uniforms.bloom, this.params.bloom || 0.0);
+        this.gl.uniform1f(this.uniforms.glow, this.params.glow || 0.0);
+        this.gl.uniform1f(this.uniforms.strobe, this.params.strobe || 0.0);
+        this.gl.uniform1f(this.uniforms.trail, this.params.trailPersistence || 0.0);
+        this.gl.uniform1f(this.uniforms.chroma, this.params.chromaFringe || 0.0);
+        this.gl.uniform1f(this.uniforms.flare, this.params.flare || 0.0);
         this.gl.uniform1f(this.uniforms.mouseIntensity, this.mouseIntensity);
         this.gl.uniform1f(this.uniforms.clickIntensity, this.clickIntensity);
         this.gl.uniform1f(this.uniforms.roleIntensity, roleIntensities[this.role] || 1.0);
-        
+
         this.gl.drawArrays(this.gl.TRIANGLE_STRIP, 0, 4);
+    }
+
+    isReady() {
+        return this.isContextHealthy() && Boolean(this.program);
     }
     
     // Audio reactivity now handled directly in render() loop - no complex methods needed
@@ -968,3 +1053,6 @@ void main() {
         }
     }
 }
+
+// Legacy compatibility for example pages expecting the older name
+export { QuantumHolographicVisualizer as QuantumVisualizer };
