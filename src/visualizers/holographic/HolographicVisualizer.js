@@ -78,14 +78,22 @@ export class HolographicVisualizer {
         this.audioColorShift = 0.0;
 
         this.startTime = Date.now();
-        this.initShaders();
-        this.initBuffers();
+        this.ready = false;
+        this.ready = this.initShaders() && this.initBuffers();
+
+        if (!this.ready) {
+            return;
+        }
 
         // CRITICAL FIX: Enable alpha blending for transparency
         this.gl.enable(this.gl.BLEND);
         this.gl.blendFunc(this.gl.SRC_ALPHA, this.gl.ONE_MINUS_SRC_ALPHA);
 
         this.resize();
+    }
+
+    isContextHealthy() {
+        return Boolean(this.gl && !this.gl.isContextLost?.());
     }
     
     generateVariantParams(variant) {
@@ -491,6 +499,9 @@ export class HolographicVisualizer {
         `;
         
         this.program = this.createProgram(vertexShaderSource, fragmentShaderSource);
+        if (!this.program) {
+            return false;
+        }
         this.uniforms = {
             resolution: this.gl.getUniformLocation(this.program, 'u_resolution'),
             time: this.gl.getUniformLocation(this.program, 'u_time'),
@@ -524,34 +535,42 @@ export class HolographicVisualizer {
             rot4dYW: this.gl.getUniformLocation(this.program, 'u_rot4dYW'),
             rot4dZW: this.gl.getUniformLocation(this.program, 'u_rot4dZW')
         };
+        return true;
     }
-    
+
     createProgram(vertexSource, fragmentSource) {
+        if (!this.isContextHealthy()) {
+            return null;
+        }
+
         const vertexShader = this.createShader(this.gl.VERTEX_SHADER, vertexSource);
         const fragmentShader = this.createShader(this.gl.FRAGMENT_SHADER, fragmentSource);
-        
+
+        if (!vertexShader || !fragmentShader) {
+            return null;
+        }
+
         const program = this.gl.createProgram();
+        if (!program) {
+            return null;
+        }
         this.gl.attachShader(program, vertexShader);
         this.gl.attachShader(program, fragmentShader);
         this.gl.linkProgram(program);
-        
+
         if (!this.gl.getProgramParameter(program, this.gl.LINK_STATUS)) {
-            throw new Error('Program linking failed: ' + this.gl.getProgramInfoLog(program));
+            console.error('Program linking failed:', this.gl.getProgramInfoLog(program));
+            return null;
         }
-        
+
         return program;
     }
-    
+
     createShader(type, source) {
         // CRITICAL FIX: Check WebGL context state before shader operations
-        if (!this.gl) {
-            console.error('❌ Cannot create shader: WebGL context is null');
-            throw new Error('WebGL context is null');
-        }
-        
-        if (this.gl.isContextLost()) {
+        if (!this.isContextHealthy()) {
             console.error('❌ Cannot create shader: WebGL context is lost');
-            throw new Error('WebGL context is lost');
+            return null;
         }
         
         try {
@@ -587,6 +606,9 @@ export class HolographicVisualizer {
     }
     
     initBuffers() {
+        if (!this.isContextHealthy() || !this.program) {
+            return false;
+        }
         const positions = new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]);
         
         this.buffer = this.gl.createBuffer();
@@ -596,6 +618,7 @@ export class HolographicVisualizer {
         const positionLocation = this.gl.getAttribLocation(this.program, 'a_position');
         this.gl.enableVertexAttribArray(positionLocation);
         this.gl.vertexAttribPointer(positionLocation, 2, this.gl.FLOAT, false, 0, 0);
+        return true;
     }
     
     resize() {
@@ -716,8 +739,8 @@ export class HolographicVisualizer {
     }
     
     render() {
-        if (!this.program) {
-            console.error(`❌ HOLOGRAPHIC RENDER BLOCKED: No WebGL program! Canvas: ${this.canvas?.id}`);
+        if (!this.isReady()) {
+            console.error(`❌ HOLOGRAPHIC RENDER BLOCKED: No healthy WebGL program for ${this.canvas?.id}`);
             return;
         }
 
@@ -824,6 +847,10 @@ export class HolographicVisualizer {
         this.gl.uniform1f(this.uniforms.rot4dZW, this.variantParams.rot4dZW || 0.0);
         
         this.gl.drawArrays(this.gl.TRIANGLE_STRIP, 0, 4);
+    }
+
+    isReady() {
+        return this.isContextHealthy() && Boolean(this.program);
     }
     
     /**
