@@ -59,6 +59,52 @@ python3 -m http.server 8080
 # Open http://localhost:8080/examples/real-visualizers.html
 ```
 
+## 👀 View the latest visuals locally
+
+For the baseline behavior preview with ParameterManager overlays and diagnostics:
+
+```bash
+# Install dependencies (includes Vite and Playwright tooling)
+npm install
+
+# Build and launch the Vite preview server (defaults to port 4173)
+npm run build
+npm run preview -- --host --port 4173
+
+# Open the behavior preview in your browser
+# http://localhost:4173/examples/behavior-preview.html
+
+# (Optional) Fetch Playwright browsers for headless capture (run once)
+npm run setup-tools
+
+# Verify Playwright binaries are installed and reachable (fails fast otherwise)
+npm run verify-tools -- --auto-install
+
+# (Optional) Capture a fresh snapshot with Playwright
+npm run capture-preview
+# Override defaults (host/port/url/output) or auto-install when needed:
+# npm run capture-preview -- --host 0.0.0.0 --port 4174 --out artifacts/behavior-preview.png --install --fail-on-console --fail-on-request
+# Pass --fail-on-console or --fail-on-request to turn console/network noise into hard failures during capture.
+```
+
+See [VIEWING.md](VIEWING.md) for troubleshooting tips and more example URLs.
+
+## 🚢 Deploying to GitHub Pages
+
+- Automated deployments run on pushes to `main` (or via manual dispatch) using `.github/workflows/deploy-pages.yml`.
+- The workflow installs dependencies, verifies Playwright tooling, and builds every HTML entry (root + `examples/*`) with the GitHub Pages base path.
+- Deployed site URL: `https://domusgpt.github.io/vib34d-choreography-engine/` (replace the repo name for forks).
+
+Local GH-Pages-style build preview:
+
+```bash
+npm run build -- --base=/vib34d-choreography-engine/
+npm run preview -- --host --port 4173
+# then open http://localhost:4173/examples/behavior-preview.html
+```
+
+When forking, swap `/vib34d-choreography-engine/` with `/<your-repo-name>/` so assets resolve correctly under your Pages path.
+
 ## 📁 Project Structure
 
 ```

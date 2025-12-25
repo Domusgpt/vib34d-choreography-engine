@@ -1,11 +1,13 @@
 # 🚀 Deployment Information
 
-## Live Demo
+## Live Demo (GitHub Pages)
 
 **GitHub Pages URL**: https://domusgpt.github.io/vib34d-choreography-engine/
 
-The site automatically redirects to the working demo at:
-https://domusgpt.github.io/vib34d-choreography-engine/examples/real-visualizers.html
+The deploy pipeline builds every HTML entry (root + `examples/*`) with the `/vib34d-choreography-engine/` base path and publis
+hes the output via GitHub Pages. Default redirect targets:
+- Root → `examples/INDEX.html`
+- Enhanced controls → `examples/real-visualizers.html`
 
 ## Repository
 
@@ -59,13 +61,16 @@ When you visit the live demo, you can:
 git clone https://github.com/Domusgpt/vib34d-choreography-engine.git
 cd vib34d-choreography-engine
 
-# Serve locally
-npx serve
-# or
-python3 -m http.server 8080
+# Build with GH-Pages base (matches production)
+npm install
+npm run build -- --base=/vib34d-choreography-engine/
+npm run preview -- --host --port 4173
 
-# Open http://localhost:8080/examples/basic-choreography.html
+# Open http://localhost:4173/examples/INDEX.html
 ```
+
+When forking, replace `/vib34d-choreography-engine/` with `/<your-repo-name>/` in the base flag and URLs so assets resolve cor
+rectly under your fork's Pages path.
 
 ## Integration with Real Visualizers
 
