@@ -59,6 +59,59 @@ python3 -m http.server 8080
 # Open http://localhost:8080/examples/real-visualizers.html
 ```
 
+## 👀 View the latest visuals locally
+
+For the baseline behavior preview with ParameterManager overlays and diagnostics:
+
+```bash
+# Install dependencies (includes Vite and Playwright tooling)
+npm install
+
+# Build and launch the Vite preview server (defaults to port 4173)
+npm run build
+npm run preview -- --host --port 4173
+
+# Open the behavior preview in your browser
+# http://localhost:4173/examples/behavior-preview.html
+
+# (Optional) Fetch Playwright browsers for headless capture (run once)
+npm run setup-tools
+
+# Verify Playwright binaries are installed and reachable (fails fast otherwise)
+npm run verify-tools -- --auto-install
+
+# (Optional) Capture a fresh snapshot with Playwright
+npm run capture-preview
+# Override defaults (host/port/url/output) or auto-install when needed:
+# npm run capture-preview -- --host 0.0.0.0 --port 4174 --out artifacts/behavior-preview.png --install --fail-on-console --fail-on-request
+# Pass --fail-on-console or --fail-on-request to turn console/network noise into hard failures during capture.
+```
+
+See [VIEWING.md](VIEWING.md) for troubleshooting tips and more example URLs.
+
+## 🚢 Deploying to GitHub Pages
+
+- Automated deployments run on pushes to `main` **and** `work` (or via manual dispatch) using `.github/workflows/deploy-pages.yml`.
+- The workflow installs dependencies, verifies Playwright tooling, and builds every HTML entry (root + `examples/*`). The base path is derived from the repository name (e.g., `/vib34d-choreography-engine/`).
+- Deployed site URL: `https://<your-org-or-user>.github.io/<your-repo-name>/` (replace with your fork's owner/repo).
+
+GitHub setup checklist:
+
+1) In **Settings → Pages**, choose **GitHub Actions** as the source.
+2) Push to `main` or `work` (or run the workflow manually) to trigger the deployment.
+3) Ensure the repo name matches the expected base path; the workflow automatically sets `BASE_PATH=/<repo-name>/` for the build.
+
+Local GH-Pages-style build preview:
+
+```bash
+# Match the Pages base (set manually or via env var)
+BASE_PATH=/$(basename $(pwd))/ npm run build -- --base=${BASE_PATH}
+npm run preview -- --host --port 4173
+# then open http://localhost:4173/examples/behavior-preview.html
+```
+
+Override the base path when testing a fork by swapping `BASE_PATH` with your repository name so assets resolve correctly.
+
 ## 📁 Project Structure
 
 ```
