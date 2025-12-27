@@ -1,11 +1,12 @@
 # 🚀 Deployment Information
 
-## Live Demo
+## Live Demo (GitHub Pages)
 
 **GitHub Pages URL**: https://domusgpt.github.io/vib34d-choreography-engine/
 
-The site automatically redirects to the working demo at:
-https://domusgpt.github.io/vib34d-choreography-engine/examples/real-visualizers.html
+The deploy pipeline builds every HTML entry (root + `examples/*`) with a base path derived from the repository name (e.g., `/vib34d-choreography-engine/`) and publishes the output via GitHub Pages. Pushes to `main` or `work` automatically trigger the workflow. Default redirect targets:
+- Root → `examples/INDEX.html`
+- Enhanced controls → `examples/real-visualizers.html`
 
 ## Repository
 
@@ -59,13 +60,15 @@ When you visit the live demo, you can:
 git clone https://github.com/Domusgpt/vib34d-choreography-engine.git
 cd vib34d-choreography-engine
 
-# Serve locally
-npx serve
-# or
-python3 -m http.server 8080
+# Build with GH-Pages base (matches production)
+npm install
+BASE_PATH=/$(basename $(pwd))/ npm run build -- --base=${BASE_PATH}
+npm run preview -- --host --port 4173
 
-# Open http://localhost:8080/examples/basic-choreography.html
+# Open http://localhost:4173/examples/INDEX.html
 ```
+
+When forking, replace `/vib34d-choreography-engine/` with `/<your-repo-name>/` (or set `BASE_PATH` accordingly) in the base flag and URLs so assets resolve correctly under your fork's Pages path. Ensure **Settings → Pages** is set to **GitHub Actions** so the workflow can publish, and push to `main` or `work` (or run the workflow manually) to deploy.
 
 ## Integration with Real Visualizers
 
