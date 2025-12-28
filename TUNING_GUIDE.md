@@ -6,6 +6,9 @@ Complete guide to optimizing the choreography engine for your music and visual p
 
 **Best Experience**: Use `enhanced-visualizers.html` - it has real-time sliders for all parameters!
 
+**Baseline-first rule**: Every visual parameter now has a baseline that acts as the source of truth. Audio reactivity only adds a temporary offset around that baseline and decays back to it when envelopes fade. Use the driver mix controls (beat/onset/audio) and silence floor in `behavior-preview.html` to cap how much energy feeds the reactive offsets while keeping baseline values stable in quiet passages.
+Baseline overrides and reactive limits are clamped to each parameter's profile, and the preview overlay shows min/max spans, limits, and resolved values so unsafe ranges are easy to spot.
+
 ### Default Settings (Good for Most Music):
 - **Onset Threshold**: 0.85
 - **Bass Threshold**: 0.83
