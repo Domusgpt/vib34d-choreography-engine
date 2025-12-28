@@ -302,22 +302,30 @@ export class ChoreographyEngine {
      */
     evaluateTrigger(expression, audioData) {
         try {
-            // Simple eval replacement with safe checks
             const bass = audioData.bands?.bass || 0;
             const mid = audioData.bands?.mid || 0;
             const high = audioData.bands?.high || 0;
             const energy = audioData.rms || 0;
             const onset = audioData.onset || 0;
 
-            // Replace variables and evaluate
-            const safeExpr = expression
-                .replace(/bass/g, bass)
-                .replace(/mid/g, mid)
-                .replace(/high/g, high)
-                .replace(/energy/g, energy)
-                .replace(/onset/g, onset);
+            const substituted = expression
+                .replace(/\bbass\b/g, bass)
+                .replace(/\bmid\b/g, mid)
+                .replace(/\bhigh\b/g, high)
+                .replace(/\benergy\b/g, energy)
+                .replace(/\bonset\b/g, onset)
+                .trim();
 
-            return eval(safeExpr);
+            // Only allow arithmetic/boolean tokens after substitution to avoid eval hazards.
+            const SAFE_EXPRESSION = /^[0-9+\-*/%.<>=!&|()?:\s]*$/;
+            if (!SAFE_EXPRESSION.test(substituted)) {
+                console.warn(`⚠️ Rejected unsafe trigger expression: ${expression}`);
+                return false;
+            }
+
+            const evaluator = new Function(`"use strict"; return (${substituted});`);
+            const result = evaluator();
+            return Boolean(result);
         } catch (error) {
             console.error(`❌ Failed to evaluate trigger: ${expression}`, error);
             return false;

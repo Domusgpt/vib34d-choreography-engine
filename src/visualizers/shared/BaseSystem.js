@@ -37,6 +37,10 @@ export class BaseSystem {
         // Audio reactivity settings
         this.audioReactivity = 0.7; // 0-1, how much audio affects parameters
         this.audioEnabled = true;
+
+        // Bound handlers so we can cleanly detach listeners when switching systems
+        this._boundResize = this.resizeCanvas.bind(this);
+        this._interactionHandlers = {};
     }
 
     /**
@@ -80,7 +84,7 @@ export class BaseSystem {
         this.resizeCanvas();
 
         // Listen for resize
-        window.addEventListener('resize', () => this.resizeCanvas());
+        window.addEventListener('resize', this._boundResize);
     }
 
     /**
@@ -114,7 +118,7 @@ export class BaseSystem {
      */
     async setupInteractions() {
         // Default mouse tracking
-        this.canvas.addEventListener('mousemove', (e) => {
+        this._interactionHandlers.mousemove = (e) => {
             const rect = this.canvas.getBoundingClientRect();
             const x = (e.clientX - rect.left) / rect.width;
             const y = (e.clientY - rect.top) / rect.height;
@@ -122,14 +126,16 @@ export class BaseSystem {
             if (this.visualizer && this.visualizer.setMousePosition) {
                 this.visualizer.setMousePosition(x, y);
             }
-        });
+        };
+        this.canvas.addEventListener('mousemove', this._interactionHandlers.mousemove);
 
         // Default click handling
-        this.canvas.addEventListener('click', () => {
+        this._interactionHandlers.click = () => {
             if (this.visualizer && this.visualizer.triggerClick) {
                 this.visualizer.triggerClick();
             }
-        });
+        };
+        this.canvas.addEventListener('click', this._interactionHandlers.click);
     }
 
     /**
@@ -293,7 +299,15 @@ export class BaseSystem {
         }
 
         // Remove event listeners
-        window.removeEventListener('resize', () => this.resizeCanvas());
+        if (this.canvas) {
+            Object.entries(this._interactionHandlers).forEach(([event, handler]) => {
+                if (handler) {
+                    this.canvas.removeEventListener(event, handler);
+                }
+            });
+        }
+        window.removeEventListener('resize', this._boundResize);
+        this._interactionHandlers = {};
 
         this.isInitialized = false;
         console.log(`🗑️ ${this.name} system destroyed`);
