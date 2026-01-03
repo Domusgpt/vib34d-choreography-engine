@@ -17,6 +17,21 @@ export class SystemRegistry {
         this.sharedCanvas = null;
     }
 
+    async resetCanvas(canvasId, delayMs = 30) {
+        const existing = document.getElementById(canvasId);
+        if (!existing || !existing.parentElement) {
+            return existing;
+        }
+
+        const replacement = existing.cloneNode(false);
+        replacement.id = canvasId;
+
+        existing.parentElement.replaceChild(replacement, existing);
+
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+        return replacement;
+    }
+
     /**
      * Register a system
      */
@@ -73,10 +88,16 @@ export class SystemRegistry {
         // Get system info
         const systemInfo = this.systems.get(name);
 
-        // Create new instance
+        // Create new instance with a fresh canvas so we never stack WebGL contexts
+        const targetCanvasId = this.sharedCanvas ? this.sharedCanvas.id : systemInfo.config.canvasId;
+        const freshCanvas = await this.resetCanvas(targetCanvasId, 30);
+        if (freshCanvas) {
+            this.sharedCanvas = freshCanvas;
+        }
+
         const config = {
             ...systemInfo.config,
-            canvasId: this.sharedCanvas ? this.sharedCanvas.id : systemInfo.config.canvasId
+            canvasId: (freshCanvas || this.sharedCanvas || {}).id || systemInfo.config.canvasId
         };
 
         console.log(`🎨 Creating ${name} instance...`);
