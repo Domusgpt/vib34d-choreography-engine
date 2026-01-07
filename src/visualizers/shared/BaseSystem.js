@@ -8,6 +8,8 @@
 
 import { ParameterMapper } from '../../audio/ParameterMapper.js';
 import { ColorSystem } from '../../color/ColorSystem.js';
+import { VisualizerControlBus } from './VisualizerControlBus.js';
+import { CameraLightingSystem } from './CameraLightingSystem.js';
 
 export class BaseSystem {
     constructor(config) {
@@ -23,7 +25,12 @@ export class BaseSystem {
         // Advanced systems
         this.audioAnalyzer = null;
         this.parameterMapper = new ParameterMapper();
+        this.useLegacyParameterMapper = Boolean(config.useLegacyParameterMapper);
         this.colorSystem = new ColorSystem();
+        this.controlBus = new VisualizerControlBus();
+        this.cameraLighting = new CameraLightingSystem();
+
+        this.activeCameraPreset = null;
 
         // State
         this.isInitialized = false;
@@ -37,6 +44,37 @@ export class BaseSystem {
         // Audio reactivity settings
         this.audioReactivity = 0.7; // 0-1, how much audio affects parameters
         this.audioEnabled = true;
+
+        // Macro lifecycle tracking
+        this.activeMacroIds = new Set();
+
+        this._handleWindowMouseUp = null;
+    }
+
+    setCameraPreset(name, overrides = {}) {
+        if (!this.cameraLighting) {
+            return;
+        }
+
+        this.cameraLighting.setPreset(name, overrides);
+        this.activeCameraPreset = name;
+    }
+
+    transitionCameraPreset(name, options = {}) {
+        if (!this.cameraLighting || !name) {
+            return;
+        }
+
+        this.cameraLighting.transitionToPreset(name, options);
+        this.activeCameraPreset = name;
+    }
+
+    getCameraState() {
+        return this.cameraLighting ? this.cameraLighting.getState() : null;
+    }
+
+    getActiveCameraPreset() {
+        return this.activeCameraPreset;
     }
 
     /**
@@ -122,14 +160,53 @@ export class BaseSystem {
             if (this.visualizer && this.visualizer.setMousePosition) {
                 this.visualizer.setMousePosition(x, y);
             }
+
+            if (this.controlBus) {
+                this.controlBus.recordGesture('pointerMove', { x, y });
+            }
         });
 
         // Default click handling
-        this.canvas.addEventListener('click', () => {
+        this.canvas.addEventListener('click', (e) => {
+            const rect = this.canvas.getBoundingClientRect();
+            const x = (e.clientX - rect.left) / rect.width;
+            const y = (e.clientY - rect.top) / rect.height;
+
             if (this.visualizer && this.visualizer.triggerClick) {
                 this.visualizer.triggerClick();
             }
+
+            if (this.controlBus) {
+                this.controlBus.recordGesture('pointerClick', { x, y });
+            }
         });
+
+        this.canvas.addEventListener('mousedown', (e) => {
+            const rect = this.canvas.getBoundingClientRect();
+            const x = (e.clientX - rect.left) / rect.width;
+            const y = (e.clientY - rect.top) / rect.height;
+
+            if (this.controlBus) {
+                this.controlBus.recordGesture('pointerDown', { x, y });
+            }
+        });
+
+        this._handleWindowMouseUp = (e) => {
+            if (!this.canvas) {
+                return;
+            }
+            const rect = this.canvas.getBoundingClientRect();
+            const width = Math.max(rect.width, 1);
+            const height = Math.max(rect.height, 1);
+            const x = (e.clientX - rect.left) / width;
+            const y = (e.clientY - rect.top) / height;
+
+            if (this.controlBus) {
+                this.controlBus.recordGesture('pointerUp', { x, y });
+            }
+        };
+
+        window.addEventListener('mouseup', this._handleWindowMouseUp);
     }
 
     /**
@@ -159,6 +236,10 @@ export class BaseSystem {
         // Update parameter manager
         this.parameters.setParameter(name, value);
 
+        if (this.controlBus) {
+            this.controlBus.setBaseValue(name, value);
+        }
+
         // Update visualizer if it has the method
         if (this.visualizer && this.visualizer.updateParameter) {
             this.visualizer.updateParameter(name, value);
@@ -178,7 +259,138 @@ export class BaseSystem {
      * Get current parameter values
      */
     getParameters() {
-        return this.parameters ? this.parameters.getAllParameters() : {};
+        const base = this.parameters ? this.parameters.getAllParameters() : {};
+        if (this.controlBus) {
+            return this.controlBus.getSnapshot(base);
+        }
+        return base;
+    }
+
+    /**
+     * Prepare a snapshot of parameters with control bus modulation applied.
+     */
+    prepareControlParameters(deltaTime, overrides = {}, audioData = null) {
+        const base = this.parameters ? this.parameters.getAllParameters() : {};
+        const merged = {
+            ...base,
+            ...this.userParameters,
+            ...overrides
+        };
+
+        if (!this.controlBus) {
+            return merged;
+        }
+
+        return this.controlBus.update(deltaTime, {
+            baseParameters: merged,
+            audioData
+        });
+    }
+
+    /**
+     * Macro recording helpers wired into the shared control bus.
+     */
+    startMacroRecording(name, options = {}) {
+        if (!this.controlBus) {
+            return;
+        }
+        this.controlBus.startMacroRecording(name, options);
+    }
+
+    stopMacroRecording() {
+        if (!this.controlBus) {
+            return null;
+        }
+        return this.controlBus.stopMacroRecording();
+    }
+
+    playMacro(name, options = {}) {
+        if (!this.controlBus) {
+            return null;
+        }
+
+        const mergedOptions = {
+            onGesture: (event) => this.applyMacroGesture(event),
+            ...options
+        };
+
+        const id = this.controlBus.playMacro(name, mergedOptions);
+        if (id) {
+            this.activeMacroIds.add(id);
+        }
+        return id;
+    }
+
+    stopMacro(idOrName) {
+        if (!this.controlBus) {
+            return;
+        }
+        this.controlBus.stopMacro(idOrName);
+        if (idOrName && typeof idOrName !== 'string') {
+            this.activeMacroIds.delete(idOrName);
+        }
+    }
+
+    stopAllMacros() {
+        if (!this.controlBus) {
+            return;
+        }
+        this.activeMacroIds.forEach((id) => this.controlBus.stopMacro(id));
+        this.activeMacroIds.clear();
+    }
+
+    exportMacro(name) {
+        if (!this.controlBus) {
+            return null;
+        }
+        return this.controlBus.exportMacro(name);
+    }
+
+    importMacro(macro) {
+        if (!this.controlBus) {
+            return null;
+        }
+        return this.controlBus.importMacro(macro);
+    }
+
+    applyMacroGesture(event) {
+        if (!event || !this.visualizer) {
+            return;
+        }
+
+        switch (event.type) {
+            case 'pointerMove':
+                if (this.visualizer.setPointer) {
+                    this.visualizer.setPointer(event.payload?.x ?? 0.5, event.payload?.y ?? 0.5);
+                }
+                if (this.visualizer.setMousePosition) {
+                    this.visualizer.setMousePosition(event.payload?.x ?? 0.5, event.payload?.y ?? 0.5);
+                }
+                break;
+            case 'pointerDown':
+                if (this.visualizer.setPointer) {
+                    this.visualizer.setPointer(event.payload?.x ?? 0.5, event.payload?.y ?? 0.5);
+                }
+                if (this.visualizer.setMousePosition) {
+                    this.visualizer.setMousePosition(event.payload?.x ?? 0.5, event.payload?.y ?? 0.5);
+                }
+                if (this.visualizer.triggerPointerDown) {
+                    this.visualizer.triggerPointerDown(event.payload);
+                }
+                break;
+            case 'pointerUp':
+                if (this.visualizer.triggerPointerUp) {
+                    this.visualizer.triggerPointerUp(event.payload);
+                }
+                break;
+            case 'pointerClick':
+                if (this.visualizer.triggerClick) {
+                    this.visualizer.triggerClick(event.payload);
+                }
+                break;
+            default:
+                break;
+        }
     }
 
     /**
@@ -229,16 +441,19 @@ export class BaseSystem {
                 audioData = this.audioAnalyzer.analyze();
             }
 
-            // Map audio to parameters
+            const hasControlBusChannels = Boolean(this.controlBus?.channels?.size);
+            const shouldApplyLegacyMapper = this.useLegacyParameterMapper || !hasControlBusChannels;
+
+            // Map audio to parameters (legacy mapper only when explicitly enabled)
             let mappedParams = {};
-            if (audioData && this.audioEnabled) {
+            if (shouldApplyLegacyMapper && audioData && this.audioEnabled) {
                 mappedParams = this.parameterMapper.map(audioData, this.userParameters);
             }
 
             // Merge user parameters with audio-mapped parameters
             const finalParams = { ...this.userParameters };
 
-            if (this.audioEnabled && this.audioReactivity > 0) {
+            if (shouldApplyLegacyMapper && this.audioEnabled && this.audioReactivity > 0) {
                 for (const [key, value] of Object.entries(mappedParams)) {
                     if (finalParams[key] !== undefined) {
                         // Mix user value with audio value
@@ -250,8 +465,8 @@ export class BaseSystem {
                 }
             }
 
-            // Update color system
-            this.colorSystem.update(deltaTime);
+            // Update color system with current audio context so palettes can react
+            this.colorSystem.update(deltaTime, audioData);
 
             // Update visualizer (implemented by subclass)
             this.update(deltaTime, finalParams, audioData);
@@ -294,6 +509,12 @@ export class BaseSystem {
 
         // Remove event listeners
         window.removeEventListener('resize', () => this.resizeCanvas());
+        if (this._handleWindowMouseUp) {
+            window.removeEventListener('mouseup', this._handleWindowMouseUp);
+            this._handleWindowMouseUp = null;
+        }
+
+        this.stopAllMacros();
 
         this.isInitialized = false;
         console.log(`🗑️ ${this.name} system destroyed`);
